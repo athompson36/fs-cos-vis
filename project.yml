@@ -1,0 +1,60 @@
+name: CosmicVisualizer
+options:
+  bundleIdPrefix: com.cosmicvisualizer
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    DEVELOPMENT_TEAM: ""
+packages:
+  FlyingFox:
+    url: https://github.com/swhitty/FlyingFox
+    exactVersion: 0.26.2
+targets:
+  CosmicVisualizer:
+    type: application
+    platform: macOS
+    sources:
+      - path: CosmicVisualizer/CosmicVisualizer
+        excludes:
+          - "**/*.md"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.cosmicvisualizer.app
+        PRODUCT_NAME: CosmicVisualizer
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: Cosmic Visualizer analyzes live audio to drive visuals.
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: Cosmic Visualizer can expose an optional LAN control server when you enable it in settings.
+        INFOPLIST_KEY_NSHumanReadableCopyright: ""
+        ENABLE_HARDENED_RUNTIME: YES
+        COMBINE_HIDPI_IMAGES: YES
+    dependencies:
+      - package: FlyingFox
+        product: FlyingFox
+
+  CosmicVisualizerTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: CosmicVisualizer/CosmicVisualizerTests
+    dependencies:
+      - target: CosmicVisualizer
+    settings:
+      base:
+        SWIFT_VERSION: "6.0"
+        PRODUCT_BUNDLE_IDENTIFIER: com.cosmicvisualizer.tests
+        PRODUCT_NAME: CosmicVisualizerTests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  CosmicVisualizer:
+    build:
+      targets:
+        CosmicVisualizer: all
+        CosmicVisualizerTests: [test]
+    test:
+      targets:
+        - name: CosmicVisualizerTests
