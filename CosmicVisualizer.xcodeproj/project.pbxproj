@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0041F7AF4369729C5CC3A22F /* index.html in Resources */ = {isa = PBXBuildFile; fileRef = 00D7DA2B97A120C4308D92BE /* index.html */; };
+		033FB114AC40E21EFDF6A995 /* OverlayImageProcessing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DC42EB044BD47F61B30AA6B /* OverlayImageProcessing.swift */; };
 		061402D1CE67C1F50AD276CD /* OverlayBlendMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0D1A3EEB6D80129511ED5C /* OverlayBlendMode.swift */; };
 		0A69B9A75B23391570FDBD97 /* CosmicVisualizerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC421EE87154BE8A1C3C3470 /* CosmicVisualizerApp.swift */; };
 		0CEA6F2901B6D8C34EAC9446 /* MIDIControlService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD35D192C412115E768ED127 /* MIDIControlService.swift */; };
@@ -46,6 +47,7 @@
 		9A19FD3AFD134D369BAB50BC /* app.js in Resources */ = {isa = PBXBuildFile; fileRef = 0824C4341217DDCEE966F864 /* app.js */; };
 		9D0797D225A5B1ABFB4F91F6 /* CompositeRendererTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDF5B07E9581ECA4B6F9DDE6 /* CompositeRendererTests.swift */; };
 		A20F9B1411E4F0454D1D5F69 /* TransitionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1471496DF5C1A809973A3CC6 /* TransitionState.swift */; };
+		A4ABB482B42DB68890F91591 /* SceneCueStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A228317E0E0E3CBABC630F9 /* SceneCueStripView.swift */; };
 		B120C6B5B3BE306D8DDAC67C /* ControlBusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F8F27850520A35785F34A01 /* ControlBusTests.swift */; };
 		B2A06E0FEC17DAE0F13C331A /* WebAPIRequestBodies.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6412F84A966B3621CAE46B0 /* WebAPIRequestBodies.swift */; };
 		B48C423B80D4695EA674D301 /* CosmicVisualizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4825F18C088C1C5F68445649 /* CosmicVisualizerTests.swift */; };
@@ -77,6 +79,7 @@
 		F918F52B7EDC3D0A7C0255D0 /* ThemeBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D8C7BDFAA8B12877FA17E52 /* ThemeBootstrap.swift */; };
 		FC28692FB46D71031BAA1A22 /* TempoClockService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B06DE8BCD4FE7A56F61412F /* TempoClockService.swift */; };
 		FD5FB090559CAA7C941E6405 /* SceneBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = B694DD79C6A0E95F9D605748 /* SceneBootstrap.swift */; };
+		FE19173EACFDD5BF567A7F7E /* LivePreviewWithOverlayInteraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B210BC82572FE24FDF616DE /* LivePreviewWithOverlayInteraction.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -97,6 +100,7 @@
 		114058FA42211AA112B4F865 /* PaletteColorConversion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaletteColorConversion.swift; sourceTree = "<group>"; };
 		1471496DF5C1A809973A3CC6 /* TransitionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransitionState.swift; sourceTree = "<group>"; };
 		15C3DD8BCCD8157633230DA0 /* WebControlStateDTO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebControlStateDTO.swift; sourceTree = "<group>"; };
+		1B210BC82572FE24FDF616DE /* LivePreviewWithOverlayInteraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivePreviewWithOverlayInteraction.swift; sourceTree = "<group>"; };
 		1D4517D8B330212F86F6121D /* CaptureSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureSession.swift; sourceTree = "<group>"; };
 		1F3A394FC2F74F601C47E012 /* SceneEditState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneEditState.swift; sourceTree = "<group>"; };
 		23B6B7A658D31E80CD789BEF /* ControlBus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlBus.swift; sourceTree = "<group>"; };
@@ -106,11 +110,13 @@
 		359A53FDBEF3126B3549A7DE /* AudioEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEngine.swift; sourceTree = "<group>"; };
 		36854756015A285856196285 /* ExternalDisplayRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExternalDisplayRouterTests.swift; sourceTree = "<group>"; };
 		3DAF900F6416B7D534DF1844 /* PaletteLibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaletteLibraryStore.swift; sourceTree = "<group>"; };
+		3DC42EB044BD47F61B30AA6B /* OverlayImageProcessing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayImageProcessing.swift; sourceTree = "<group>"; };
 		42D7A9A8371AC415E534C0C0 /* CompositePass.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = CompositePass.metal; sourceTree = "<group>"; };
 		4373AB872EB4F86B83755C69 /* RemoteControlSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteControlSettings.swift; sourceTree = "<group>"; };
 		45CA5F2DEF1EAA4B84539092 /* ControlSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlSchema.swift; sourceTree = "<group>"; };
 		4825F18C088C1C5F68445649 /* CosmicVisualizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CosmicVisualizerTests.swift; sourceTree = "<group>"; };
 		4999D20116DFD387C63E1769 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		4A228317E0E0E3CBABC630F9 /* SceneCueStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneCueStripView.swift; sourceTree = "<group>"; };
 		4E56C6BC574E8F2D1AE340B4 /* OverlayAsset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayAsset.swift; sourceTree = "<group>"; };
 		51176DAA52F0E108B59FAE99 /* AudioFeatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFeatures.swift; sourceTree = "<group>"; };
 		52EDBCEBB6739A20787A6BB2 /* SceneControlStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneControlStoreTests.swift; sourceTree = "<group>"; };
@@ -265,7 +271,9 @@
 			children = (
 				4999D20116DFD387C63E1769 /* AppModel.swift */,
 				DC421EE87154BE8A1C3C3470 /* CosmicVisualizerApp.swift */,
+				1B210BC82572FE24FDF616DE /* LivePreviewWithOverlayInteraction.swift */,
 				F720E66AE35028033360EB30 /* RootView.swift */,
+				4A228317E0E0E3CBABC630F9 /* SceneCueStripView.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -301,6 +309,7 @@
 			children = (
 				4E56C6BC574E8F2D1AE340B4 /* OverlayAsset.swift */,
 				9A0D1A3EEB6D80129511ED5C /* OverlayBlendMode.swift */,
+				3DC42EB044BD47F61B30AA6B /* OverlayImageProcessing.swift */,
 				D77BC142F183F0973DE1DCEC /* OverlayLibraryStore.swift */,
 			);
 			path = Overlays;
@@ -542,12 +551,14 @@
 				BBB76F5C3ACCB872F65B3C81 /* FractalRenderer.swift in Sources */,
 				CDC8EB06648881B2E26045AD /* LiquidLightPass.metal in Sources */,
 				93F2B69A01C9DABCD8E3A20F /* LiquidLightRenderer.swift in Sources */,
+				FE19173EACFDD5BF567A7F7E /* LivePreviewWithOverlayInteraction.swift in Sources */,
 				0CEA6F2901B6D8C34EAC9446 /* MIDIControlService.swift in Sources */,
 				E52C10A617B0ECAF08E6913A /* MIDIMapping.swift in Sources */,
 				391B4835761062318FC0C75A /* MIDIMappingStore.swift in Sources */,
 				9A1142E280E831C1EDA8F537 /* OpenDMXUSBWriter.swift in Sources */,
 				E8903A10BD146343F792A56F /* OverlayAsset.swift in Sources */,
 				061402D1CE67C1F50AD276CD /* OverlayBlendMode.swift in Sources */,
+				033FB114AC40E21EFDF6A995 /* OverlayImageProcessing.swift in Sources */,
 				E8527169F6A3D0BD7058ED00 /* OverlayLibraryStore.swift in Sources */,
 				8DA49E218EF8C749B3F5DAB7 /* PaletteColorConversion.swift in Sources */,
 				DA4742CF4015E3A3A6AE124C /* PaletteLibraryStore.swift in Sources */,
@@ -557,6 +568,7 @@
 				2AF69A1199E9B83CB04C2050 /* RootView.swift in Sources */,
 				FD5FB090559CAA7C941E6405 /* SceneBootstrap.swift in Sources */,
 				1E20AC74006D449082E23184 /* SceneControlStore.swift in Sources */,
+				A4ABB482B42DB68890F91591 /* SceneCueStripView.swift in Sources */,
 				F8CFC07AA52C560EFF012FCE /* SceneEditState.swift in Sources */,
 				354A846FF3FDF1BC22A14521 /* SceneLibraryStore.swift in Sources */,
 				5D2D943A583B315A45E3ADB4 /* SceneManager.swift in Sources */,

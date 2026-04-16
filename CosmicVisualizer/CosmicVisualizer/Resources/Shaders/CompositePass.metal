@@ -30,7 +30,15 @@ fragment float4 compositeFragment(VertexOut in [[stage_in]],
     float3 outRgb = mix(screen, add, blend * (0.55f + 0.45f * u.audioLevel));
     outRgb += float3(0.02f, 0.01f, 0.04f) * u.beatPulse;
 
-    float4 O = overlayTex.sample(s, uv);
+    float ox = u.overlayRectMinX;
+    float oy = u.overlayRectMinY;
+    float ow = max(u.overlayRectW, 1e-4f);
+    float oh = max(u.overlayRectH, 1e-4f);
+    float2 local = (uv - float2(ox, oy)) / float2(ow, oh);
+    bool inLogo = (local.x >= 0.0f) && (local.x <= 1.0f) && (local.y >= 0.0f) && (local.y <= 1.0f);
+    // PNG rows vs Metal: flip V inside the logo quad so imports match matte exports.
+    float2 texSt = float2(local.x, 1.0f - local.y);
+    float4 O = inLogo ? overlayTex.sample(s, texSt) : float4(0.0f);
     float fusion = clamp(u.overlayFractalFusion, 0.0f, 1.0f);
     float op = clamp(u.overlayOpacity, 0.0f, 1.0f);
     float fractalSig = saturate(dot(F.rgb, float3(0.33f, 0.45f, 0.22f)) * 1.35f);

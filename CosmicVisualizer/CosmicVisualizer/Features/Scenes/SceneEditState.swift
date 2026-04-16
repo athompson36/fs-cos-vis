@@ -13,6 +13,11 @@ struct SceneEditState: Codable, Equatable, Hashable {
         var fractalAppearance: Float = 0
         /// How strongly overlay alpha follows fractal / liquid structure (seamless dissolve).
         var overlayFractalFusion: Float = 0.45
+        /// Normalized overlay quad (bottom-left origin, y up): min X, min Y, width, height in 0…1.
+        var overlayRectMinX: Float = 0
+        var overlayRectMinY: Float = 0
+        var overlayRectWidth: Float = 1
+        var overlayRectHeight: Float = 1
 
         enum CodingKeys: String, CodingKey {
             case fractalZoom
@@ -22,6 +27,10 @@ struct SceneEditState: Codable, Equatable, Hashable {
             case liquidFocus
             case fractalAppearance
             case overlayFractalFusion
+            case overlayRectMinX
+            case overlayRectMinY
+            case overlayRectWidth
+            case overlayRectHeight
         }
 
         init(
@@ -31,7 +40,11 @@ struct SceneEditState: Codable, Equatable, Hashable {
             compositeBlend: Float = 0.65,
             liquidFocus: Float = 0.78,
             fractalAppearance: Float = 0,
-            overlayFractalFusion: Float = 0.45
+            overlayFractalFusion: Float = 0.45,
+            overlayRectMinX: Float = 0,
+            overlayRectMinY: Float = 0,
+            overlayRectWidth: Float = 1,
+            overlayRectHeight: Float = 1
         ) {
             self.fractalZoom = fractalZoom
             self.fractalColorSpeed = fractalColorSpeed
@@ -40,6 +53,10 @@ struct SceneEditState: Codable, Equatable, Hashable {
             self.liquidFocus = liquidFocus
             self.fractalAppearance = fractalAppearance
             self.overlayFractalFusion = overlayFractalFusion
+            self.overlayRectMinX = overlayRectMinX
+            self.overlayRectMinY = overlayRectMinY
+            self.overlayRectWidth = overlayRectWidth
+            self.overlayRectHeight = overlayRectHeight
         }
 
         init(from decoder: Decoder) throws {
@@ -51,6 +68,10 @@ struct SceneEditState: Codable, Equatable, Hashable {
             liquidFocus = try c.decodeIfPresent(Float.self, forKey: .liquidFocus) ?? 0.78
             fractalAppearance = try c.decodeIfPresent(Float.self, forKey: .fractalAppearance) ?? 0
             overlayFractalFusion = try c.decodeIfPresent(Float.self, forKey: .overlayFractalFusion) ?? 0.45
+            overlayRectMinX = try c.decodeIfPresent(Float.self, forKey: .overlayRectMinX) ?? 0
+            overlayRectMinY = try c.decodeIfPresent(Float.self, forKey: .overlayRectMinY) ?? 0
+            overlayRectWidth = try c.decodeIfPresent(Float.self, forKey: .overlayRectWidth) ?? 1
+            overlayRectHeight = try c.decodeIfPresent(Float.self, forKey: .overlayRectHeight) ?? 1
         }
 
         func encode(to encoder: Encoder) throws {
@@ -62,6 +83,10 @@ struct SceneEditState: Codable, Equatable, Hashable {
             try c.encode(liquidFocus, forKey: .liquidFocus)
             try c.encode(fractalAppearance, forKey: .fractalAppearance)
             try c.encode(overlayFractalFusion, forKey: .overlayFractalFusion)
+            try c.encode(overlayRectMinX, forKey: .overlayRectMinX)
+            try c.encode(overlayRectMinY, forKey: .overlayRectMinY)
+            try c.encode(overlayRectWidth, forKey: .overlayRectWidth)
+            try c.encode(overlayRectHeight, forKey: .overlayRectHeight)
         }
     }
 

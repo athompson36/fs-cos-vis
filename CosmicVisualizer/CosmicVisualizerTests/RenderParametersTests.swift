@@ -55,4 +55,14 @@ final class RenderParametersTests: XCTestCase {
         XCTAssertEqual(u.overlayFractalFusion, 0.7, accuracy: 0.001)
         XCTAssertEqual(u.overlayOpacity, 0.5, accuracy: 0.001)
     }
+
+    func testUniforms_overlayRect_passedThrough() {
+        var p = RenderParameters()
+        p.overlayRectNorm = SIMD4(0.1, 0.2, 0.5, 0.4)
+        let u = p.uniforms(drawableSize: CGSize(width: 100, height: 100))
+        XCTAssertEqual(u.overlayRectMinX, 0.1, accuracy: 0.001)
+        XCTAssertEqual(u.overlayRectMinY, 0.2, accuracy: 0.001)
+        XCTAssertEqual(u.overlayRectW, 0.5, accuracy: 0.001)
+        XCTAssertEqual(u.overlayRectH, 0.4, accuracy: 0.001)
+    }
 }

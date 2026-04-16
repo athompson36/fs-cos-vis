@@ -23,6 +23,10 @@ typedef struct {
     float fractalAppearance;        // 0 = palette gradient, 1 = dark cosmic + neon wireframe
     float overlayFractalFusion;       // 0 = logo as imported, 1 = dissolve into fractal structure
     float overlayOpacity;
+    float overlayRectMinX;
+    float overlayRectMinY;
+    float overlayRectW;
+    float overlayRectH;               // normalized quad, bottom-left origin, y up
 } CosmicUniforms;
 
 #endif

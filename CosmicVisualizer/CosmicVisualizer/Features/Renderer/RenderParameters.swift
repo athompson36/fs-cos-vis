@@ -22,6 +22,10 @@ struct CosmicUniforms {
     var fractalAppearance: Float
     var overlayFractalFusion: Float
     var overlayOpacity: Float
+    var overlayRectMinX: Float
+    var overlayRectMinY: Float
+    var overlayRectW: Float
+    var overlayRectH: Float
 }
 
 /// Authoring-time render controls from scenes and audio (Swift-only).
@@ -47,6 +51,8 @@ struct RenderParameters {
     /// 0 = overlay reads as a flat layer; 1 = logo alpha is carved by fractal luminance (seamless dissolve).
     var overlayFractalFusion: Float = 0.4
     var overlayOpacity: Float = 1
+    /// Bottom-left origin, y up; default full frame.
+    var overlayRectNorm: SIMD4<Float> = SIMD4(0, 0, 1, 1)
     var palettePrimary: SIMD4<Float> = SIMD4(0.04, 0.01, 0.09, 0)
     var paletteSecondary: SIMD4<Float> = SIMD4(0.1, 0.04, 0.2, 0)
     var paletteAccent: SIMD4<Float> = SIMD4(0, 0.9, 1, 0)
@@ -72,7 +78,11 @@ struct RenderParameters {
             liquidFocus: liquidFocus,
             fractalAppearance: fractalAppearance,
             overlayFractalFusion: overlayFractalFusion,
-            overlayOpacity: overlayOpacity
+            overlayOpacity: overlayOpacity,
+            overlayRectMinX: overlayRectNorm.x,
+            overlayRectMinY: overlayRectNorm.y,
+            overlayRectW: overlayRectNorm.z,
+            overlayRectH: overlayRectNorm.w
         )
     }
 }

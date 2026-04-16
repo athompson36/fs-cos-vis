@@ -5,6 +5,7 @@ import Foundation
 import MetalKit
 import simd
 import SwiftUI
+import UniformTypeIdentifiers
 
 final class AppModel: ObservableObject, @unchecked Sendable {
     let sceneManager = SceneManager()
@@ -35,6 +36,8 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     @Published var selectedPaletteID: UUID?
     @Published var performanceMode = false
     @Published var overlayEnabled = false
+    /// When true, drag / pinch on the main preview adjusts logo placement (main window only).
+    @Published var overlayPlacementInteractionEnabled = false
     @Published var audioError: String?
 
     @Published var remoteSettings: RemoteControlSettings = RemoteControlSettingsStore.load() {
@@ -45,6 +48,10 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     }
 
     @Published private(set) var sceneEditStates: [UUID: SceneEditState] = [:]
+
+    /// Live Metal previews for the main-window scene cue strip (not used on external projection).
+    @Published private(set) var scenePreviewRenderers: [UUID: CompositeRenderer] = [:]
+    private var overlayTextureCache: [String: MTLTexture] = [:]
 
     lazy var commandHub: ControlCommandHub = ControlCommandHub(model: self)
 
@@ -87,6 +94,21 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         wireRendererFrameLoop(metalRenderer)
         webControl.bind(appModel: self)
         refreshAuxiliaryServices()
+        refreshScenePreviewPool()
+
+        sceneManager.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+
+        sceneManager.$scenes
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.refreshScenePreviewPool()
+            }
+            .store(in: &cancellables)
 
         audioEngine.$features
             .receive(on: DispatchQueue.main)
@@ -493,10 +515,17 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         try? persistScenes()
     }
 
+    /// Only the **main** window’s renderer should drive tempo + cue-strip sync; external projection uses its own `CompositeRenderer` without this callback.
     private func wireRendererFrameLoop(_ renderer: CompositeRenderer?) {
         renderer?.onFrame = { [weak self] dt in
-            self?.tickTempoAndBeatPulse(deltaTime: dt)
+            guard let self else { return }
+            self.tickTempoAndBeatPulse(deltaTime: dt)
+            self.syncScenePreviewRenderers()
         }
+    }
+
+    private func clearRendererFrameLoop(_ renderer: CompositeRenderer?) {
+        renderer?.onFrame = nil
     }
 
     private func tickTempoAndBeatPulse(deltaTime: TimeInterval) {
@@ -581,6 +610,25 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         guard sceneManager.scenes.indices.contains(sceneManager.currentIndex) else { return }
         let scene = sceneManager.scenes[sceneManager.currentIndex]
         selectedSceneID = scene.id
+        updateAllVisualizationRenderers { p in
+            applySceneVisualState(scene: scene, to: &p)
+        }
+        syncOverlayGPUResources()
+    }
+
+    /// Full parameters for a scene using current live audio/beat state (used for cue-strip previews).
+    private func makeRenderParameters(for scene: VisualizationScene) -> RenderParameters {
+        var p = RenderParameters()
+        let conf = Float(audioEngine.features.beatConfidence)
+        p.audioLevel = min(1, audioEngine.features.rms * 4)
+        p.bpm = Float(tempoClock.effectiveBPM)
+        p.beatConfidence = conf
+        p.beatPulse = tempoClock.shaderBeatPulse(audioConfidence: conf)
+        applySceneVisualState(scene: scene, to: &p)
+        return p
+    }
+
+    private func applySceneVisualState(scene: VisualizationScene, to p: inout RenderParameters) {
         let edit = sceneEditStates[scene.id] ?? SceneEditState()
         let pal = effectivePalette(for: scene)
         let colors = pal.map { PaletteColorConversion.simdColors(from: $0) }
@@ -603,29 +651,73 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             else { return 0 }
             return asset.opacity
         }()
-        updateAllVisualizationRenderers { p in
-            p.liquidLightEnabled = scene.liquidLightEnabled
-            p.liquidMix = scene.liquidLightEnabled ? 1 : 0
-            if scene.name.contains("Liquid Only") {
-                p.fractalMix = 0.12
-            } else {
-                p.fractalMix = 1
-            }
-            let mode = scene.fractalMode.lowercased()
-            p.fractalKind = mode.contains("mandel") ? 1 : 0
-            p.fractalZoom = edit.layer.fractalZoom
-            p.liquidTurbulence = edit.layer.liquidTurbulence
-            p.compositeBlend = edit.layer.compositeBlend
-            p.liquidFocus = edit.layer.liquidFocus
-            p.fractalAppearance = edit.layer.fractalAppearance
-            p.overlayFractalFusion = edit.layer.overlayFractalFusion
-            p.overlayOpacity = overlayOpacity
-            p.palettePrimary = c0
-            p.paletteSecondary = c1
-            p.paletteAccent = c2
-            p.paletteGlow = c3
+        p.liquidLightEnabled = scene.liquidLightEnabled
+        p.liquidMix = scene.liquidLightEnabled ? 1 : 0
+        if scene.name.contains("Liquid Only") {
+            p.fractalMix = 0.12
+        } else {
+            p.fractalMix = 1
         }
-        syncOverlayGPUResources()
+        let mode = scene.fractalMode.lowercased()
+        p.fractalKind = mode.contains("mandel") ? 1 : 0
+        p.fractalZoom = edit.layer.fractalZoom
+        p.liquidTurbulence = edit.layer.liquidTurbulence
+        p.compositeBlend = edit.layer.compositeBlend
+        p.liquidFocus = edit.layer.liquidFocus
+        p.fractalAppearance = edit.layer.fractalAppearance
+        p.overlayFractalFusion = edit.layer.overlayFractalFusion
+        p.overlayOpacity = overlayOpacity
+        let l = edit.layer
+        let rect = Self.clampedOverlayRect(
+            SIMD4(l.overlayRectMinX, l.overlayRectMinY, l.overlayRectWidth, l.overlayRectHeight)
+        )
+        p.overlayRectNorm = rect
+        p.palettePrimary = c0
+        p.paletteSecondary = c1
+        p.paletteAccent = c2
+        p.paletteGlow = c3
+    }
+
+    func refreshScenePreviewPool() {
+        guard metalRenderer != nil else {
+            scenePreviewRenderers = [:]
+            return
+        }
+        var next = scenePreviewRenderers
+        let active = Set(sceneManager.scenes.map(\.id))
+        for id in next.keys where !active.contains(id) {
+            next.removeValue(forKey: id)
+        }
+        for scene in sceneManager.scenes where next[scene.id] == nil {
+            if let r = CompositeRenderer.create() {
+                next[scene.id] = r
+            }
+        }
+        scenePreviewRenderers = next
+    }
+
+    private func syncScenePreviewRenderers() {
+        guard !scenePreviewRenderers.isEmpty else { return }
+        for scene in sceneManager.scenes {
+            guard let r = scenePreviewRenderers[scene.id] else { continue }
+            r.parameters = makeRenderParameters(for: scene)
+            if overlayEnabled,
+               let oid = scene.overlayIDs.first,
+               let asset = overlays.first(where: { $0.id == oid }) {
+                r.overlayTexture = cachedOverlayTexture(filePath: asset.filePath, device: r.device)
+            } else {
+                r.overlayTexture = nil
+            }
+        }
+    }
+
+    private func cachedOverlayTexture(filePath: String, device: MTLDevice) -> MTLTexture? {
+        if let t = overlayTextureCache[filePath] { return t }
+        let url = URL(fileURLWithPath: filePath)
+        let loader = MTKTextureLoader(device: device)
+        guard let tex = try? loader.newTexture(URL: url, options: [.SRGB: false]) else { return nil }
+        overlayTextureCache[filePath] = tex
+        return tex
     }
 
     private func effectivePalette(for scene: VisualizationScene) -> ThemePalette? {
@@ -697,6 +789,64 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         externalOutputRenderer?.updateParameters(update)
     }
 
+    private static func clampedOverlayRect(_ r: SIMD4<Float>) -> SIMD4<Float> {
+        let minSide: Float = 0.05
+        let w = min(max(r.z, minSide), 1)
+        let h = min(max(r.w, minSide), 1)
+        let x = min(max(r.x, 0), 1 - w)
+        let y = min(max(r.y, 0), 1 - h)
+        return SIMD4(x, y, w, h)
+    }
+
+    func currentOverlayRectNorm() -> SIMD4<Float> {
+        guard sceneManager.scenes.indices.contains(sceneManager.currentIndex) else {
+            return SIMD4(0, 0, 1, 1)
+        }
+        let id = sceneManager.scenes[sceneManager.currentIndex].id
+        let l = (sceneEditStates[id] ?? SceneEditState()).layer
+        return Self.clampedOverlayRect(SIMD4(l.overlayRectMinX, l.overlayRectMinY, l.overlayRectWidth, l.overlayRectHeight))
+    }
+
+    func resetOverlayRectToFullFrame() {
+        mutateCurrentEdit {
+            $0.layer.overlayRectMinX = 0
+            $0.layer.overlayRectMinY = 0
+            $0.layer.overlayRectWidth = 1
+            $0.layer.overlayRectHeight = 1
+        }
+    }
+
+    func applyOverlayDragFromStart(_ start: SIMD4<Float>, translation: SIMD2<Float>) {
+        let x = start.x + translation.x
+        let y = start.y + translation.y
+        let r = Self.clampedOverlayRect(SIMD4(x, y, start.z, start.w))
+        mutateCurrentEdit {
+            $0.layer.overlayRectMinX = r.x
+            $0.layer.overlayRectMinY = r.y
+            $0.layer.overlayRectWidth = r.z
+            $0.layer.overlayRectHeight = r.w
+        }
+    }
+
+    func applyOverlayPinchFromStart(_ start: SIMD4<Float>, scale: CGFloat) {
+        let s = Float(scale)
+        let cx = start.x + start.z * 0.5
+        let cy = start.y + start.w * 0.5
+        var nw = start.z * s
+        var nh = start.w * s
+        nw = min(max(nw, 0.05), 1)
+        nh = min(max(nh, 0.05), 1)
+        var nx = cx - nw * 0.5
+        var ny = cy - nh * 0.5
+        let r = Self.clampedOverlayRect(SIMD4(nx, ny, nw, nh))
+        mutateCurrentEdit {
+            $0.layer.overlayRectMinX = r.x
+            $0.layer.overlayRectMinY = r.y
+            $0.layer.overlayRectWidth = r.z
+            $0.layer.overlayRectHeight = r.w
+        }
+    }
+
     private func clampExternalScreenIndex() {
         let list = ExternalDisplayRouter.screens
         guard !list.isEmpty else { return }
@@ -723,7 +873,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         if let previewParams = metalRenderer?.parameters {
             renderer.parameters = previewParams
         }
-        wireRendererFrameLoop(renderer)
+        clearRendererFrameLoop(renderer)
 
         externalOutputRenderer = renderer
 
@@ -810,17 +960,95 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     }
 
     func importOverlayAsset() {
-        guard let asset = overlayLibrary.importOverlayViaOpenPanel() else { return }
+        guard let picked = overlayLibrary.importOverlayViaOpenPanel() else { return }
+        let sourceURL = URL(fileURLWithPath: picked.filePath)
+        let storedURL: URL
+        do {
+            storedURL = try OverlayFileSupport.copyImportedOverlayToAppSupport(from: sourceURL, assetID: picked.id)
+        } catch {
+            storedURL = sourceURL
+        }
+        let asset = OverlayAsset(
+            id: picked.id,
+            name: picked.name,
+            filePath: storedURL.path,
+            opacity: picked.opacity,
+            blendMode: picked.blendMode
+        )
         overlays.append(asset)
+        overlayTextureCache.removeAll()
         try? persistOverlays()
         if sceneManager.scenes.indices.contains(sceneManager.currentIndex) {
             var s = sceneManager.scenes[sceneManager.currentIndex]
-            if !s.overlayIDs.contains(asset.id) {
-                s.overlayIDs.append(asset.id)
-                sceneManager.scenes[sceneManager.currentIndex] = s
-                try? persistScenes()
-            }
+            // GPU uses `overlayIDs.first`; replace so a new import becomes the active logo.
+            s.overlayIDs = [asset.id]
+            sceneManager.scenes[sceneManager.currentIndex] = s
+            try? persistScenes()
         }
+        resetOverlayRectToFullFrame()
+        syncRendererFromScene()
+    }
+
+    /// Pick image → save PNG with black/near-black pixels removed → optionally register as current scene overlay.
+    func exportBlackBackgroundRemovedCopy() {
+        let open = NSOpenPanel()
+        open.allowedContentTypes = [.image]
+        open.canChooseDirectories = false
+        open.allowsMultipleSelection = false
+        guard open.runModal() == .OK, let src = open.url else { return }
+
+        let base = src.deletingPathExtension().lastPathComponent
+        let save = NSSavePanel()
+        save.allowedContentTypes = [.png]
+        save.canCreateDirectories = true
+        save.nameFieldStringValue = "\(base)-nomatte.png"
+        guard save.runModal() == .OK, let destURL = save.url else { return }
+        let outURL: URL = {
+            if destURL.pathExtension.lowercased() == "png" { return destURL }
+            return destURL.appendingPathExtension("png")
+        }()
+
+        do {
+            try OverlayBlackBackgroundKnockout.knockOutBlackBackground(sourceURL: src, destinationURL: outURL)
+        } catch {
+            let a = NSAlert()
+            a.messageText = "Could not process image"
+            a.informativeText = error.localizedDescription
+            a.runModal()
+            return
+        }
+
+        let alert = NSAlert()
+        alert.messageText = "Saved matte PNG"
+        alert.informativeText = outURL.path
+        alert.addButton(withTitle: "Use as current overlay")
+        alert.addButton(withTitle: "Done")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        let id = UUID()
+        let storedURL: URL
+        do {
+            storedURL = try OverlayFileSupport.copyImportedOverlayToAppSupport(from: outURL, assetID: id)
+        } catch {
+            storedURL = outURL
+        }
+        let asset = OverlayAsset(
+            id: id,
+            name: outURL.deletingPathExtension().lastPathComponent,
+            filePath: storedURL.path,
+            opacity: 1,
+            blendMode: OverlayBlendMode.screen.rawValue
+        )
+        overlays.append(asset)
+        overlayTextureCache.removeAll()
+        try? persistOverlays()
+        if sceneManager.scenes.indices.contains(sceneManager.currentIndex) {
+            var s = sceneManager.scenes[sceneManager.currentIndex]
+            s.overlayIDs = [asset.id]
+            sceneManager.scenes[sceneManager.currentIndex] = s
+            try? persistScenes()
+        }
+        resetOverlayRectToFullFrame()
         syncRendererFromScene()
     }
 

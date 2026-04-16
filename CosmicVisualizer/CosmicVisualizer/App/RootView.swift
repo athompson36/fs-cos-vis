@@ -39,7 +39,8 @@ struct RootView: View {
     }
 
     private var performanceContent: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 12) {
             if !appModel.performanceMode {
                 Text("Cosmic Visualizer")
                     .font(.largeTitle.bold())
@@ -131,14 +132,14 @@ struct RootView: View {
             externalOutputControls
 
             if let renderer = appModel.metalRenderer {
-                VisualizationMetalView(renderer: renderer)
-                    .frame(minHeight: 280)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
-                    )
-                    .shadow(color: Color.purple.opacity(0.35), radius: 18, y: 6)
+                LivePreviewWithOverlayInteraction(renderer: renderer)
+
+                if !appModel.performanceMode {
+                    SceneCueStripView()
+                        .onAppear {
+                            appModel.refreshScenePreviewPool()
+                        }
+                }
             } else {
                 Text("Metal could not be initialized on this Mac.")
                     .foregroundStyle(.secondary)
@@ -153,7 +154,10 @@ struct RootView: View {
             }
 
             overlayAndLiquidToggles
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(20)
         .onAppear { appModel.startAudio() }
         .onDisappear { appModel.stopAudio() }
@@ -336,6 +340,9 @@ struct RootView: View {
             Button("Import overlay…") {
                 appModel.importOverlayAsset()
             }
+            Button("Remove black → PNG…") {
+                appModel.exportBlackBackgroundRemovedCopy()
+            }
         }
         .buttonStyle(.borderedProminent)
         .tint(Color(red: 0.45, green: 0.2, blue: 0.75))
@@ -489,22 +496,35 @@ struct RootView: View {
     }
 
     private var overlayAndLiquidToggles: some View {
-        HStack {
-            Toggle("Logo overlay (GPU + fractal fusion)", isOn: Binding(
-                get: { appModel.overlayEnabled },
-                set: { appModel.applyRemoteCommand(RemoteControlCommand(type: "SetOverlayEnabled", enabled: $0)) }
-            ))
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Toggle("Logo overlay (GPU + fractal fusion)", isOn: Binding(
+                    get: { appModel.overlayEnabled },
+                    set: { appModel.applyRemoteCommand(RemoteControlCommand(type: "SetOverlayEnabled", enabled: $0)) }
+                ))
                 .foregroundStyle(.secondary)
-            Spacer()
-            Toggle("Liquid light", isOn: Binding(
-                get: {
-                    guard appModel.sceneManager.scenes.indices.contains(appModel.sceneManager.currentIndex) else { return false }
-                    return appModel.sceneManager.scenes[appModel.sceneManager.currentIndex].liquidLightEnabled
-                },
-                set: { on in
-                    appModel.applyRemoteCommand(RemoteControlCommand(type: "SetLiquidLightEnabled", enabled: on))
+                Spacer()
+                Toggle("Liquid light", isOn: Binding(
+                    get: {
+                        guard appModel.sceneManager.scenes.indices.contains(appModel.sceneManager.currentIndex) else { return false }
+                        return appModel.sceneManager.scenes[appModel.sceneManager.currentIndex].liquidLightEnabled
+                    },
+                    set: { on in
+                        appModel.applyRemoteCommand(RemoteControlCommand(type: "SetLiquidLightEnabled", enabled: on))
+                    }
+                ))
+            }
+            if appModel.overlayEnabled {
+                HStack(spacing: 12) {
+                    Toggle("Adjust placement (drag / pinch on preview)", isOn: Binding(
+                        get: { appModel.overlayPlacementInteractionEnabled },
+                        set: { appModel.overlayPlacementInteractionEnabled = $0 }
+                    ))
+                    Button("Reset logo frame") {
+                        appModel.resetOverlayRectToFullFrame()
+                    }
                 }
-            ))
+            }
         }
         .font(.subheadline)
     }
