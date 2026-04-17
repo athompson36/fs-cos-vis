@@ -27,6 +27,7 @@ Cosmic Visualizer has progressed beyond starter scaffolding into a substantial i
 - fog/haze learn and fixture verification workflows are implemented
 - OFL fixture import and curated catalog sync are integrated
 - stage plot supports fixture placement, gear objects, and scan-camera overlays
+- cue bookmarks now support metadata (for example song title/artist), and overlay elements support metadata binding + per-element auto-hide timeout
 
 For full details, see:
 

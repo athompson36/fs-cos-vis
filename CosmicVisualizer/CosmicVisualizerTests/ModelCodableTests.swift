@@ -94,4 +94,39 @@ final class ModelCodableTests: XCTestCase {
         XCTAssertNil(cue.hazeLearnPreset)
         XCTAssertFalse(cue.autoApplyHazeEnvelope)
     }
+
+    func testLightingCueDocument_decodeLegacyWithoutBookmarkMetadata() throws {
+        let json = """
+        {
+          "version": 1,
+          "cues": [
+            {"id":"00000000-0000-0000-0000-000000000101","name":"Legacy Cue","fadeSeconds":1,"channelValues":[]}
+          ],
+          "activeCueIndex": 0,
+          "bookmarkedCueIds": ["00000000-0000-0000-0000-000000000101"]
+        }
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(LightingCueDocument.self, from: json)
+        XCTAssertEqual(decoded.bookmarkedCueIds.count, 1)
+        XCTAssertTrue(decoded.bookmarkMetadataByCueID.isEmpty)
+    }
+
+    func testOverlayCardDocument_decodeLegacyWithoutMetadataAndTimeout() throws {
+        let json = """
+        {
+          "version": 1,
+          "name": "Legacy Overlay",
+          "shapes": [
+            {"id":"00000000-0000-0000-0000-000000000201","kind":"rect","frame":{"x":0.1,"y":0.1,"width":0.4,"height":0.2},"fillColorRGBA":[1,1,1,1],"strokeWidth":0}
+          ],
+          "texts": [
+            {"id":"00000000-0000-0000-0000-000000000202","text":"Static","fontName":".AppleSystemUIFont","fontSize":24,"frame":{"x":0.1,"y":0.7,"width":0.6,"height":0.1},"colorRGBA":[1,1,1,1]}
+          ]
+        }
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(OverlayCardDocument.self, from: json)
+        XCTAssertNil(decoded.shapes.first?.timeoutSeconds)
+        XCTAssertNil(decoded.texts.first?.metadataKey)
+        XCTAssertNil(decoded.texts.first?.timeoutSeconds)
+    }
 }

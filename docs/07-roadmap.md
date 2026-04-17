@@ -14,11 +14,13 @@ This roadmap now tracks implementation status, not just concept phases.
 - DMX/lighting vertical slice:
   - fixture library and patching
   - cues and crossfades
+  - cue bookmark metadata for dynamic song/artist overlay values
   - modulation runtime
   - stage layout + 2.5D preview
   - fog/haze learn and safety controls
   - OFL fixture import and curated catalog
   - fixture verification (assisted camera workflow)
+  - overlay element timeout auto-hide and metadata-bound text rendering
 
 ## In progress
 

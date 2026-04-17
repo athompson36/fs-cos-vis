@@ -17,6 +17,8 @@ struct OverlayCardShape: Codable, Equatable, Identifiable, Sendable {
     var strokeWidth: Double
     /// SVG path d-string when kind == .path
     var pathData: String?
+    /// Optional auto-hide timeout for this element.
+    var timeoutSeconds: Double?
 
     init(
         id: UUID = UUID(),
@@ -25,7 +27,8 @@ struct OverlayCardShape: Codable, Equatable, Identifiable, Sendable {
         fillColorRGBA: [Double] = [1, 1, 1, 1],
         strokeColorRGBA: [Double]? = nil,
         strokeWidth: Double = 0,
-        pathData: String? = nil
+        pathData: String? = nil,
+        timeoutSeconds: Double? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -34,6 +37,7 @@ struct OverlayCardShape: Codable, Equatable, Identifiable, Sendable {
         self.strokeColorRGBA = strokeColorRGBA
         self.strokeWidth = strokeWidth
         self.pathData = pathData
+        self.timeoutSeconds = timeoutSeconds
     }
 }
 
@@ -44,6 +48,10 @@ struct OverlayCardTextLayer: Codable, Equatable, Identifiable, Sendable {
     var fontSize: Double
     var frame: CGRectCodable
     var colorRGBA: [Double]
+    /// Optional key that resolves from active cue bookmark metadata.
+    var metadataKey: String?
+    /// Optional auto-hide timeout for this text element.
+    var timeoutSeconds: Double?
 
     init(
         id: UUID = UUID(),
@@ -51,7 +59,9 @@ struct OverlayCardTextLayer: Codable, Equatable, Identifiable, Sendable {
         fontName: String = ".AppleSystemUIFont",
         fontSize: Double = 24,
         frame: CGRectCodable = CGRectCodable(x: 0.1, y: 0.4, width: 0.8, height: 0.2),
-        colorRGBA: [Double] = [1, 1, 1, 1]
+        colorRGBA: [Double] = [1, 1, 1, 1],
+        metadataKey: String? = nil,
+        timeoutSeconds: Double? = nil
     ) {
         self.id = id
         self.text = text
@@ -59,6 +69,8 @@ struct OverlayCardTextLayer: Codable, Equatable, Identifiable, Sendable {
         self.fontSize = fontSize
         self.frame = frame
         self.colorRGBA = colorRGBA
+        self.metadataKey = metadataKey
+        self.timeoutSeconds = timeoutSeconds
     }
 }
 

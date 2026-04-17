@@ -113,14 +113,23 @@ struct LightingCueDocument: Codable, Equatable, Sendable {
     var activeCueIndex: Int?
     /// Bookmarked cues for quick access (Live Show drawer); order is significant.
     var bookmarkedCueIds: [UUID]
+    /// Flexible metadata per bookmarked cue (cue-id string -> key/value pairs).
+    var bookmarkMetadataByCueID: [String: [String: String]]
 
     static let currentVersion = 3
 
-    init(version: Int = currentVersion, cues: [LightingCue] = [], activeCueIndex: Int? = nil, bookmarkedCueIds: [UUID] = []) {
+    init(
+        version: Int = currentVersion,
+        cues: [LightingCue] = [],
+        activeCueIndex: Int? = nil,
+        bookmarkedCueIds: [UUID] = [],
+        bookmarkMetadataByCueID: [String: [String: String]] = [:]
+    ) {
         self.version = version
         self.cues = cues
         self.activeCueIndex = activeCueIndex
         self.bookmarkedCueIds = bookmarkedCueIds
+        self.bookmarkMetadataByCueID = bookmarkMetadataByCueID
     }
 
     static func `default`() -> LightingCueDocument {
@@ -133,8 +142,13 @@ struct LightingCueDocument: Codable, Equatable, Sendable {
                 ),
             ],
             activeCueIndex: nil,
-            bookmarkedCueIds: []
+            bookmarkedCueIds: [],
+            bookmarkMetadataByCueID: [:]
         )
+    }
+
+    func bookmarkMetadata(cueID: UUID) -> [String: String] {
+        bookmarkMetadataByCueID[cueID.uuidString] ?? [:]
     }
 }
 
@@ -144,6 +158,7 @@ extension LightingCueDocument {
         case cues
         case activeCueIndex
         case bookmarkedCueIds
+        case bookmarkMetadataByCueID
     }
 
     init(from decoder: Decoder) throws {
@@ -152,6 +167,7 @@ extension LightingCueDocument {
         cues = try c.decodeIfPresent([LightingCue].self, forKey: .cues) ?? []
         activeCueIndex = try c.decodeIfPresent(Int.self, forKey: .activeCueIndex)
         bookmarkedCueIds = try c.decodeIfPresent([UUID].self, forKey: .bookmarkedCueIds) ?? []
+        bookmarkMetadataByCueID = try c.decodeIfPresent([String: [String: String]].self, forKey: .bookmarkMetadataByCueID) ?? [:]
     }
 
     func encode(to encoder: Encoder) throws {
@@ -160,5 +176,6 @@ extension LightingCueDocument {
         try c.encode(cues, forKey: .cues)
         try c.encodeIfPresent(activeCueIndex, forKey: .activeCueIndex)
         try c.encode(bookmarkedCueIds, forKey: .bookmarkedCueIds)
+        try c.encode(bookmarkMetadataByCueID, forKey: .bookmarkMetadataByCueID)
     }
 }

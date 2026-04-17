@@ -28,6 +28,8 @@ struct LightingWorkspaceView: View {
     @State private var fixtureVerifyPrimaryCameraID: String?
     @State private var fixtureVerifyUseSecondaryCamera = false
     @State private var fixtureVerifySecondaryCameraID: String?
+    @State private var newBookmarkMetadataKey = ""
+    @State private var newBookmarkMetadataValue = ""
 
     var body: some View {
         TabView {
@@ -415,6 +417,39 @@ struct LightingWorkspaceView: View {
                                 )
                             )
                             .controlSize(.small)
+                            if appModel.lightingCueDocument.bookmarkedCueIds.contains(cue.id) {
+                                GroupBox("Bookmark metadata") {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text("Key/value pairs for overlays (example keys: song_title, artist).")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                        ForEach(bookmarkMetadataRows(cueID: cue.id), id: \.0) { row in
+                                            HStack(spacing: 8) {
+                                                TextField("Key", text: bookmarkMetadataKeyBinding(cueID: cue.id, key: row.0))
+                                                    .textFieldStyle(.roundedBorder)
+                                                TextField("Value", text: bookmarkMetadataValueBinding(cueID: cue.id, key: row.0))
+                                                    .textFieldStyle(.roundedBorder)
+                                                Button(role: .destructive) {
+                                                    removeBookmarkMetadata(cueID: cue.id, key: row.0)
+                                                } label: {
+                                                    Image(systemName: "trash")
+                                                }
+                                                .buttonStyle(.borderless)
+                                            }
+                                        }
+                                        HStack(spacing: 8) {
+                                            TextField("New key", text: $newBookmarkMetadataKey)
+                                                .textFieldStyle(.roundedBorder)
+                                            TextField("New value", text: $newBookmarkMetadataValue)
+                                                .textFieldStyle(.roundedBorder)
+                                            Button("Add") {
+                                                addBookmarkMetadata(cueID: cue.id)
+                                            }
+                                            .disabled(newBookmarkMetadataKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                        }
+                                    }
+                                }
+                            }
                             HStack {
                                 Text("Fade: \(String(format: "%.2fs", cue.fadeSeconds))")
                                     .font(.caption)
@@ -1489,6 +1524,65 @@ struct LightingWorkspaceView: View {
                 appModel.applyLightingCueDocument(doc)
             }
         )
+    }
+
+    private func bookmarkMetadataRows(cueID: UUID) -> [(String, String)] {
+        let map = appModel.lightingCueDocument.bookmarkMetadata(cueID: cueID)
+        return map.keys.sorted().map { ($0, map[$0] ?? "") }
+    }
+
+    private func bookmarkMetadataKeyBinding(cueID: UUID, key: String) -> Binding<String> {
+        Binding(
+            get: { key },
+            set: { newKey in
+                let trimmed = newKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty, trimmed != key else { return }
+                var doc = appModel.lightingCueDocument
+                let cueKey = cueID.uuidString
+                var metadata = doc.bookmarkMetadataByCueID[cueKey] ?? [:]
+                let value = metadata[key] ?? ""
+                metadata.removeValue(forKey: key)
+                metadata[trimmed] = value
+                doc.bookmarkMetadataByCueID[cueKey] = metadata
+                appModel.applyLightingCueDocument(doc)
+            }
+        )
+    }
+
+    private func bookmarkMetadataValueBinding(cueID: UUID, key: String) -> Binding<String> {
+        Binding(
+            get: { appModel.lightingCueDocument.bookmarkMetadata(cueID: cueID)[key] ?? "" },
+            set: { newValue in
+                var doc = appModel.lightingCueDocument
+                let cueKey = cueID.uuidString
+                var metadata = doc.bookmarkMetadataByCueID[cueKey] ?? [:]
+                metadata[key] = newValue
+                doc.bookmarkMetadataByCueID[cueKey] = metadata
+                appModel.applyLightingCueDocument(doc)
+            }
+        )
+    }
+
+    private func addBookmarkMetadata(cueID: UUID) {
+        let key = newBookmarkMetadataKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { return }
+        var doc = appModel.lightingCueDocument
+        let cueKey = cueID.uuidString
+        var metadata = doc.bookmarkMetadataByCueID[cueKey] ?? [:]
+        metadata[key] = newBookmarkMetadataValue
+        doc.bookmarkMetadataByCueID[cueKey] = metadata
+        appModel.applyLightingCueDocument(doc)
+        newBookmarkMetadataKey = ""
+        newBookmarkMetadataValue = ""
+    }
+
+    private func removeBookmarkMetadata(cueID: UUID, key: String) {
+        var doc = appModel.lightingCueDocument
+        let cueKey = cueID.uuidString
+        var metadata = doc.bookmarkMetadataByCueID[cueKey] ?? [:]
+        metadata.removeValue(forKey: key)
+        doc.bookmarkMetadataByCueID[cueKey] = metadata
+        appModel.applyLightingCueDocument(doc)
     }
 
     private func cueChannelValueBinding(cueID: UUID, channel: Int) -> Binding<Float> {

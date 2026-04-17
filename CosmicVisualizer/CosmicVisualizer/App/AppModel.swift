@@ -90,6 +90,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     @Published private(set) var stageLayoutDocument = StageLayoutDocument()
     @Published private(set) var backdropCueDocument = BackdropCueDocument.default()
     @Published private(set) var overlayCardDocument = OverlayCardDocument.default()
+    @Published private(set) var overlayElementActivatedAt: [UUID: Date] = [:]
     @Published var showProjectMetadata = ShowProjectDocument()
     @Published private(set) var currentShowProjectFolder: URL?
     @Published var aiAssistantLastMessage: String = ""
@@ -227,6 +228,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         stageLayoutDocument = StageLayoutStore.loadOrDefault()
         backdropCueDocument = BackdropCueStore.loadOrDefault()
         overlayCardDocument = OverlayCardStore.loadOrDefault()
+        resetOverlayElementTimers()
 
         wireRendererFrameLoop(metalRenderer)
         webControl.bind(appModel: self)
@@ -1753,6 +1755,9 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             lightingCueCrossfade = nil
         }
         lightingDMXLock.unlock()
+        if old != newIndex {
+            resetOverlayElementTimers()
+        }
         try? LightingCueStore.save(lightingCueDocument)
         objectWillChange.send()
         scheduleAIContextRefresh()
@@ -1801,9 +1806,54 @@ final class AppModel: ObservableObject, @unchecked Sendable {
 
     func applyOverlayCardDocument(_ doc: OverlayCardDocument) {
         overlayCardDocument = doc
+        resetOverlayElementTimers()
         try? OverlayCardStore.save(doc)
         objectWillChange.send()
         scheduleAIContextRefresh()
+    }
+
+    func activeLightingCueID() -> UUID? {
+        lightingDMXLock.lock()
+        let doc = lightingCueDocument
+        lightingDMXLock.unlock()
+        guard let idx = doc.activeCueIndex, doc.cues.indices.contains(idx) else { return nil }
+        return doc.cues[idx].id
+    }
+
+    func activeLightingCueBookmarkMetadata() -> [String: String] {
+        guard let cueID = activeLightingCueID() else { return [:] }
+        lightingDMXLock.lock()
+        let doc = lightingCueDocument
+        lightingDMXLock.unlock()
+        return doc.bookmarkMetadata(cueID: cueID)
+    }
+
+    func resolvedOverlayText(for layer: OverlayCardTextLayer) -> String {
+        guard let key = layer.metadataKey?.trimmingCharacters(in: .whitespacesAndNewlines), !key.isEmpty else {
+            return layer.text
+        }
+        let metadata = activeLightingCueBookmarkMetadata()
+        return metadata[key] ?? layer.text
+    }
+
+    func shouldRenderOverlayElement(id: UUID, timeoutSeconds: Double?) -> Bool {
+        guard let timeoutSeconds, timeoutSeconds > 0 else { return true }
+        let activated = overlayElementActivatedAt[id] ?? Date()
+        if overlayElementActivatedAt[id] == nil {
+            overlayElementActivatedAt[id] = activated
+        }
+        return Date().timeIntervalSince(activated) <= timeoutSeconds
+    }
+
+    func resetOverlayElementTimers(now: Date = Date()) {
+        var next: [UUID: Date] = [:]
+        for shape in overlayCardDocument.shapes {
+            next[shape.id] = now
+        }
+        for text in overlayCardDocument.texts {
+            next[text.id] = now
+        }
+        overlayElementActivatedAt = next
     }
 
     func appendLightingCues(_ extra: [LightingCue]) {

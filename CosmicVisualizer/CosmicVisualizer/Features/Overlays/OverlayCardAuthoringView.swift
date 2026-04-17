@@ -20,10 +20,36 @@ struct OverlayCardAuthoringView: View {
                 if !appModel.overlayCardDocument.shapes.isEmpty || !appModel.overlayCardDocument.texts.isEmpty {
                     List {
                         ForEach(appModel.overlayCardDocument.shapes) { s in
-                            Text("Shape \(s.kind.rawValue) \(s.id.uuidString.prefix(6))")
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Shape \(s.kind.rawValue) \(s.id.uuidString.prefix(6))")
+                                    .font(.caption.weight(.semibold))
+                                HStack {
+                                    Toggle("Timeout", isOn: shapeTimeoutEnabledBinding(shapeID: s.id))
+                                        .toggleStyle(.switch)
+                                        .controlSize(.small)
+                                    TextField("Seconds", value: shapeTimeoutSecondsBinding(shapeID: s.id), format: .number)
+                                        .frame(width: 72)
+                                        .textFieldStyle(.roundedBorder)
+                                        .disabled(!shapeTimeoutEnabledBinding(shapeID: s.id).wrappedValue)
+                                }
+                            }
                         }
                         ForEach(appModel.overlayCardDocument.texts) { t in
-                            Text("Text: \(t.text.prefix(24))")
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Text: \(t.text.prefix(24))")
+                                    .font(.caption.weight(.semibold))
+                                TextField("Metadata key (optional)", text: textMetadataKeyBinding(textID: t.id))
+                                    .textFieldStyle(.roundedBorder)
+                                HStack {
+                                    Toggle("Timeout", isOn: textTimeoutEnabledBinding(textID: t.id))
+                                        .toggleStyle(.switch)
+                                        .controlSize(.small)
+                                    TextField("Seconds", value: textTimeoutSecondsBinding(textID: t.id), format: .number)
+                                        .frame(width: 72)
+                                        .textFieldStyle(.roundedBorder)
+                                        .disabled(!textTimeoutEnabledBinding(textID: t.id).wrappedValue)
+                                }
+                            }
                         }
                     }
                     .frame(minHeight: 120, maxHeight: 220)
@@ -69,5 +95,76 @@ struct OverlayCardAuthoringView: View {
         d.importedSVGSource = s
         d.name = url.deletingPathExtension().lastPathComponent
         appModel.applyOverlayCardDocument(d)
+    }
+
+    private func shapeTimeoutEnabledBinding(shapeID: UUID) -> Binding<Bool> {
+        Binding(
+            get: {
+                appModel.overlayCardDocument.shapes.first(where: { $0.id == shapeID })?.timeoutSeconds != nil
+            },
+            set: { isEnabled in
+                var d = appModel.overlayCardDocument
+                guard let idx = d.shapes.firstIndex(where: { $0.id == shapeID }) else { return }
+                d.shapes[idx].timeoutSeconds = isEnabled ? max(1, d.shapes[idx].timeoutSeconds ?? 5) : nil
+                appModel.applyOverlayCardDocument(d)
+            }
+        )
+    }
+
+    private func shapeTimeoutSecondsBinding(shapeID: UUID) -> Binding<Double> {
+        Binding(
+            get: {
+                appModel.overlayCardDocument.shapes.first(where: { $0.id == shapeID })?.timeoutSeconds ?? 5
+            },
+            set: { seconds in
+                var d = appModel.overlayCardDocument
+                guard let idx = d.shapes.firstIndex(where: { $0.id == shapeID }) else { return }
+                d.shapes[idx].timeoutSeconds = max(0.1, seconds)
+                appModel.applyOverlayCardDocument(d)
+            }
+        )
+    }
+
+    private func textMetadataKeyBinding(textID: UUID) -> Binding<String> {
+        Binding(
+            get: {
+                appModel.overlayCardDocument.texts.first(where: { $0.id == textID })?.metadataKey ?? ""
+            },
+            set: { key in
+                var d = appModel.overlayCardDocument
+                guard let idx = d.texts.firstIndex(where: { $0.id == textID }) else { return }
+                let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
+                d.texts[idx].metadataKey = trimmed.isEmpty ? nil : trimmed
+                appModel.applyOverlayCardDocument(d)
+            }
+        )
+    }
+
+    private func textTimeoutEnabledBinding(textID: UUID) -> Binding<Bool> {
+        Binding(
+            get: {
+                appModel.overlayCardDocument.texts.first(where: { $0.id == textID })?.timeoutSeconds != nil
+            },
+            set: { isEnabled in
+                var d = appModel.overlayCardDocument
+                guard let idx = d.texts.firstIndex(where: { $0.id == textID }) else { return }
+                d.texts[idx].timeoutSeconds = isEnabled ? max(1, d.texts[idx].timeoutSeconds ?? 5) : nil
+                appModel.applyOverlayCardDocument(d)
+            }
+        )
+    }
+
+    private func textTimeoutSecondsBinding(textID: UUID) -> Binding<Double> {
+        Binding(
+            get: {
+                appModel.overlayCardDocument.texts.first(where: { $0.id == textID })?.timeoutSeconds ?? 5
+            },
+            set: { seconds in
+                var d = appModel.overlayCardDocument
+                guard let idx = d.texts.firstIndex(where: { $0.id == textID }) else { return }
+                d.texts[idx].timeoutSeconds = max(0.1, seconds)
+                appModel.applyOverlayCardDocument(d)
+            }
+        )
     }
 }

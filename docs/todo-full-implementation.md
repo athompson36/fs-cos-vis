@@ -13,6 +13,7 @@ Last updated: 2026-04-17
 - [ ] Add regression tests for stage layout camera overlays and scan-angle persistence.
 - [ ] Add coverage for stage object auto-scaling against stage dimensions and JSON migration.
 - [ ] Harden fixture verification cancellation/resume behavior under camera disconnect/reconnect.
+- [ ] Add integration test for live overlay metadata substitution + timeout behavior during cue transitions.
 
 ## Priority P1 (operator UX and throughput)
 

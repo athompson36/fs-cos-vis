@@ -12,11 +12,13 @@ This document captures current implementation status, boundaries, and next work 
 2. **Cues**
    - `LightingCueDocument`, active cue management, linear crossfade via target cue fade time
    - Cue editing/import/export and live-strip operations
+   - Bookmark-scoped metadata map for dynamic live overlay text substitution
 3. **Modulation**
    - `ModulationRuntime` routes LFO/tempo/audio-band offsets and applies merged per-channel output
 4. **Stage and preview**
    - 2D stage placement editor with backdrop import and persisted layout
    - 2.5D preview driven from the same built DMX universe
+   - Overlay card runtime now supports cue-metadata text binding and per-element timeout gating
 5. **Fog/haze**
    - Camera-assisted learn presets, cue envelope support, emergency kill/resume handling
 6. **Verification and planning**
@@ -55,7 +57,7 @@ This document captures current implementation status, boundaries, and next work 
 | File | Content |
 |------|-----------|
 | `dmx_patch.json` | Profiles + instances + legacy toggle |
-| `lighting_cues.json` | Cues + active index |
+| `lighting_cues.json` | Cues + active index + bookmark metadata map (`cue-id -> key/value`) |
 | `modulation.json` | Modulator definitions |
 | `stage_layout.json` | Placements, backdrop, dimensions, stage objects, scan-camera overlays |
 | `context/calibration.json` | Calibration sweep artifact |

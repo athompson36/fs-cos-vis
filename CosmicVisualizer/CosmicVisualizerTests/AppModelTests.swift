@@ -39,4 +39,38 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(dto.lightingActiveCueName, "Spots")
         XCTAssertEqual(dto.lightingCueCount, 2)
     }
+
+    func testResolvedOverlayText_usesActiveCueBookmarkMetadata() {
+        let model = AppModel()
+        let cueID = UUID(uuidString: "00000000-0000-0000-0000-000000000301")!
+        let cue = LightingCue(id: cueID, name: "Verse", fadeSeconds: 1, channelValues: [])
+        let cueDoc = LightingCueDocument(
+            version: 1,
+            cues: [cue],
+            activeCueIndex: 0,
+            bookmarkedCueIds: [cueID],
+            bookmarkMetadataByCueID: [cueID.uuidString: ["song_title": "Midnight City"]]
+        )
+        model.applyLightingCueDocument(cueDoc)
+
+        let layer = OverlayCardTextLayer(text: "Fallback", metadataKey: "song_title")
+        XCTAssertEqual(model.resolvedOverlayText(for: layer), "Midnight City")
+    }
+
+    func testOverlayElementTimeout_hidesAfterElapsedTime() {
+        let model = AppModel()
+        let shapeID = UUID(uuidString: "00000000-0000-0000-0000-000000000302")!
+        let overlayDoc = OverlayCardDocument(
+            version: 1,
+            name: "Card",
+            shapes: [OverlayCardShape(id: shapeID, kind: .rect, timeoutSeconds: 1.5)],
+            texts: []
+        )
+        model.applyOverlayCardDocument(overlayDoc)
+        XCTAssertTrue(model.shouldRenderOverlayElement(id: shapeID, timeoutSeconds: 1.5))
+
+        model.resetOverlayElementTimers(now: Date(timeIntervalSinceNow: -2.0))
+        XCTAssertFalse(model.shouldRenderOverlayElement(id: shapeID, timeoutSeconds: 1.5))
+        XCTAssertTrue(model.shouldRenderOverlayElement(id: shapeID, timeoutSeconds: nil))
+    }
 }

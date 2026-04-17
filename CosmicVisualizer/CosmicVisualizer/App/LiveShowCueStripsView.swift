@@ -90,8 +90,16 @@ struct LiveShowCueStripsView: View {
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(entries, id: \.0) { entry in
-                    Button(entry.2) {
+                    Button {
                         appModel.setActiveLightingCueIndex(entry.1)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(entry.2)
+                            if hasBookmarkMetadata(cueID: entry.0, document: appModel.lightingCueDocument) {
+                                Image(systemName: "tag.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
@@ -129,6 +137,10 @@ struct LiveShowCueStripsView: View {
                 if let idx = appModel.lightingCueDocument.cues.firstIndex(where: { $0.id == id }) {
                     HStack {
                         Text(appModel.lightingCueDocument.cues[idx].name)
+                        if hasBookmarkMetadata(cueID: id, document: appModel.lightingCueDocument) {
+                            Image(systemName: "tag.fill")
+                                .foregroundStyle(.secondary)
+                        }
                         Spacer()
                         Button("Go") { appModel.setActiveLightingCueIndex(idx) }
                             .controlSize(.small)
@@ -151,5 +163,9 @@ struct LiveShowCueStripsView: View {
             }
         }
         .font(.caption)
+    }
+
+    private func hasBookmarkMetadata(cueID: UUID, document: LightingCueDocument) -> Bool {
+        !(document.bookmarkMetadataByCueID[cueID.uuidString] ?? [:]).isEmpty
     }
 }
