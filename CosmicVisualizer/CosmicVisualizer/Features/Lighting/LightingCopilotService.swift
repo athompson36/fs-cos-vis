@@ -44,10 +44,17 @@ final class LightingCopilotService: Sendable {
     }
 
     /// Greedy gap-filling addresses for new fixtures (single universe, no overlap check against profile width in v1).
-    func suggestNextAddresses(patch: DMXPatchDocument, profile: FixtureProfile, count: Int) -> [Int] {
+    /// `excludingInstanceIDs` omits those fixtures from occupancy (e.g. when relocating one fixture).
+    func suggestNextAddresses(
+        patch: DMXPatchDocument,
+        profile: FixtureProfile,
+        count: Int,
+        excludingInstanceIDs: Set<UUID> = []
+    ) -> [Int] {
         let width = max(1, profile.channels.count)
         var used = Set<Int>()
         for inst in patch.instances {
+            if excludingInstanceIDs.contains(inst.id) { continue }
             for i in 0 ..< (patch.profile(id: inst.profileID)?.channels.count ?? 1) {
                 used.insert(inst.startAddress + i)
             }

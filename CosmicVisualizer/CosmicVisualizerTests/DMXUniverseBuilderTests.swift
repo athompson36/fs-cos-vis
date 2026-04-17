@@ -56,4 +56,27 @@ final class DMXUniverseBuilderTests: XCTestCase {
         XCTAssertEqual(decoded.instances.count, original.instances.count)
         XCTAssertEqual(decoded.useLegacyVisualizationSlots, original.useLegacyVisualizationSlots)
     }
+
+    func testSuggestNextAddresses_excludingInstanceFreesThatSpan() {
+        let svc = LightingCopilotService()
+        var patch = DMXPatchDocument.default()
+        let rgb = patch.profiles.first(where: { $0.name.contains("RGB") })!
+        let id1 = UUID()
+        let id2 = UUID()
+        patch.instances = [
+            FixtureInstance(id: id1, profileID: rgb.id, startAddress: 1, manualValues: [:]),
+            FixtureInstance(id: id2, profileID: rgb.id, startAddress: 10, manualValues: [:]),
+        ]
+        let packed = svc.suggestNextAddresses(patch: patch, profile: rgb, count: 1, excludingInstanceIDs: [])
+        XCTAssertEqual(packed.first, 5)
+        let freeingFirst = svc.suggestNextAddresses(patch: patch, profile: rgb, count: 1, excludingInstanceIDs: Set([id1]))
+        XCTAssertEqual(freeingFirst.first, 1)
+    }
+
+    func testStageLayoutDocument_JSONRoundTrip() throws {
+        let original = StageLayoutDocument()
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(StageLayoutDocument.self, from: data)
+        XCTAssertEqual(decoded.version, original.version)
+    }
 }

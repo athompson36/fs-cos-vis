@@ -11,6 +11,7 @@ struct LightingWorkspaceView: View {
     @State private var profileTransportJSON = ""
     @State private var modulationTransportJSON = ""
     @State private var patchTransportJSON = ""
+    @State private var stageTransportJSON = ""
 
     var body: some View {
         ScrollView {
@@ -90,11 +91,17 @@ struct LightingWorkspaceView: View {
                                     }
                                     .pickerStyle(.menu)
                                 }
-                                Stepper(
-                                    "Start address: \(inst.startAddress)",
-                                    value: patchStartAddressBinding(instanceID: inst.id),
-                                    in: 1 ... 512
-                                )
+                                HStack(spacing: 8) {
+                                    Stepper(
+                                        "Start address: \(inst.startAddress)",
+                                        value: patchStartAddressBinding(instanceID: inst.id),
+                                        in: 1 ... 512
+                                    )
+                                    Button("Next gap") {
+                                        suggestNextStartAddress(for: inst.id)
+                                    }
+                                    .controlSize(.small)
+                                }
                                 if let profile = appModel.dmxPatchDocument.profile(id: inst.profileID) {
                                     ScrollView(.horizontal, showsIndicators: false) {
                                         HStack(alignment: .top, spacing: 10) {
@@ -131,6 +138,8 @@ struct LightingWorkspaceView: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Button("Capture cue from current patch") { captureCueFromCurrentPatch() }
+                    Button("Apply active cue → fixture manuals") { applyActiveCueToFixtureManuals() }
+                        .disabled(appModel.lightingCueDocument.activeCueIndex == nil)
                     Button("Delete selected cue", role: .destructive) { deleteSelectedCue() }
                         .disabled(selectedCueBinding.wrappedValue == nil)
                 }
@@ -307,6 +316,26 @@ struct LightingWorkspaceView: View {
                     )
                 Button("Replace patch from JSON above", role: .destructive) { replacePatchFromTransportJSON() }
                 Text("Replacing the patch rewrites profiles and fixtures. Stage positions are keyed by fixture ID—imports with different IDs may need repositioning on the stage plan.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                Divider().padding(.vertical, 4)
+
+                Text("Stage layout")
+                    .font(.caption.weight(.semibold))
+                HStack {
+                    Button("Copy stage layout JSON") { exportStageLayoutJSONToClipboard() }
+                    Button("Paste clipboard → editor") { pasteStageLayoutFromClipboard() }
+                }
+                TextEditor(text: $stageTransportJSON)
+                    .font(.system(.caption, design: .monospaced))
+                    .frame(minHeight: 48, maxHeight: 100)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(Color.secondary.opacity(0.25), lineWidth: 1)
+                    )
+                Button("Replace stage layout from JSON above", role: .destructive) { replaceStageLayoutFromTransportJSON() }
+                Text("Backdrop paths are absolute; moving JSON between machines may require re-importing the backdrop image.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
 
@@ -518,6 +547,8 @@ struct LightingWorkspaceView: View {
                 .pickerStyle(.menu)
                 HStack {
                     Button("New profile") { createProfile() }
+                    Button("Duplicate profile") { duplicateSelectedProfile() }
+                        .disabled(selectedProfileID == nil)
                     Button("Delete profile", role: .destructive) { deleteSelectedProfile() }
                         .disabled(!canDeleteSelectedProfile)
                 }
@@ -607,6 +638,20 @@ struct LightingWorkspaceView: View {
         patch.profiles.removeAll { $0.id == selectedProfileID }
         appModel.applyDMXPatchDocument(patch)
         self.selectedProfileID = nil
+    }
+
+    private func duplicateSelectedProfile() {
+        guard let pid = selectedProfileID, let profile = appModel.dmxPatchDocument.profile(id: pid) else { return }
+        var patch = appModel.dmxPatchDocument
+        let copy = FixtureProfile(
+            id: UUID(),
+            name: profile.name + " Copy",
+            channels: profile.channels
+        )
+        patch.profiles.append(copy)
+        selectedProfileID = copy.id
+        appModel.applyDMXPatchDocument(patch)
+        copilotStatus = "Duplicated profile as \"\(copy.name)\"."
     }
 
     private func profileNameBinding(_ profileID: UUID) -> Binding<String> {
@@ -730,6 +775,26 @@ struct LightingWorkspaceView: View {
         )
     }
 
+    private func suggestNextStartAddress(for instanceID: UUID) {
+        var patch = appModel.dmxPatchDocument
+        guard let idx = patch.instances.firstIndex(where: { $0.id == instanceID }),
+              let profile = patch.profile(id: patch.instances[idx].profileID)
+        else { return }
+        let addrs = appModel.lightingCopilotService.suggestNextAddresses(
+            patch: patch,
+            profile: profile,
+            count: 1,
+            excludingInstanceIDs: Set([instanceID])
+        )
+        guard let addr = addrs.first else {
+            copilotStatus = "No contiguous span found for this fixture’s channel width."
+            return
+        }
+        patch.instances[idx].startAddress = addr
+        appModel.applyDMXPatchDocument(patch)
+        copilotStatus = "Moved fixture to next free start address \(addr)."
+    }
+
     private func fixtureProfileBinding(instanceID: UUID) -> Binding<UUID> {
         Binding(
             get: {
@@ -760,6 +825,30 @@ struct LightingWorkspaceView: View {
                 appModel.applyDMXPatchDocument(patch)
             }
         )
+    }
+
+    private func applyActiveCueToFixtureManuals() {
+        guard let ai = appModel.lightingCueDocument.activeCueIndex,
+              appModel.lightingCueDocument.cues.indices.contains(ai)
+        else {
+            copilotStatus = "Pick an active cue first (Active cue picker)."
+            return
+        }
+        let cue = appModel.lightingCueDocument.cues[ai]
+        let cmap = cue.channelMap
+        var patch = appModel.dmxPatchDocument
+        var updated = 0
+        for i in patch.instances.indices {
+            guard let profile = patch.profile(id: patch.instances[i].profileID) else { continue }
+            for idx in profile.channels.indices {
+                let dmx = patch.instances[i].startAddress + idx
+                guard let v = cmap[dmx] else { continue }
+                patch.instances[i].setManual(channelIndex: idx, value: v)
+                updated += 1
+            }
+        }
+        appModel.applyDMXPatchDocument(patch)
+        copilotStatus = "Applied active cue \"\(cue.name)\" to \(updated) channel slot(s) on fixture manuals."
     }
 
     private func captureCueFromCurrentPatch() {
@@ -1089,6 +1178,44 @@ struct LightingWorkspaceView: View {
         }
         patchTransportJSON = str
         copilotStatus = "Pasted into patch JSON editor."
+    }
+
+    private func exportStageLayoutJSONToClipboard() {
+        let doc = appModel.stageLayoutDocument
+        guard let str = Self.prettyJSONString(doc) else {
+            copilotStatus = "Stage layout encode failed."
+            return
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(str, forType: .string)
+        stageTransportJSON = str
+        copilotStatus = "Copied stage layout JSON."
+    }
+
+    private func pasteStageLayoutFromClipboard() {
+        guard let str = NSPasteboard.general.string(forType: .string), !str.isEmpty else {
+            copilotStatus = "Clipboard is empty."
+            return
+        }
+        stageTransportJSON = str
+        copilotStatus = "Pasted into stage layout editor."
+    }
+
+    private func replaceStageLayoutFromTransportJSON() {
+        let raw = stageTransportJSON.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else {
+            copilotStatus = "Paste stage layout JSON first."
+            return
+        }
+        guard let data = raw.data(using: .utf8) else { return }
+        do {
+            var doc = try JSONDecoder().decode(StageLayoutDocument.self, from: data)
+            doc.version = StageLayoutDocument.currentVersion
+            appModel.applyStageLayoutDocument(doc)
+            copilotStatus = "Replaced stage layout."
+        } catch {
+            copilotStatus = "Stage layout JSON decode failed: \(error.localizedDescription)"
+        }
     }
 
     private func replacePatchFromTransportJSON() {
