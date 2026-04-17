@@ -293,6 +293,12 @@ struct LightingWorkspaceView: View {
                             .strokeBorder(Color.secondary.opacity(0.25), lineWidth: 1)
                     )
                 Button("Import cue from JSON above") { importCueFromTransportJSON() }
+                HStack(alignment: .top, spacing: 8) {
+                    Button("Copy full cue library") { exportFullCueLibraryJSONToClipboard() }
+                    Button("Merge cues from JSON above") { mergeCuesFromLibraryJSON() }
+                    Button("Replace library from JSON", role: .destructive) { replaceCueLibraryFromJSON() }
+                }
+                .controlSize(.small)
 
                 Divider().padding(.vertical, 4)
 
@@ -973,6 +979,81 @@ struct LightingWorkspaceView: View {
             copilotStatus = "Imported cue \"\(cue.name)\"."
         } catch {
             copilotStatus = "Cue JSON decode failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func exportFullCueLibraryJSONToClipboard() {
+        let doc = appModel.lightingCueDocument
+        guard let str = Self.prettyJSONString(doc) else {
+            copilotStatus = "Cue library encode failed."
+            return
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(str, forType: .string)
+        cueTransportJSON = str
+        copilotStatus = "Copied full cue library JSON (\(doc.cues.count) cues)."
+    }
+
+    private func mergeCuesFromLibraryJSON() {
+        let raw = cueTransportJSON.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else {
+            copilotStatus = "Paste JSON into the cue editor first."
+            return
+        }
+        guard let data = raw.data(using: .utf8) else { return }
+        do {
+            let incoming: [LightingCue]
+            if let doc = try? JSONDecoder().decode(LightingCueDocument.self, from: data) {
+                incoming = doc.cues
+            } else {
+                incoming = try JSONDecoder().decode([LightingCue].self, from: data)
+            }
+            guard !incoming.isEmpty else {
+                copilotStatus = "No cues in JSON."
+                return
+            }
+            var current = appModel.lightingCueDocument
+            var added = 0
+            for cue in incoming {
+                let name = cue.name.hasSuffix(" (imported)") ? cue.name : cue.name + " (imported)"
+                let copy = LightingCue(
+                    id: UUID(),
+                    name: name,
+                    fadeSeconds: cue.fadeSeconds,
+                    channelValues: cue.channelValues
+                )
+                current.cues.append(copy)
+                added += 1
+            }
+            appModel.applyLightingCueDocument(current)
+            copilotStatus = "Merged \(added) imported cue(s); new UUIDs assigned."
+        } catch {
+            copilotStatus = "Merge decode failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func replaceCueLibraryFromJSON() {
+        let raw = cueTransportJSON.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else {
+            copilotStatus = "Paste JSON into the cue editor first."
+            return
+        }
+        guard let data = raw.data(using: .utf8) else { return }
+        do {
+            var doc = try JSONDecoder().decode(LightingCueDocument.self, from: data)
+            doc.version = LightingCueDocument.currentVersion
+            if doc.cues.isEmpty {
+                doc.activeCueIndex = nil
+            } else if let i = doc.activeCueIndex, !doc.cues.indices.contains(i) {
+                doc.activeCueIndex = 0
+            }
+            appModel.applyLightingCueDocument(doc)
+            selectedCueID = doc.activeCueIndex.flatMap { idx in
+                doc.cues.indices.contains(idx) ? doc.cues[idx].id : nil
+            }
+            copilotStatus = "Replaced cue library with \(doc.cues.count) cue(s)."
+        } catch {
+            copilotStatus = "Replace decode failed (expect full LightingCueDocument JSON): \(error.localizedDescription)"
         }
     }
 
