@@ -13,6 +13,14 @@ final class ExternalDisplayRouterTests: XCTestCase {
         XCTAssertGreaterThan(f.height, 0)
     }
 
+    func testPerformanceAspectRatio_matchesScreenFrame() {
+        guard let main = ExternalDisplayRouter.screens.first else { return }
+        let f = main.frame
+        let ar = ExternalDisplayRouter.performanceAspectRatio(screenIndex: 0)
+        let expected = f.width / f.height
+        XCTAssertEqual(ar, expected, accuracy: 0.001)
+    }
+
     func testDefaultPreferredScreenIndex_inRange() {
         let idx = ExternalDisplayRouter.defaultPreferredScreenIndex()
         XCTAssertGreaterThanOrEqual(idx, 0)

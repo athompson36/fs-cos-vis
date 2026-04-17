@@ -15,39 +15,81 @@ vertex VertexOut cosmicFullscreenVertex(uint vid [[vertex_id]]) {
     return out;
 }
 
+static float2 csquare(float2 z) {
+    return float2(z.x * z.x - z.y * z.y, 2.0f * z.x * z.y);
+}
+
 fragment float4 fractalFragment(VertexOut in [[stage_in]],
                                 constant CosmicUniforms& u [[buffer(0)]]) {
     float2 uv = in.uv;
     float aspect = u.resolution.x / max(u.resolution.y, 1.0f);
-    float2 p = float2((uv.x - 0.5) * 2.0 * aspect, (uv.y - 0.5) * 2.0);
-    float zoom = clamp(u.fractalZoom, 0.35f, 2.25f);
-    p /= zoom;
+    float2 p = float2((uv.x - 0.5f) * 2.0f * aspect, (uv.y - 0.5f) * 2.0f);
+
+    float zoomBase = clamp(u.fractalZoom, 0.12f, 4.5f);
+    float ex = clamp(u.fractalExplore, 0.0f, 1.0f);
+    float spd = max(0.05f, u.fractalExploreSpeed);
+    float2 drift = float2(sin(u.time * spd), cos(u.time * spd * 0.87f)) * 0.22f * ex;
+    float effZoom = zoomBase;
+    if (u.zoomEffectType < 0.5f) {
+        effZoom *= (1.0f + 0.14f * sin(u.time * spd * 1.1f) * ex);
+    } else if (u.zoomEffectType < 1.5f) {
+        effZoom *= (1.0f + 0.22f * (0.5f + 0.5f * sin(u.time * spd * 2.3f)) * ex);
+    } else {
+        effZoom *= (1.0f + 0.1f * sin(u.time * spd * 0.55f) * ex);
+    }
+    p = p / effZoom + drift + float2(u.fractalPanX, u.fractalPanY) * 0.6f;
+
     float pulse = u.beatPulse * 0.15f;
     float2 cJulia = float2(-0.8f + 0.05f * sin(u.time * 0.3f + pulse),
                            0.156f + 0.05f * cos(u.time * 0.27f));
     cJulia += float2(0.02f * u.audioLevel, -0.01f * u.audioLevel);
 
-    int maxIter = 48 + int(24.0f * clamp(u.audioLevel, 0.0f, 1.0f));
+    float boost = clamp(u.fractalIterBoost, 0.25f, 3.0f);
+    int maxIter = int(float(48 + int(24.0f * clamp(u.audioLevel, 0.0f, 1.0f))) * boost);
+    maxIter = min(maxIter, 256);
+
+    int geo = int(u.fractalGeometryIndex + 0.25f);
+    geo = clamp(geo, 0, 3);
+
     int i = 0;
     float2 z;
     float2 c;
-    if (u.fractalKind > 0.5f) {
-        c = p + float2(0.35f * sin(u.time * 0.11f), 0.0f);
-        z = float2(0.0f, 0.0f);
-    } else {
+
+    if (geo == 0) {
         c = cJulia;
         z = p;
+        for (; i < maxIter; i++) {
+            if (dot(z, z) > 4.0f) { break; }
+            z = csquare(z) + c;
+        }
+    } else if (geo == 1) {
+        c = p + float2(0.35f * sin(u.time * 0.11f), 0.0f);
+        z = float2(0.0f, 0.0f);
+        for (; i < maxIter; i++) {
+            if (dot(z, z) > 4.0f) { break; }
+            z = csquare(z) + c;
+        }
+    } else if (geo == 2) {
+        c = p + float2(0.12f * sin(u.time * 0.09f), 0.0f);
+        z = float2(0.0f, 0.0f);
+        for (; i < maxIter; i++) {
+            if (dot(z, z) > 4.0f) { break; }
+            float nx = z.x * z.x - z.y * z.y + c.x;
+            float ny = 2.0f * abs(z.x * z.y) + c.y;
+            z = float2(nx, ny);
+        }
+    } else {
+        c = p + float2(0.08f * cos(u.time * 0.1f), 0.0f);
+        z = float2(0.0f, 0.0f);
+        for (; i < maxIter; i++) {
+            if (dot(z, z) > 4.0f) { break; }
+            float2 w = float2(z.x, -z.y);
+            z = csquare(w) + c;
+        }
     }
 
-    for (; i < maxIter; i++) {
-        if (dot(z, z) > 4.0f) { break; }
-        float x = z.x * z.x - z.y * z.y;
-        float y = 2.0f * z.x * z.y;
-        z = float2(x, y) + c;
-    }
-
-    float t = float(i) / float(maxIter);
-    float hue = t + u.time * 0.05f * clamp(u.fractalZoom, 0.5f, 2.0f) + u.bpm * 0.001f;
+    float t = float(i) / float(max(maxIter, 1));
+    float hue = t + u.time * 0.05f * clamp(u.fractalZoom, 0.2f, 4.0f) + u.bpm * 0.001f;
 
     float3 col;
     if (u.fractalAppearance > 0.5f) {

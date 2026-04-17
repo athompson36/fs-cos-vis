@@ -17,9 +17,10 @@ final class LiquidLightRenderer {
         pipelineState = try device.makeRenderPipelineState(descriptor: desc)
     }
 
-    func encodeFullScreen(encoder: MTLRenderCommandEncoder, uniformBuffer: MTLBuffer) {
+    func encodeFullScreen(encoder: MTLRenderCommandEncoder, uniformBuffer: MTLBuffer, dyeTexture: MTLTexture) {
         encoder.setRenderPipelineState(pipelineState)
         encoder.setFragmentBuffer(uniformBuffer, offset: 0, index: 0)
+        encoder.setFragmentTexture(dyeTexture, index: 0)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
     }
 

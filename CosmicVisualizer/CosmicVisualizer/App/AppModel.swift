@@ -5,6 +5,7 @@ import Foundation
 import MetalKit
 import simd
 import SwiftUI
+import Syphon
 import UniformTypeIdentifiers
 
 final class AppModel: ObservableObject, @unchecked Sendable {
@@ -21,9 +22,18 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     private var externalOutputRenderer: CompositeRenderer?
     private var externalOutputWindow: NSWindow?
 
+    /// Offscreen Metal view + Syphon server for OBS (**Syphon Client** source).
+    private var obsStreamRenderer: CompositeRenderer?
+    private var obsStreamMTKView: MTKView?
+    private var obsSyphonServer: SyphonMetalServer?
+
     @Published private(set) var isExternalVisualizationOpen = false
     /// Picks which `NSScreen.screens[index]` receives the fullscreen visualization.
-    @Published var externalOutputScreenIndex: Int = 0
+    @Published var externalOutputScreenIndex: Int = 0 {
+        didSet {
+            syncOBSStreamPipeline()
+        }
+    }
 
     @Published var overlays: [OverlayAsset] = []
     @Published var transitionState: TransitionState = .idle
@@ -33,11 +43,14 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     @Published var beatConfidence: Double = 0
     @Published var selectedAudioDeviceName: String = "Default Input"
     @Published var palettes: [ThemePalette] = PaletteLibraryStore.loadOrDefault()
+    @Published var liquidPalettes: [LiquidDropperPalette] = LiquidPaletteLibraryStore.loadOrDefault()
     @Published var selectedPaletteID: UUID?
     @Published var performanceMode = false
     @Published var overlayEnabled = false
     /// When true, drag / pinch on the main preview adjusts logo placement (main window only).
     @Published var overlayPlacementInteractionEnabled = false
+    /// Scene Studio: pour liquid dye onto the preview (tap / hold).
+    @Published var liquidDropperArmed = false
     @Published var audioError: String?
 
     @Published var remoteSettings: RemoteControlSettings = RemoteControlSettingsStore.load() {
@@ -46,6 +59,17 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             refreshAuxiliaryServices()
         }
     }
+
+    /// USB DMX universe composition (fixtures, legacy slots, cues, modulation). Mutate via `apply*` helpers for thread safety with the DMX timer.
+    @Published private(set) var dmxPatchDocument = DMXPatchDocument.default()
+    @Published private(set) var lightingCueDocument = LightingCueDocument.default()
+    @Published private(set) var modulationDocument = ModulationDocument.default()
+    @Published private(set) var stageLayoutDocument = StageLayoutDocument()
+
+    private let lightingDMXLock = NSLock()
+    private var lightingCueCrossfade: LightingCueCrossfade?
+
+    let lightingCopilotService = LightingCopilotService()
 
     @Published private(set) var sceneEditStates: [UUID: SceneEditState] = [:]
 
@@ -57,7 +81,12 @@ final class AppModel: ObservableObject, @unchecked Sendable {
 
     private var midiControl: MIDIControlService?
     private var dmxService: DMXOutputService?
-    private var midiMapping = MIDIMappingStore.loadOrDefault()
+    /// Published so Controller UI can show current MIDI assignments.
+    @Published private(set) var midiMapping: MIDIMapping = MIDIMappingStore.loadOrDefault()
+
+    /// Controller: arm “learn next CC” for the selected layer parameter (MIDI only in v1).
+    @Published var controlLearnMode: ControlLearnMode = .off
+    @Published var midiLearnTarget: LayerControlParameter?
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -90,6 +119,11 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         externalOutputScreenIndex = ExternalDisplayRouter.defaultPreferredScreenIndex()
         clampExternalScreenIndex()
         syncRendererFromScene()
+
+        dmxPatchDocument = DMXPatchStore.loadOrDefault()
+        lightingCueDocument = LightingCueStore.loadOrDefault()
+        modulationDocument = ModulationStore.loadOrDefault()
+        stageLayoutDocument = StageLayoutStore.loadOrDefault()
 
         wireRendererFrameLoop(metalRenderer)
         webControl.bind(appModel: self)
@@ -157,6 +191,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     }
 
     deinit {
+        teardownOBSStream()
         webControl.stop()
         midiControl?.stop()
         dmxService?.stop()
@@ -229,16 +264,29 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         remoteSettings = s
     }
 
+    /// Aspect ratio (width ÷ height) for letterboxed Metal previews, from Settings → preview aspect.
+    func resolvedPreviewAspectRatio() -> CGFloat {
+        remoteSettings.previewAspectRatioSelection.resolvedAspect(externalScreenIndex: externalOutputScreenIndex)
+    }
+
     func makeMIDIMappingData() throws -> Data {
         try JSONEncoder().encode(midiMapping)
     }
 
     func applyMIDIMappingDocument(_ data: Data) throws {
-        let m = try JSONDecoder().decode(MIDIMapping.self, from: data)
+        var m = try JSONDecoder().decode(MIDIMapping.self, from: data)
+        if m.continuousCC.isEmpty {
+            m.continuousCC = MIDIMapping.defaultContinuousPresets()
+        }
         midiMapping = m
         try MIDIMappingStore.save(m)
         configureMIDIService()
         midiControl?.start()
+    }
+
+    func midiAssignmentLabel(for parameter: LayerControlParameter) -> String? {
+        guard let hit = midiMapping.continuousCC.first(where: { $0.parameterID == parameter.rawValue }) else { return nil }
+        return "Ch \(hit.channel + 1) · CC \(hit.controller)"
     }
 
     /// Single mutation path for remote/MIDI/web; always runs on the main thread for `AppModel` + SwiftUI.
@@ -401,6 +449,54 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         syncRendererFromScene()
     }
 
+    /// Public hook for SwiftUI bindings that edit `SceneEditState.layer` for the current scene.
+    func applyCurrentLayerEdit(_ body: (inout SceneEditState.LayerControls) -> Void) {
+        mutateCurrentEdit { edit in body(&edit.layer) }
+    }
+
+    /// Normalized UV (bottom-left origin, y up) for dye splats; matches overlay / composite space.
+    func normalizedDyeUV(viewPoint: CGPoint, viewSize: CGSize) -> SIMD2<Float> {
+        let w = max(viewSize.width, 1)
+        let h = max(viewSize.height, 1)
+        let u = Float(viewPoint.x / w)
+        let v = Float(1 - viewPoint.y / h)
+        return SIMD2(u, v)
+    }
+
+    func enqueueLiquidPour(atViewPoint: CGPoint, viewSize: CGSize) {
+        guard liquidDropperArmed,
+              sceneManager.scenes.indices.contains(sceneManager.currentIndex)
+        else { return }
+        let scene = sceneManager.scenes[sceneManager.currentIndex]
+        guard scene.liquidLightEnabled else { return }
+        let uv = normalizedDyeUV(viewPoint: atViewPoint, viewSize: viewSize)
+        let edit = sceneEditStates[scene.id] ?? SceneEditState()
+        let l = edit.layer
+        guard !l.liquidDropperLayers.isEmpty else { return }
+        let activeLayerIndex = max(0, min(l.liquidDropperLayers.count - 1, l.activeDropperLayerIndex))
+        let activeLayer = l.liquidDropperLayers[activeLayerIndex]
+        let color = SIMD3(activeLayer.colorR, activeLayer.colorG, activeLayer.colorB)
+        let visc = activeLayer.viscosity
+        let pour: (CompositeRenderer) -> Void = { renderer in
+            renderer.enqueueLiquidSplat(uv: uv, color: color, viscosity: visc, layerIndex: activeLayerIndex)
+        }
+        if let main = metalRenderer { pour(main) }
+        for (_, r) in scenePreviewRenderers {
+            pour(r)
+        }
+    }
+
+    func clearLiquidDyeOnAllRenderers() {
+        metalRenderer?.clearLiquidDye()
+        for (_, r) in scenePreviewRenderers {
+            r.clearLiquidDye()
+        }
+    }
+
+    func disarmLiquidDropper() {
+        liquidDropperArmed = false
+    }
+
     private func performReorderScenes(_ order: [UUID]) {
         var map = Dictionary(uniqueKeysWithValues: sceneManager.scenes.map { ($0.id, $0) })
         var next: [VisualizationScene] = []
@@ -541,6 +637,98 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         configureMIDIService()
         midiControl?.start()
         configureDMXService()
+        syncOBSStreamPipeline()
+    }
+
+    // MARK: - OBS (Syphon) stream
+
+    private func syncOBSStreamPipeline() {
+        guard remoteSettings.obsSyphonStreamEnabled else {
+            teardownOBSStream()
+            return
+        }
+        guard let host = NSApp.mainWindow?.contentView else {
+            DispatchQueue.main.async { [weak self] in
+                self?.syncOBSStreamPipeline()
+            }
+            return
+        }
+
+        if obsStreamRenderer == nil {
+            guard let renderer = CompositeRenderer.create() else { return }
+            obsStreamRenderer = renderer
+            let view = MTKView(frame: CGRect(x: 0, y: 0, width: 2, height: 2), device: renderer.device)
+            view.delegate = renderer
+            view.framebufferOnly = true
+            view.colorPixelFormat = .bgra8Unorm
+            view.enableSetNeedsDisplay = false
+            view.isPaused = false
+            view.autoResizeDrawable = false
+            view.translatesAutoresizingMaskIntoConstraints = false
+            host.addSubview(view)
+            NSLayoutConstraint.activate([
+                view.widthAnchor.constraint(equalToConstant: 2),
+                view.heightAnchor.constraint(equalToConstant: 2),
+                host.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                host.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            ])
+            view.alphaValue = 0.02
+            obsStreamMTKView = view
+        }
+
+        guard let renderer = obsStreamRenderer, let mtkView = obsStreamMTKView else { return }
+
+        let drawableSize = remoteSettings.obsStreamAspectRatioSelection.obsStreamDrawableSize(externalScreenIndex: externalOutputScreenIndex)
+        if mtkView.drawableSize != drawableSize {
+            mtkView.drawableSize = drawableSize
+            renderer.mtkView(mtkView, drawableSizeWillChange: drawableSize)
+        }
+
+        if obsSyphonServer == nil {
+            obsSyphonServer = SyphonMetalServer(name: "Cosmic Visualizer", device: renderer.device, options: nil)
+        }
+
+        renderer.onBeforePresent = { [weak self] texture, buffer, drawSize in
+            guard let self, let server = self.obsSyphonServer else { return }
+            server.publishFrameTexture(
+                texture,
+                on: buffer,
+                imageRegion: NSRect(x: 0, y: 0, width: drawSize.width, height: drawSize.height),
+                flipped: true
+            )
+        }
+
+        syncRendererFromScene()
+    }
+
+    private func teardownOBSStream() {
+        obsStreamRenderer?.onBeforePresent = nil
+        obsStreamMTKView?.removeFromSuperview()
+        obsStreamMTKView = nil
+        obsStreamRenderer = nil
+        obsSyphonServer?.stop()
+        obsSyphonServer = nil
+    }
+
+    private func handleMidiControlChange(channel ch: Int, controller cc: Int, value val: Int) {
+        if controlLearnMode.allowsMidiLearn, let target = midiLearnTarget {
+            var m = midiMapping
+            m.learnContinuous(parameter: target, channel: ch, controller: cc)
+            midiMapping = m
+            try? MIDIMappingStore.save(midiMapping)
+            controlLearnMode = .off
+            midiLearnTarget = nil
+        }
+
+        if let param = midiMapping.layerParameter(forChannel: ch, controller: cc) {
+            let fv = param.value(fromMidi7: val)
+            applyRemoteCommand(param.remoteCommand(with: fv))
+            return
+        }
+
+        if let cmd = midiMapping.command(forChannel: ch, controller: cc) {
+            applyRemoteCommand(cmd)
+        }
     }
 
     private func configureMIDIService() {
@@ -568,18 +756,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         }
         m.onControlChange = { [weak self] ch, cc, val in
             DispatchQueue.main.async {
-                guard let self else { return }
-                if let cmd = self.midiMapping.command(forChannel: ch, controller: cc) {
-                    self.applyRemoteCommand(cmd)
-                }
-                if ch == 0, cc == 1 {
-                    let z = 0.35 + Float(val) / 127 * 1.9
-                    self.applyRemoteCommand(RemoteControlCommand(type: "SetFractalZoom", fractalZoom: z))
-                }
-                if ch == 0, cc == 2 {
-                    let z = 0.2 + Float(val) / 127 * 2.3
-                    self.applyRemoteCommand(RemoteControlCommand(type: "SetLiquidTurbulence", liquidTurbulence: z))
-                }
+                self?.handleMidiControlChange(channel: ch, controller: cc, value: val)
             }
         }
         midiControl = m
@@ -659,7 +836,23 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             p.fractalMix = 1
         }
         let mode = scene.fractalMode.lowercased()
-        p.fractalKind = mode.contains("mandel") ? 1 : 0
+        var geometry = edit.layer.fractalGeometryIndex
+        if geometry == 0, mode.contains("mandel") {
+            geometry = 1
+        }
+        p.fractalGeometryIndex = geometry
+        p.fractalKind = geometry < 2 ? geometry : 0
+        p.fractalExplore = edit.layer.fractalExplore
+        p.fractalExploreSpeed = edit.layer.fractalExploreSpeed
+        p.fractalPan = SIMD2(edit.layer.fractalPanX, edit.layer.fractalPanY)
+        p.fractalIterBoost = max(0.25, min(3, edit.layer.fractalIterBoost))
+        p.zoomEffectType = max(0, min(2, edit.layer.zoomEffectType))
+        p.liquidTilt = SIMD2(edit.layer.liquidTiltX, edit.layer.liquidTiltY)
+        p.dyeMix = scene.liquidLightEnabled ? 1 : 0
+        p.liquidDissolveHold = max(0, min(1, edit.layer.liquidDissolveHold))
+        p.liquidReconstituteAmount = max(0, min(1, edit.layer.liquidReconstituteAmount))
+        p.liquidReconstituteRate = max(0.05, min(3, edit.layer.liquidReconstituteRate))
+        p.liquidReconstituteBPMSync = edit.layer.liquidReconstituteBPMSync
         p.fractalZoom = edit.layer.fractalZoom
         p.liquidTurbulence = edit.layer.liquidTurbulence
         p.compositeBlend = edit.layer.compositeBlend
@@ -735,6 +928,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         else {
             main.overlayTexture = nil
             externalOutputRenderer?.overlayTexture = nil
+            obsStreamRenderer?.overlayTexture = nil
             return
         }
         let scene = sceneManager.scenes[sceneManager.currentIndex]
@@ -743,6 +937,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         else {
             main.overlayTexture = nil
             externalOutputRenderer?.overlayTexture = nil
+            obsStreamRenderer?.overlayTexture = nil
             return
         }
         let url = URL(fileURLWithPath: asset.filePath)
@@ -751,9 +946,13 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             let tex = try loader.newTexture(URL: url, options: [.SRGB: false])
             main.overlayTexture = tex
             externalOutputRenderer?.overlayTexture = tex
+            if main.device === obsStreamRenderer?.device {
+                obsStreamRenderer?.overlayTexture = tex
+            }
         } catch {
             main.overlayTexture = nil
             externalOutputRenderer?.overlayTexture = nil
+            obsStreamRenderer?.overlayTexture = nil
         }
     }
 
@@ -784,9 +983,37 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         syncRendererFromScene()
     }
 
+    func saveCurrentLiquidDropperPalette(name: String) {
+        guard sceneManager.scenes.indices.contains(sceneManager.currentIndex) else { return }
+        let sceneID = sceneManager.scenes[sceneManager.currentIndex].id
+        let edit = sceneEditStates[sceneID] ?? SceneEditState()
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let palette = LiquidDropperPalette(
+            name: trimmedName.isEmpty ? "Liquid palette \(liquidPalettes.count + 1)" : trimmedName,
+            layers: edit.layer.liquidDropperLayers
+        )
+        liquidPalettes.append(palette)
+        try? LiquidPaletteLibraryStore.save(liquidPalettes)
+    }
+
+    func applyLiquidDropperPalette(id: UUID) {
+        guard let palette = liquidPalettes.first(where: { $0.id == id }) else { return }
+        mutateCurrentEdit { edit in
+            edit.layer.liquidDropperLayers = Array(palette.layers.prefix(SceneEditState.LayerControls.maxDropperLayers))
+            if edit.layer.liquidDropperLayers.isEmpty {
+                edit.layer.liquidDropperLayers = SceneEditState.LayerControls.defaultDropperLayers
+            }
+            edit.layer.activeDropperLayerIndex = max(
+                0,
+                min(edit.layer.liquidDropperLayers.count - 1, edit.layer.activeDropperLayerIndex)
+            )
+        }
+    }
+
     private func updateAllVisualizationRenderers(_ update: (inout RenderParameters) -> Void) {
         metalRenderer?.updateParameters(update)
         externalOutputRenderer?.updateParameters(update)
+        obsStreamRenderer?.updateParameters(update)
     }
 
     private static func clampedOverlayRect(_ r: SIMD4<Float>) -> SIMD4<Float> {
@@ -1054,5 +1281,88 @@ final class AppModel: ObservableObject, @unchecked Sendable {
 
     func advanceTransition(by delta: Float) {
         transitionState.advance(by: delta)
+    }
+
+    // MARK: - Lighting / DMX documents
+
+    func buildDMXUniverse(time: TimeInterval, lastSmoothed: inout [UUID: Float]) -> [UInt8] {
+        lightingDMXLock.lock()
+        let patch = dmxPatchDocument
+        let cueDoc = lightingCueDocument
+        let modDoc = modulationDocument
+        let xf = lightingCueCrossfade
+        let bpm = tempoClock.effectiveBPM
+        let beatPhase = tempoClock.beatPhase
+        let audio = audioEngine.features
+        lightingDMXLock.unlock()
+
+        let cueMap = LightingCueResolver.resolveChannelMap(document: cueDoc, crossfade: xf, now: time)
+        let offsets = ModulationRuntime.offsets(
+            document: modDoc,
+            time: time,
+            bpm: bpm,
+            beatPhase: beatPhase,
+            audio: audio,
+            lastSmoothed: &lastSmoothed
+        )
+        return DMXUniverseBuilder.build(model: self, patch: patch, cueChannelMap: cueMap, modulationOffsets: offsets)
+    }
+
+    func applyDMXPatchDocument(_ doc: DMXPatchDocument) {
+        lightingDMXLock.lock()
+        dmxPatchDocument = doc
+        lightingDMXLock.unlock()
+        try? DMXPatchStore.save(doc)
+        objectWillChange.send()
+    }
+
+    func applyLightingCueDocument(_ doc: LightingCueDocument) {
+        lightingDMXLock.lock()
+        lightingCueDocument = doc
+        lightingDMXLock.unlock()
+        try? LightingCueStore.save(doc)
+        objectWillChange.send()
+    }
+
+    func setActiveLightingCueIndex(_ newIndex: Int?) {
+        lightingDMXLock.lock()
+        var doc = lightingCueDocument
+        let old = doc.activeCueIndex
+        doc.activeCueIndex = newIndex
+        lightingCueDocument = doc
+        let fadeDur: Double = {
+            guard let ni = newIndex, doc.cues.indices.contains(ni) else { return 0 }
+            return doc.cues[ni].fadeSeconds
+        }()
+        if let ni = newIndex, let oi = old, oi != ni, fadeDur > 0,
+           doc.cues.indices.contains(oi), doc.cues.indices.contains(ni) {
+            lightingCueCrossfade = LightingCueCrossfade(
+                fromIndex: oi,
+                toIndex: ni,
+                startedAt: CFAbsoluteTimeGetCurrent(),
+                durationSeconds: fadeDur
+            )
+        } else {
+            lightingCueCrossfade = nil
+        }
+        lightingDMXLock.unlock()
+        try? LightingCueStore.save(lightingCueDocument)
+        objectWillChange.send()
+    }
+
+    func applyModulationDocument(_ doc: ModulationDocument) {
+        lightingDMXLock.lock()
+        modulationDocument = doc
+        lightingDMXLock.unlock()
+        try? ModulationStore.save(doc)
+        objectWillChange.send()
+    }
+
+    func applyStageLayoutDocument(_ doc: StageLayoutDocument) {
+        lightingDMXLock.lock()
+        stageLayoutDocument = doc
+        lightingDMXLock.unlock()
+        try? StageLayoutStore.save(doc)
+        objectWillChange.send()
     }
 }

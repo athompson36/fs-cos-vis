@@ -65,4 +65,23 @@ final class RenderParametersTests: XCTestCase {
         XCTAssertEqual(u.overlayRectW, 0.5, accuracy: 0.001)
         XCTAssertEqual(u.overlayRectH, 0.4, accuracy: 0.001)
     }
+
+    func testUniforms_fractalUniverseAndDye_passedThrough() {
+        var p = RenderParameters()
+        p.fractalGeometryIndex = 2
+        p.fractalExplore = 0.6
+        p.fractalExploreSpeed = 0.5
+        p.fractalPan = SIMD2(0.1, -0.2)
+        p.fractalIterBoost = 1.5
+        p.zoomEffectType = 1
+        p.liquidTilt = SIMD2(0.3, -0.1)
+        p.dyeMix = 0.8
+        let u = p.uniforms(drawableSize: CGSize(width: 64, height: 64))
+        XCTAssertEqual(u.fractalGeometryIndex, 2, accuracy: 0.001)
+        XCTAssertEqual(u.fractalExplore, 0.6, accuracy: 0.001)
+        XCTAssertEqual(u.fractalPanX, 0.1, accuracy: 0.001)
+        XCTAssertEqual(u.fractalPanY, -0.2, accuracy: 0.001)
+        XCTAssertEqual(u.liquidTiltX, 0.3, accuracy: 0.001)
+        XCTAssertEqual(u.dyeMix, 0.8, accuracy: 0.001)
+    }
 }

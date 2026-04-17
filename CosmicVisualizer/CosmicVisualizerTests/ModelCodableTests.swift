@@ -43,6 +43,18 @@ final class ModelCodableTests: XCTestCase {
         XCTAssertEqual(decoded.layer.fractalAppearance, 0, accuracy: 0.001)
     }
 
+    func testSceneEditState_dropperLayers_decodeLegacyDropperKeys() throws {
+        let json = """
+        {"layer":{"dropperColorR":0.9,"dropperColorG":0.3,"dropperColorB":0.1,"dropperViscosity":0.72}}
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(SceneEditState.self, from: json)
+        XCTAssertEqual(decoded.layer.liquidDropperLayers.count, 3)
+        XCTAssertEqual(decoded.layer.liquidDropperLayers[0].colorR, 0.9, accuracy: 0.001)
+        XCTAssertEqual(decoded.layer.liquidDropperLayers[0].colorG, 0.3, accuracy: 0.001)
+        XCTAssertEqual(decoded.layer.liquidDropperLayers[0].colorB, 0.1, accuracy: 0.001)
+        XCTAssertEqual(decoded.layer.liquidDropperLayers[0].viscosity, 0.72, accuracy: 0.001)
+    }
+
     func testOverlayAsset_roundTrip() throws {
         let id = UUID(uuidString: "00000000-0000-0000-0000-0000000000DD")!
         let original = OverlayAsset(id: id, name: "Logo", filePath: "/tmp/logo.png", opacity: 0.8, blendMode: "screen")

@@ -8,6 +8,7 @@ final class DMXOutputService: ControlBus {
     private(set) var isRunning = false
     private var universe = [UInt8](repeating: 0, count: 512)
     private var lastError: String?
+    private var modulationLastSmoothed: [UUID: Float] = [:]
 
     init(model: AppModel) {
         self.model = model
@@ -39,7 +40,8 @@ final class DMXOutputService: ControlBus {
         let path = model.remoteSettings.dmxSerialDevicePath.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !path.isEmpty else { return }
 
-        universe = DMXOutputService.buildUniverse(from: model)
+        let t = CFAbsoluteTimeGetCurrent()
+        universe = model.buildDMXUniverse(time: t, lastSmoothed: &modulationLastSmoothed)
 
         do {
             try writer.ensureOpen(path: path)
@@ -48,22 +50,6 @@ final class DMXOutputService: ControlBus {
         } catch {
             lastError = error.localizedDescription
         }
-    }
-
-    static func buildUniverse(from model: AppModel) -> [UInt8] {
-        var u = [UInt8](repeating: 0, count: 512)
-        let idx = min(max(0, model.sceneManager.currentIndex), 255)
-        u[0] = UInt8(idx)
-        let sceneID = model.sceneManager.scenes.indices.contains(model.sceneManager.currentIndex)
-            ? model.sceneManager.scenes[model.sceneManager.currentIndex].id
-            : nil
-        let edit = sceneID.flatMap { model.sceneEditStates[$0] } ?? SceneEditState()
-        u[1] = DMXControlStub.clampChannel(edit.layer.fractalZoom * 100)
-        u[2] = DMXControlStub.clampChannel(edit.layer.liquidTurbulence * 80)
-        u[3] = DMXControlStub.clampChannel(edit.layer.compositeBlend * 255)
-        let bpm = min(255, max(0, Int(model.tempoClock.effectiveBPM.rounded())))
-        u[4] = UInt8(bpm)
-        return u
     }
 
     func diagnostics() -> (lastError: String?, running: Bool) {

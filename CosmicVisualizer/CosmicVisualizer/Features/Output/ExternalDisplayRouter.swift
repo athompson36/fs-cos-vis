@@ -15,6 +15,21 @@ enum ExternalDisplayRouter {
         screen.frame
     }
 
+    /// Width ÷ height of `performanceFrame` for the screen at `screenIndex` (same shape as fullscreen video output on that display).
+    /// Falls back to the main screen, then the first listed screen, then 16∶9 if none exist.
+    static func performanceAspectRatio(screenIndex: Int) -> CGFloat {
+        let list = screens
+        let screen: NSScreen?
+        if list.indices.contains(screenIndex) {
+            screen = list[screenIndex]
+        } else {
+            screen = NSScreen.main ?? list.first
+        }
+        guard let s = screen else { return 16 / 9 }
+        let f = s.frame
+        return f.width / max(f.height, 1)
+    }
+
     /// Human-readable label for pickers (includes resolution and main/external hint).
     static func displayName(for screen: NSScreen, index: Int) -> String {
         let frame = screen.frame

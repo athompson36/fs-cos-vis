@@ -27,6 +27,20 @@ typedef struct {
     float overlayRectMinY;
     float overlayRectW;
     float overlayRectH;               // normalized quad, bottom-left origin, y up
+    // Fractal universe (0=Julia,1=Mandelbrot,2=BurningShip,3=Tricorn)
+    float fractalGeometryIndex;
+    float fractalExplore;             // 0…1 explore strength
+    float fractalExploreSpeed;
+    float fractalPanX;
+    float fractalPanY;
+    float fractalIterBoost;           // scales iteration budget
+    float zoomEffectType;             // 0 drift, 1 pulse, 2 breathe
+    float liquidTiltX;                // tray tilt → phase shift
+    float liquidTiltY;
+    float dyeMix;                     // dye contribution in liquid pass
+    float liquidReconstituteAmount;   // 0..1 dissolve-reform bubbly motion
+    float liquidReconstituteRate;     // free-running rate when bpm sync off
+    float liquidReconstituteBPMSync;  // 0/1
 } CosmicUniforms;
 
 #endif

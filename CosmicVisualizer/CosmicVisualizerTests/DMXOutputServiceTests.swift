@@ -13,7 +13,8 @@ final class DMXOutputServiceTests: XCTestCase {
         model.applyRemoteCommand(RemoteControlCommand(type: "SetFractalZoom", fractalZoom: 1.5))
         model.applyRemoteCommand(RemoteControlCommand(type: "SetLiquidTurbulence", liquidTurbulence: 1.25))
         model.applyRemoteCommand(RemoteControlCommand(type: "SetCompositeBlend", compositeBlend: 0.8))
-        let u = DMXOutputService.buildUniverse(from: model)
+        var smooth: [UUID: Float] = [:]
+        let u = model.buildDMXUniverse(time: 0, lastSmoothed: &smooth)
         XCTAssertEqual(u.count, 512)
         XCTAssertEqual(u[0], 1)
         XCTAssertGreaterThan(u[1], 0)

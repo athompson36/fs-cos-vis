@@ -1,28 +1,25 @@
 import Foundation
 
-enum MIDIMappingStore {
+enum DMXPatchStore {
     private static var fileURL: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
             .appendingPathComponent("CosmicVisualizer", isDirectory: true)
-            .appendingPathComponent("midi_mapping.json")
+            .appendingPathComponent("dmx_patch.json")
     }
 
-    static func loadOrDefault() -> MIDIMapping {
+    static func loadOrDefault() -> DMXPatchDocument {
         guard FileManager.default.fileExists(atPath: fileURL.path),
               let data = try? Data(contentsOf: fileURL),
-              var decoded = try? JSONDecoder().decode(MIDIMapping.self, from: data)
+              let doc = try? JSONDecoder().decode(DMXPatchDocument.self, from: data)
         else {
-            return MIDIMapping.default()
+            return DMXPatchDocument.default()
         }
-        if decoded.continuousCC.isEmpty {
-            decoded.continuousCC = MIDIMapping.defaultContinuousPresets()
-        }
-        return decoded
+        return doc
     }
 
-    static func save(_ mapping: MIDIMapping) throws {
+    static func save(_ doc: DMXPatchDocument) throws {
         try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let data = try JSONEncoder().encode(mapping)
+        let data = try JSONEncoder().encode(doc)
         try data.write(to: fileURL, options: .atomic)
     }
 }
