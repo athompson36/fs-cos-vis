@@ -90,4 +90,17 @@ final class DMXUniverseBuilderTests: XCTestCase {
         XCTAssertEqual(hit?.channelIndex, 2)
         XCTAssertEqual(hit?.instance.startAddress, 20)
     }
+
+    func testLightingWorkspaceBundle_JSONRoundTrip() throws {
+        let bundle = LightingWorkspaceBundle(
+            dmxPatch: DMXPatchDocument.default(),
+            lightingCues: LightingCueDocument.default(),
+            modulation: ModulationDocument.default(),
+            stageLayout: StageLayoutDocument()
+        )
+        let data = try JSONEncoder().encode(bundle)
+        let decoded = try JSONDecoder().decode(LightingWorkspaceBundle.self, from: data)
+        XCTAssertEqual(decoded.version, bundle.version)
+        XCTAssertEqual(decoded.dmxPatch.profiles.count, bundle.dmxPatch.profiles.count)
+    }
 }

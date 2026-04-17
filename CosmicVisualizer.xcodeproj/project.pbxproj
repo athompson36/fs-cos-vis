@@ -96,6 +96,7 @@
 		DF69428FC2DA7A79FA542F44 /* ControllerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45FC5017C9CF68DAF44AD77F /* ControllerView.swift */; };
 		E00A224DBCC3D63672F3ED4A /* FractalPass.metal in Sources */ = {isa = PBXBuildFile; fileRef = 6D79C94381A6D0EB1D766752 /* FractalPass.metal */; };
 		E12E58CC88522A74770F6128 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4999D20116DFD387C63E1769 /* AppModel.swift */; };
+		E3F42F0CAD3BE4FB2E90B48E /* LightingWorkspaceBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3237005F12E621E3F88EE4E /* LightingWorkspaceBundle.swift */; };
 		E4F6EE7FC1E7D9F25C091B0A /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969E9F5A52071FFE27609D7D /* AppModelTests.swift */; };
 		E52C10A617B0ECAF08E6913A /* MIDIMapping.swift in Sources */ = {isa = PBXBuildFile; fileRef = C518BC2A853BBCFBDD8B57A8 /* MIDIMapping.swift */; };
 		E553F92AABDB99B271B2CD06 /* RemoteControlSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4373AB872EB4F86B83755C69 /* RemoteControlSettings.swift */; };
@@ -241,6 +242,7 @@
 		DF45DC03C5FD9F9DD0FE1920 /* BPMDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BPMDetectorTests.swift; sourceTree = "<group>"; };
 		E11824D183F0A94E6499D2BB /* BlendMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlendMath.swift; sourceTree = "<group>"; };
 		E306872886003F401C16844D /* ThemePackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemePackTests.swift; sourceTree = "<group>"; };
+		E3237005F12E621E3F88EE4E /* LightingWorkspaceBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightingWorkspaceBundle.swift; sourceTree = "<group>"; };
 		E363C0AC2F821B7C4039B79C /* AudioDeviceEnumerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDeviceEnumerator.swift; sourceTree = "<group>"; };
 		E6412F84A966B3621CAE46B0 /* WebAPIRequestBodies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAPIRequestBodies.swift; sourceTree = "<group>"; };
 		E7368A3B6C0C7BEB2169A534 /* SceneManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneManager.swift; sourceTree = "<group>"; };
@@ -520,6 +522,7 @@
 				163B55C3795F7C2B53C873C3 /* LightingCueResolver.swift */,
 				081D99DEB1D365BDD41273FE /* LightingCueStore.swift */,
 				3D499172580EF84F23DEE9F1 /* LightingPreview25DView.swift */,
+				E3237005F12E621E3F88EE4E /* LightingWorkspaceBundle.swift */,
 				F9188491FAC5682FF4E20C1C /* LightingWorkspaceView.swift */,
 				DD1E0A7D09FAE30665EA6B67 /* ModulationModels.swift */,
 				5EE57D1E5516D428BA76CC99 /* ModulationRuntime.swift */,
@@ -726,6 +729,7 @@
 				484058AFEABD23C33C3F4C1D /* LightingCueResolver.swift in Sources */,
 				6DE693B01F11A8DE4B1CEBCE /* LightingCueStore.swift in Sources */,
 				41DD80C7530798CD7078B2DA /* LightingPreview25DView.swift in Sources */,
+				E3F42F0CAD3BE4FB2E90B48E /* LightingWorkspaceBundle.swift in Sources */,
 				F68DDC95ED5E41AE63BE9C76 /* LightingWorkspaceView.swift in Sources */,
 				087A909B9D4E24E0F3AC6CE5 /* LiquidDropperPalette.swift in Sources */,
 				CDC8EB06648881B2E26045AD /* LiquidLightPass.metal in Sources */,

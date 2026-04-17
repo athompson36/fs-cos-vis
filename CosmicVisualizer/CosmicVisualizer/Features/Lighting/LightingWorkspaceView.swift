@@ -12,6 +12,7 @@ struct LightingWorkspaceView: View {
     @State private var modulationTransportJSON = ""
     @State private var patchTransportJSON = ""
     @State private var stageTransportJSON = ""
+    @State private var lightingBundleJSON = ""
 
     var body: some View {
         ScrollView {
@@ -82,6 +83,10 @@ struct LightingWorkspaceView: View {
                                     Text("Fixture \(pair.offset + 1)")
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
+                                    Button("Remove", role: .destructive) {
+                                        removeFixture(instanceID: inst.id)
+                                    }
+                                    .controlSize(.small)
                                 }
                                 if !patchAssignableProfiles(excludingLegacy: true).isEmpty {
                                     Picker("Profile", selection: fixtureProfileBinding(instanceID: inst.id)) {
@@ -143,6 +148,13 @@ struct LightingWorkspaceView: View {
                     Button("Delete selected cue", role: .destructive) { deleteSelectedCue() }
                         .disabled(selectedCueBinding.wrappedValue == nil)
                 }
+                HStack {
+                    Button("Move cue up") { moveSelectedCue(by: -1) }
+                        .disabled(!canMoveSelectedCue(by: -1))
+                    Button("Move cue down") { moveSelectedCue(by: 1) }
+                        .disabled(!canMoveSelectedCue(by: 1))
+                }
+                .controlSize(.small)
                 HStack {
                     Button("Duplicate selected cue") { duplicateSelectedCue() }
                         .disabled(selectedCueBinding.wrappedValue == nil)
@@ -301,6 +313,26 @@ struct LightingWorkspaceView: View {
     private var jsonTransportSection: some View {
         GroupBox("Templates & JSON transport") {
             VStack(alignment: .leading, spacing: 12) {
+                Text("Full lighting workspace")
+                    .font(.caption.weight(.semibold))
+                HStack {
+                    Button("Copy full bundle (patch + cues + modulation + stage)") { exportLightingBundleJSONToClipboard() }
+                    Button("Paste clipboard → editor") { pasteLightingBundleFromClipboard() }
+                }
+                TextEditor(text: $lightingBundleJSON)
+                    .font(.system(.caption, design: .monospaced))
+                    .frame(minHeight: 72, maxHeight: 140)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(Color.secondary.opacity(0.25), lineWidth: 1)
+                    )
+                Button("Replace entire workspace from JSON above", role: .destructive) { replaceLightingBundleFromTransportJSON() }
+                Text("One-shot backup or transfer: overwrites patch, cue library, modulation, and stage layout.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                Divider().padding(.vertical, 4)
+
                 Text("DMX patch document")
                     .font(.caption.weight(.semibold))
                 HStack {
@@ -761,6 +793,17 @@ struct LightingWorkspaceView: View {
         appModel.applyStageLayoutDocument(stage)
     }
 
+    private func removeFixture(instanceID: UUID) {
+        var patch = appModel.dmxPatchDocument
+        guard let rmIdx = patch.instances.firstIndex(where: { $0.id == instanceID }) else { return }
+        patch.instances.remove(at: rmIdx)
+        appModel.applyDMXPatchDocument(patch)
+        var stage = appModel.stageLayoutDocument
+        stage.placements.removeValue(forKey: instanceID.uuidString)
+        appModel.applyStageLayoutDocument(stage)
+        copilotStatus = "Removed fixture from patch and stage."
+    }
+
     private func patchStartAddressBinding(instanceID: UUID) -> Binding<Int> {
         Binding(
             get: {
@@ -904,6 +947,31 @@ struct LightingWorkspaceView: View {
         selectedCueID = copy.id
         doc.activeCueIndex = idx + 1
         appModel.applyLightingCueDocument(doc)
+    }
+
+    private func canMoveSelectedCue(by offset: Int) -> Bool {
+        guard let cueID = selectedCueID,
+              let idx = appModel.lightingCueDocument.cues.firstIndex(where: { $0.id == cueID })
+        else { return false }
+        let newIdx = idx + offset
+        return appModel.lightingCueDocument.cues.indices.contains(newIdx)
+    }
+
+    private func moveSelectedCue(by offset: Int) {
+        guard let cueID = selectedCueID else { return }
+        var doc = appModel.lightingCueDocument
+        guard let idx = doc.cues.firstIndex(where: { $0.id == cueID }) else { return }
+        let newIdx = idx + offset
+        guard doc.cues.indices.contains(newIdx) else { return }
+        let activeCueId: UUID? = doc.activeCueIndex.flatMap { i in
+            doc.cues.indices.contains(i) ? doc.cues[i].id : nil
+        }
+        doc.cues.swapAt(idx, newIdx)
+        if let aid = activeCueId, let ai = doc.cues.firstIndex(where: { $0.id == aid }) {
+            doc.activeCueIndex = ai
+        }
+        appModel.applyLightingCueDocument(doc)
+        copilotStatus = "Moved cue in list."
     }
 
     private func clearSelectedCueValues() {
@@ -1268,6 +1336,69 @@ struct LightingWorkspaceView: View {
             copilotStatus = "Imported cue \"\(cue.name)\"."
         } catch {
             copilotStatus = "Cue JSON decode failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func exportLightingBundleJSONToClipboard() {
+        let bundle = LightingWorkspaceBundle(
+            dmxPatch: appModel.dmxPatchDocument,
+            lightingCues: appModel.lightingCueDocument,
+            modulation: appModel.modulationDocument,
+            stageLayout: appModel.stageLayoutDocument
+        )
+        guard let str = Self.prettyJSONString(bundle) else {
+            copilotStatus = "Lighting bundle encode failed."
+            return
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(str, forType: .string)
+        lightingBundleJSON = str
+        copilotStatus = "Copied full lighting workspace bundle."
+    }
+
+    private func pasteLightingBundleFromClipboard() {
+        guard let str = NSPasteboard.general.string(forType: .string), !str.isEmpty else {
+            copilotStatus = "Clipboard is empty."
+            return
+        }
+        lightingBundleJSON = str
+        copilotStatus = "Pasted into lighting bundle editor."
+    }
+
+    private func replaceLightingBundleFromTransportJSON() {
+        let raw = lightingBundleJSON.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else {
+            copilotStatus = "Paste lighting bundle JSON first."
+            return
+        }
+        guard let data = raw.data(using: .utf8) else { return }
+        do {
+            let decoded = try JSONDecoder().decode(LightingWorkspaceBundle.self, from: data)
+            var p = decoded.dmxPatch
+            p.version = DMXPatchDocument.currentVersion
+            var lc = decoded.lightingCues
+            lc.version = LightingCueDocument.currentVersion
+            var mod = decoded.modulation
+            mod.version = ModulationDocument.currentVersion
+            var st = decoded.stageLayout
+            st.version = StageLayoutDocument.currentVersion
+            appModel.applyDMXPatchDocument(p)
+            appModel.applyLightingCueDocument(lc)
+            appModel.applyModulationDocument(mod)
+            appModel.applyStageLayoutDocument(st)
+            if selectedProfileID.map({ appModel.dmxPatchDocument.profile(id: $0) == nil }) ?? true {
+                selectedProfileID = appModel.dmxPatchDocument.profiles.first?.id
+            }
+            let cueDoc = appModel.lightingCueDocument
+            let keepCue = selectedCueID.map { sid in cueDoc.cues.contains(where: { $0.id == sid }) } ?? false
+            if !keepCue {
+                selectedCueID = cueDoc.activeCueIndex.flatMap { i in
+                    cueDoc.cues.indices.contains(i) ? cueDoc.cues[i].id : nil
+                } ?? cueDoc.cues.first?.id
+            }
+            copilotStatus = "Replaced full lighting workspace."
+        } catch {
+            copilotStatus = "Lighting bundle decode failed: \(error.localizedDescription)"
         }
     }
 
