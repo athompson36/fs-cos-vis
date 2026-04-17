@@ -79,4 +79,15 @@ final class DMXUniverseBuilderTests: XCTestCase {
         let decoded = try JSONDecoder().decode(StageLayoutDocument.self, from: data)
         XCTAssertEqual(decoded.version, original.version)
     }
+
+    func testFixtureAndProfileIndex_findsChannelSlot() {
+        var patch = DMXPatchDocument.default()
+        let rgb = patch.profiles.first(where: { $0.name.contains("RGB") })!
+        patch.instances = [
+            FixtureInstance(profileID: rgb.id, startAddress: 20, manualValues: [:]),
+        ]
+        let hit = DMXPatchAudit.fixtureAndProfileIndex(forDMXChannel: 22, patch: patch)
+        XCTAssertEqual(hit?.channelIndex, 2)
+        XCTAssertEqual(hit?.instance.startAddress, 20)
+    }
 }

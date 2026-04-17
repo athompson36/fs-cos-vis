@@ -23,6 +23,21 @@ enum DMXPatchAudit {
         return lines
     }
 
+    /// Resolves a DMX channel (1…512) to a patched fixture and profile channel index (universe 0 only).
+    static func fixtureAndProfileIndex(forDMXChannel channel: Int, patch: DMXPatchDocument) -> (instance: FixtureInstance, channelIndex: Int)? {
+        guard channel >= 1, channel <= 512 else { return nil }
+        for inst in patch.instances {
+            guard inst.universe == 0 else { continue }
+            guard let profile = patch.profile(id: inst.profileID) else { continue }
+            for idx in profile.channels.indices {
+                if inst.startAddress + idx == channel {
+                    return (inst, idx)
+                }
+            }
+        }
+        return nil
+    }
+
     private static func fixtureLabel(patch: DMXPatchDocument, instanceID: UUID) -> String {
         guard let idx = patch.instances.firstIndex(where: { $0.id == instanceID }) else {
             return String(instanceID.uuidString.prefix(8))

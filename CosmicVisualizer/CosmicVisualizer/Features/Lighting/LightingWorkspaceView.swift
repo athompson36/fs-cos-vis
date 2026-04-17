@@ -264,7 +264,7 @@ struct LightingWorkspaceView: View {
                                         Text(kind.rawValue).tag(kind)
                                     }
                                 }
-                                Stepper("Target channel: \(mod.targetChannel)", value: modChannelBinding(mod.id), in: 1 ... 512)
+                                modulatorTargetControls(for: mod)
                                 HStack {
                                     Text("Depth")
                                         .font(.caption2)
@@ -1018,16 +1018,128 @@ struct LightingWorkspaceView: View {
 
     private func addModulator() {
         var doc = appModel.modulationDocument
+        let defaultCh = defaultModulatorDMXChannel()
         doc.modulators.append(
             ModulatorDefinition(
                 name: "Mod \(doc.modulators.count + 1)",
-                targetChannel: 10,
+                targetChannel: defaultCh,
                 kind: .lfoSine,
                 depth: 0.35,
                 rateHz: 0.5
             )
         )
         appModel.applyModulationDocument(doc)
+    }
+
+    private func defaultModulatorDMXChannel() -> Int {
+        guard let inst = appModel.dmxPatchDocument.instances.first,
+              let profile = appModel.dmxPatchDocument.profile(id: inst.profileID),
+              !profile.channels.isEmpty
+        else {
+            return 10
+        }
+        return inst.startAddress
+    }
+
+    @ViewBuilder
+    private func modulatorTargetControls(for mod: ModulatorDefinition) -> some View {
+        let patch = appModel.dmxPatchDocument
+        if patch.instances.isEmpty {
+            Stepper("Target channel: \(mod.targetChannel)", value: modChannelBinding(mod.id), in: 1 ... 512)
+            Text("Patch a fixture to choose profile channels instead of raw DMX.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        } else if DMXPatchAudit.fixtureAndProfileIndex(forDMXChannel: mod.targetChannel, patch: patch) != nil {
+            VStack(alignment: .leading, spacing: 6) {
+                Picker("Fixture", selection: modTargetFixtureBinding(mod.id)) {
+                    ForEach(patch.instances, id: \.id) { inst in
+                        Text(modulatorFixtureMenuLabel(inst)).tag(inst.id)
+                    }
+                }
+                .pickerStyle(.menu)
+                if let m = DMXPatchAudit.fixtureAndProfileIndex(forDMXChannel: mod.targetChannel, patch: patch),
+                   let profile = patch.profile(id: m.instance.profileID) {
+                    Picker("Profile channel", selection: modTargetChannelIndexBinding(mod.id)) {
+                        ForEach(Array(profile.channels.enumerated()), id: \.offset) { idx, ch in
+                            let dmx = m.instance.startAddress + idx
+                            Text("\(ch.label) · DMX \(dmx)").tag(idx)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+                Text("Modulating DMX channel \(mod.targetChannel)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 6) {
+                Stepper("Target channel: \(mod.targetChannel)", value: modChannelBinding(mod.id), in: 1 ... 512)
+                Text("No fixture uses this channel on universe 0. Enter a valid address or snap below.")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+                Button("Snap to first fixture, first channel") {
+                    snapModulatorToFirstPatchChannel(modID: mod.id)
+                }
+                .controlSize(.small)
+            }
+        }
+    }
+
+    private func modulatorFixtureMenuLabel(_ instance: FixtureInstance) -> String {
+        guard let idx = appModel.dmxPatchDocument.instances.firstIndex(where: { $0.id == instance.id }) else {
+            return "Fixture"
+        }
+        let name = appModel.dmxPatchDocument.profile(id: instance.profileID)?.name ?? "Profile"
+        return "\(name) #\(idx + 1)"
+    }
+
+    private func modulatorTargetChannel(_ modID: UUID) -> Int {
+        appModel.modulationDocument.modulators.first { $0.id == modID }?.targetChannel ?? 1
+    }
+
+    private func modTargetFixtureBinding(_ modID: UUID) -> Binding<UUID> {
+        Binding(
+            get: {
+                let patch = appModel.dmxPatchDocument
+                let ch = modulatorTargetChannel(modID)
+                if let m = DMXPatchAudit.fixtureAndProfileIndex(forDMXChannel: ch, patch: patch) {
+                    return m.instance.id
+                }
+                return patch.instances.first!.id
+            },
+            set: { instID in
+                guard let inst = appModel.dmxPatchDocument.instances.first(where: { $0.id == instID }),
+                      let profile = appModel.dmxPatchDocument.profile(id: inst.profileID),
+                      !profile.channels.isEmpty else { return }
+                let oldCh = modulatorTargetChannel(modID)
+                let oldIdx = DMXPatchAudit.fixtureAndProfileIndex(forDMXChannel: oldCh, patch: appModel.dmxPatchDocument)?.channelIndex ?? 0
+                let safeIdx = min(oldIdx, profile.channels.count - 1)
+                updateModulator(modID) { $0.targetChannel = inst.startAddress + safeIdx }
+            }
+        )
+    }
+
+    private func modTargetChannelIndexBinding(_ modID: UUID) -> Binding<Int> {
+        Binding(
+            get: {
+                let ch = modulatorTargetChannel(modID)
+                return DMXPatchAudit.fixtureAndProfileIndex(forDMXChannel: ch, patch: appModel.dmxPatchDocument)?.channelIndex ?? 0
+            },
+            set: { idx in
+                let ch = modulatorTargetChannel(modID)
+                guard let m = DMXPatchAudit.fixtureAndProfileIndex(forDMXChannel: ch, patch: appModel.dmxPatchDocument),
+                      let profile = appModel.dmxPatchDocument.profile(id: m.instance.profileID),
+                      profile.channels.indices.contains(idx) else { return }
+                updateModulator(modID) { $0.targetChannel = m.instance.startAddress + idx }
+            }
+        )
+    }
+
+    private func snapModulatorToFirstPatchChannel(modID: UUID) {
+        guard let inst = appModel.dmxPatchDocument.instances.first,
+              let profile = appModel.dmxPatchDocument.profile(id: inst.profileID),
+              !profile.channels.isEmpty else { return }
+        updateModulator(modID) { $0.targetChannel = inst.startAddress }
     }
 
     private func deleteModulator(_ id: UUID) {
