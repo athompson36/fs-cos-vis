@@ -151,6 +151,27 @@ private extension SettingsView {
                         .textFieldStyle(.roundedBorder)
                         .frame(maxWidth: 420)
                 }
+                TimelineView(.periodic(from: .now, by: 0.5)) { _ in
+                    let d = appModel.dmxOutputDiagnostics()
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("Status")
+                            .font(.caption.weight(.semibold))
+                        if appModel.remoteSettings.dmxOutputEnabled {
+                            Text(d.running ? "Streaming ~\(Int(d.nominalHz)) Hz" : "Enabled · idle (no frames or device closed)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("Output disabled")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        if let err = d.lastError, !err.isEmpty {
+                            Text(err)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+                    }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }

@@ -35,4 +35,16 @@ final class DMXUniverseBuilderTests: XCTestCase {
         let m = model.resolvedCueChannelMap(at: CFAbsoluteTimeGetCurrent())
         XCTAssertEqual(m[44], 201)
     }
+
+    func testPatchAudit_detectsOverlappingAddresses() {
+        var patch = DMXPatchDocument.default()
+        let rgb = patch.profiles.first(where: { $0.name.contains("RGB") })!
+        patch.instances = [
+            FixtureInstance(profileID: rgb.id, startAddress: 10, manualValues: [:]),
+            FixtureInstance(profileID: rgb.id, startAddress: 12, manualValues: [:]),
+        ]
+        let msgs = DMXPatchAudit.universeZeroConflictMessages(patch: patch)
+        XCTAssertFalse(msgs.isEmpty, "Expected overlap on channels 12–13 for two 4-channel fixtures at 10 and 12")
+        XCTAssertTrue(msgs.contains { $0.contains("Channel 12") })
+    }
 }

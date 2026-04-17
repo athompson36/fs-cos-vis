@@ -9,6 +9,7 @@ struct LightingWorkspaceView: View {
     @State private var selectedProfileID: UUID?
     @State private var cueTransportJSON = ""
     @State private var profileTransportJSON = ""
+    @State private var modulationTransportJSON = ""
 
     var body: some View {
         ScrollView {
@@ -43,6 +44,8 @@ struct LightingWorkspaceView: View {
                 Text("Mirrors scene index, fractal zoom, liquid turbulence, composite blend, and BPM to the first five channels when enabled.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                patchHealthAndDMXStatusRow
 
                 profileLibrarySection
 
@@ -317,8 +320,62 @@ struct LightingWorkspaceView: View {
                             .strokeBorder(Color.secondary.opacity(0.25), lineWidth: 1)
                     )
                 Button("Import profile from JSON above") { importProfileFromTransportJSON() }
+
+                Divider().padding(.vertical, 4)
+
+                Text("Modulation")
+                    .font(.caption.weight(.semibold))
+                HStack {
+                    Button("Copy modulation document JSON") { exportModulationJSONToClipboard() }
+                    Button("Paste clipboard → editor") { pasteModulationFromClipboard() }
+                }
+                TextEditor(text: $modulationTransportJSON)
+                    .font(.system(.caption, design: .monospaced))
+                    .frame(minHeight: 56, maxHeight: 120)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(Color.secondary.opacity(0.25), lineWidth: 1)
+                    )
+                Button("Replace modulation from JSON above", role: .destructive) { replaceModulationFromTransportJSON() }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var patchHealthAndDMXStatusRow: some View {
+        TimelineView(.periodic(from: .now, by: 0.5)) { _ in
+            VStack(alignment: .leading, spacing: 6) {
+                let conflicts = DMXPatchAudit.universeZeroConflictMessages(patch: appModel.dmxPatchDocument)
+                if !conflicts.isEmpty {
+                    Text("Address conflicts (universe 0)")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.orange)
+                    ForEach(Array(conflicts.enumerated()), id: \.offset) { _, line in
+                        Text(line)
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
+                }
+                let d = appModel.dmxOutputDiagnostics()
+                HStack(alignment: .top, spacing: 8) {
+                    Text("USB DMX")
+                        .font(.caption.weight(.semibold))
+                    if appModel.remoteSettings.dmxOutputEnabled {
+                        Text(d.running ? "streaming ~\(Int(d.nominalHz)) Hz" : "enabled · idle (check device path in Settings)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("off (enable in Settings)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let err = d.lastError, !err.isEmpty {
+                        Text(err)
+                            .font(.caption2)
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
         }
     }
 
@@ -1101,6 +1158,44 @@ struct LightingWorkspaceView: View {
             copilotStatus = "Imported profile \"\(profile.name)\"."
         } catch {
             copilotStatus = "Profile JSON decode failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func exportModulationJSONToClipboard() {
+        let doc = appModel.modulationDocument
+        guard let str = Self.prettyJSONString(doc) else {
+            copilotStatus = "Modulation encode failed."
+            return
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(str, forType: .string)
+        modulationTransportJSON = str
+        copilotStatus = "Copied modulation document (\(doc.modulators.count) modulators)."
+    }
+
+    private func pasteModulationFromClipboard() {
+        guard let str = NSPasteboard.general.string(forType: .string), !str.isEmpty else {
+            copilotStatus = "Clipboard is empty."
+            return
+        }
+        modulationTransportJSON = str
+        copilotStatus = "Pasted into modulation JSON editor."
+    }
+
+    private func replaceModulationFromTransportJSON() {
+        let raw = modulationTransportJSON.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else {
+            copilotStatus = "Paste modulation JSON first."
+            return
+        }
+        guard let data = raw.data(using: .utf8) else { return }
+        do {
+            var doc = try JSONDecoder().decode(ModulationDocument.self, from: data)
+            doc.version = ModulationDocument.currentVersion
+            appModel.applyModulationDocument(doc)
+            copilotStatus = "Replaced modulation with \(doc.modulators.count) modulator(s)."
+        } catch {
+            copilotStatus = "Modulation JSON decode failed: \(error.localizedDescription)"
         }
     }
 }

@@ -40,6 +40,7 @@
 		53241CE7C796942048807742 /* StagePlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 347737640C72BDDDA8D1C1B9 /* StagePlanView.swift */; };
 		54C45E276F7A27D2BEA2E376 /* ControlBus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23B6B7A658D31E80CD789BEF /* ControlBus.swift */; };
 		54FD60E20EC882699F4DE3D2 /* AudioDeviceEnumerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E363C0AC2F821B7C4039B79C /* AudioDeviceEnumerator.swift */; };
+		568FE567CC2997C9970A0E6E /* DMXPatchAudit.swift in Sources */ = {isa = PBXBuildFile; fileRef = A34D8DD90113711767A4456F /* DMXPatchAudit.swift */; };
 		5698AE40F6B1D308CD249A8E /* CaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D4517D8B330212F86F6121D /* CaptureSession.swift */; };
 		5D2D943A583B315A45E3ADB4 /* SceneManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7368A3B6C0C7BEB2169A534 /* SceneManager.swift */; };
 		5D79EBFC1675354910B088BC /* ExternalDisplayRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 668B285A9961A389848180E3 /* ExternalDisplayRouter.swift */; };
@@ -217,6 +218,7 @@
 		9A004ECC673111DD61E2B6ED /* DMXOutputServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DMXOutputServiceTests.swift; sourceTree = "<group>"; };
 		9A0D1A3EEB6D80129511ED5C /* OverlayBlendMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayBlendMode.swift; sourceTree = "<group>"; };
 		9EC65920DFFDF7CFC3B7D4ED /* StageLayoutModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StageLayoutModels.swift; sourceTree = "<group>"; };
+		A34D8DD90113711767A4456F /* DMXPatchAudit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DMXPatchAudit.swift; sourceTree = "<group>"; };
 		A9C0362DEAA1D82C4C7D9DFE /* LiquidDropperPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidDropperPalette.swift; sourceTree = "<group>"; };
 		AF3F619E17C4910C9B06A320 /* AudioFeatureExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFeatureExtractor.swift; sourceTree = "<group>"; };
 		B457B95B451C7FB114BE1837 /* AudioFeatureExtractorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFeatureExtractorTests.swift; sourceTree = "<group>"; };
@@ -506,6 +508,7 @@
 		D7DE439749A8D458CF873DD1 /* Lighting */ = {
 			isa = PBXGroup;
 			children = (
+				A34D8DD90113711767A4456F /* DMXPatchAudit.swift */,
 				EDE86A9241FA81E61DE0C240 /* DMXPatchStore.swift */,
 				4042557155BD74A6543C7032 /* DMXUniverseBuilder.swift */,
 				E870BA0E74F8A6BF0C0C3A4E /* FixtureModels.swift */,
@@ -705,6 +708,7 @@
 				79AE39520F996D7863018983 /* CosmicShellBackground.swift in Sources */,
 				0A69B9A75B23391570FDBD97 /* CosmicVisualizerApp.swift in Sources */,
 				BB503DCB036A7FE2BA608400 /* DMXOutputService.swift in Sources */,
+				568FE567CC2997C9970A0E6E /* DMXPatchAudit.swift in Sources */,
 				37493DA5BBC694039FD061CA /* DMXPatchStore.swift in Sources */,
 				417F3766209E550EFAECBF0D /* DMXUniverseBuilder.swift in Sources */,
 				286C893D54F5B50C93388C16 /* DyeAccumulate.metal in Sources */,

@@ -1285,6 +1285,11 @@ final class AppModel: ObservableObject, @unchecked Sendable {
 
     // MARK: - Lighting / DMX documents
 
+    /// USB DMX output worker status; when output is disabled in Settings the service may be stopped (`running` false).
+    func dmxOutputDiagnostics() -> (lastError: String?, running: Bool, nominalHz: Double) {
+        dmxService?.extendedDiagnostics() ?? (nil, false, 44.0)
+    }
+
     /// DMX channel → value from the active cue and any in-progress crossfade (matches output timing when `time` is `CFAbsoluteTimeGetCurrent()`).
     func resolvedCueChannelMap(at time: TimeInterval) -> [Int: UInt8] {
         lightingDMXLock.lock()
