@@ -1285,6 +1285,15 @@ final class AppModel: ObservableObject, @unchecked Sendable {
 
     // MARK: - Lighting / DMX documents
 
+    /// DMX channel → value from the active cue and any in-progress crossfade (matches output timing when `time` is `CFAbsoluteTimeGetCurrent()`).
+    func resolvedCueChannelMap(at time: TimeInterval) -> [Int: UInt8] {
+        lightingDMXLock.lock()
+        let doc = lightingCueDocument
+        let xf = lightingCueCrossfade
+        lightingDMXLock.unlock()
+        return LightingCueResolver.resolveChannelMap(document: doc, crossfade: xf, now: time)
+    }
+
     func buildDMXUniverse(time: TimeInterval, lastSmoothed: inout [UUID: Float]) -> [UInt8] {
         lightingDMXLock.lock()
         let patch = dmxPatchDocument

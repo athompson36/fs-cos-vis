@@ -23,4 +23,16 @@ final class DMXUniverseBuilderTests: XCTestCase {
         let u = model.buildDMXUniverse(time: 0, lastSmoothed: &smooth)
         XCTAssertEqual(u[9], 128)
     }
+
+    func testResolvedCueChannelMap_matchesActiveCue() {
+        let model = AppModel()
+        var doc = LightingCueDocument.default()
+        doc.cues = [
+            LightingCue(name: "Hit", channelValues: [ChannelValue(channel: 44, value: 201)]),
+        ]
+        doc.activeCueIndex = 0
+        model.applyLightingCueDocument(doc)
+        let m = model.resolvedCueChannelMap(at: CFAbsoluteTimeGetCurrent())
+        XCTAssertEqual(m[44], 201)
+    }
 }
