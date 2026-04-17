@@ -5,6 +5,13 @@ import CoreVideo
 import Foundation
 
 final class CaptureSession: NSObject {
+    struct RecordingQuality: Equatable, Sendable {
+        var framesPerSecond: Int
+        var videoBitrate: Int
+
+        static let standard = RecordingQuality(framesPerSecond: 30, videoBitrate: 8_000_000)
+    }
+
     enum CaptureError: LocalizedError {
         case alreadyRecording
         case writerSetupFailed
@@ -26,6 +33,7 @@ final class CaptureSession: NSObject {
     private(set) var isRecording = false
     private(set) var startedAt: Date?
     private(set) var outputURL: URL?
+    private(set) var audioDiagnosticMessage = "Audio source not initialized."
 
     private var writer: AVAssetWriter?
     private var videoInput: AVAssetWriterInput?
@@ -39,7 +47,8 @@ final class CaptureSession: NSObject {
     func begin(
         windowNumber: CGWindowID,
         outputURL: URL,
-        preferredAudioDeviceName: String?
+        preferredAudioDeviceName: String?,
+        quality: RecordingQuality = .standard
     ) throws {
         guard !isRecording else { throw CaptureError.alreadyRecording }
         guard let firstFrame = CGWindowListCreateImage(
@@ -54,10 +63,16 @@ final class CaptureSession: NSObject {
         let height = max(2, firstFrame.height)
 
         let writer = try AVAssetWriter(outputURL: outputURL, fileType: .mov)
+        let clampedFPS = max(12, min(60, quality.framesPerSecond))
+        let clampedBitrate = max(1_000_000, min(25_000_000, quality.videoBitrate))
         let videoSettings: [String: Any] = [
             AVVideoCodecKey: AVVideoCodecType.h264,
             AVVideoWidthKey: width,
             AVVideoHeightKey: height,
+            AVVideoCompressionPropertiesKey: [
+                AVVideoAverageBitRateKey: clampedBitrate,
+                AVVideoExpectedSourceFrameRateKey: clampedFPS,
+            ],
         ]
         let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
         videoInput.expectsMediaDataInRealTime = true
@@ -98,6 +113,8 @@ final class CaptureSession: NSObject {
         self.outputURL = outputURL
         startedAt = Date()
         isRecording = true
+        frameInterval = 1.0 / Double(clampedFPS)
+        audioDiagnosticMessage = "Initializing audio source…"
 
         try startAudioCapture(preferredAudioDeviceName: preferredAudioDeviceName)
         startWindowPolling(windowNumber: windowNumber)
@@ -175,9 +192,11 @@ final class CaptureSession: NSObject {
         guard audioInput != nil else { return }
         let session = AVCaptureSession()
         session.beginConfiguration()
-        let device = chooseAudioDevice(preferredAudioDeviceName: preferredAudioDeviceName)
+        let (device, diagnostic) = chooseAudioDevice(preferredAudioDeviceName: preferredAudioDeviceName)
+        audioDiagnosticMessage = diagnostic
         guard let device else {
             session.commitConfiguration()
+            audioDiagnosticMessage = "Audio input unavailable: no capture device found."
             return
         }
         let input = try AVCaptureDeviceInput(device: device)
@@ -196,16 +215,28 @@ final class CaptureSession: NSObject {
         session.startRunning()
     }
 
-    private func chooseAudioDevice(preferredAudioDeviceName: String?) -> AVCaptureDevice? {
+    private func chooseAudioDevice(preferredAudioDeviceName: String?) -> (AVCaptureDevice?, String) {
         let discovery = AVCaptureDevice.DiscoverySession(
             deviceTypes: [.builtInMicrophone, .externalUnknown],
             mediaType: .audio,
             position: .unspecified
         )
-        if let preferredAudioDeviceName {
-            return discovery.devices.first(where: { $0.localizedName == preferredAudioDeviceName }) ?? discovery.devices.first
+        guard !discovery.devices.isEmpty else {
+            return (nil, "Audio input unavailable: no capture device found.")
         }
-        return discovery.devices.first
+        if let preferredAudioDeviceName {
+            if let matched = discovery.devices.first(where: { $0.localizedName == preferredAudioDeviceName }) {
+                return (matched, "Audio source: \(matched.localizedName)")
+            }
+            let fallback = discovery.devices.first
+            if let fallback {
+                return (fallback, "Preferred audio source unavailable; using \(fallback.localizedName).")
+            }
+        }
+        if let first = discovery.devices.first {
+            return (first, "Audio source: \(first.localizedName)")
+        }
+        return (nil, "Audio input unavailable: no capture device found.")
     }
 }
 

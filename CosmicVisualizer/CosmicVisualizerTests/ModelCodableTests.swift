@@ -129,4 +129,59 @@ final class ModelCodableTests: XCTestCase {
         XCTAssertNil(decoded.texts.first?.metadataKey)
         XCTAssertNil(decoded.texts.first?.timeoutSeconds)
     }
+
+    func testRemoteControlSettings_decodeLegacyDMXNetworkDefaults() throws {
+        let json = """
+        {
+          "dmxOutputEnabled": true,
+          "dmxOutputMode": "hardware",
+          "dmxSimulatedInterface": "enttec_open_dmx"
+        }
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(RemoteControlSettings.self, from: json)
+        XCTAssertEqual(decoded.dmxArtNetHost, "255.255.255.255")
+        XCTAssertEqual(decoded.dmxNetworkUniverse, 0)
+        XCTAssertEqual(decoded.dmxSACNHost, "239.255.0.1")
+    }
+
+    func testRemoteControlSettings_decodeLegacyInboundDMXDefaults() throws {
+        let json = """
+        {
+          "dmxOutputEnabled": true,
+          "dmxOutputMode": "artnet"
+        }
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(RemoteControlSettings.self, from: json)
+        XCTAssertFalse(decoded.dmxInboundEnabled)
+        XCTAssertEqual(decoded.dmxInboundMode, "artnet")
+        XCTAssertEqual(decoded.dmxInboundUniverse, 0)
+        XCTAssertEqual(decoded.dmxInboundMergeMode, "htp")
+    }
+
+    func testRemoteControlSettings_decodeLegacyRDMDefaults() throws {
+        let json = """
+        {
+          "dmxOutputEnabled": true,
+          "dmxOutputMode": "hardware"
+        }
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(RemoteControlSettings.self, from: json)
+        XCTAssertFalse(decoded.rdmDiscoveryEnabled)
+        XCTAssertEqual(decoded.rdmDiscoveryTransportMode, "hardware")
+        XCTAssertEqual(decoded.rdmDiscoveryUniverse, 0)
+    }
+
+    func testRemoteControlSettings_decodeLegacyOSCDefaults() throws {
+        let json = """
+        {
+          "remoteControlEnabled": true,
+          "remoteControlPort": 8765
+        }
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(RemoteControlSettings.self, from: json)
+        XCTAssertFalse(decoded.oscControlEnabled)
+        XCTAssertEqual(decoded.oscControlPort, 9000)
+        XCTAssertFalse(decoded.oscBindLAN)
+        XCTAssertEqual(decoded.oscAuthToken, "")
+    }
 }

@@ -81,7 +81,22 @@ struct FixtureVerificationDocument: Codable, Equatable, Sendable {
     }
 }
 
+enum FixtureVerificationRunStatus: Equatable, Sendable {
+    case completed
+    case cancelled
+    case pausedPrimaryCameraDisconnected
+}
+
+enum FixtureVerificationSeverityFilter: String, CaseIterable, Sendable {
+    case all
+    case fail
+    case warn
+    case pass
+}
+
 enum FixtureVerificationEvaluator {
+    static let patchingThreshold = 0.03
+
     static func patchingResult(lumaDelta: Double, threshold: Double) -> FixtureVerificationCategoryResult {
         if lumaDelta >= threshold {
             return FixtureVerificationCategoryResult(status: .pass, note: "Observed DMX response (\(String(format: "%.3f", lumaDelta))).")
@@ -119,5 +134,68 @@ enum FixtureVerificationEvaluator {
             return FixtureVerificationCategoryResult(status: .pass, note: "Orientation target set to \(Int(placement.rotation))°.")
         }
         return FixtureVerificationCategoryResult(status: .warn, note: "Fixture has no pan/tilt channels; orientation is static.")
+    }
+
+    static func phaseText(status: FixtureVerificationRunStatus, scanned: Int, expected: Int) -> String {
+        switch status {
+        case .completed:
+            return "Fixture verification complete (\(scanned)/\(expected))."
+        case .cancelled:
+            return "Fixture verification cancelled (\(scanned)/\(expected))."
+        case .pausedPrimaryCameraDisconnected:
+            return "Primary camera disconnected. Reconnect/reposition camera, then resume scan (\(scanned)/\(expected))."
+        }
+    }
+
+    static func notesText(status: FixtureVerificationRunStatus, usedSecondary: Bool) -> String {
+        switch status {
+        case .completed:
+            return "Assisted fixture verification using DMX one-fixture-at-a-time luma probing\(usedSecondary ? ", primary + secondary angled camera" : ", primary camera only")."
+        case .cancelled:
+            return "Fixture verification cancelled before finishing\(usedSecondary ? " (dual-camera attempt active)." : " (primary camera only).")"
+        case .pausedPrimaryCameraDisconnected:
+            return "Fixture verification paused: primary camera disconnected mid-scan; reconnect camera and resume."
+        }
+    }
+
+    static func severity(for fixture: FixtureVerificationFixtureResult) -> FixtureVerificationStatus {
+        let statuses = [fixture.patching.status, fixture.quantity.status, fixture.layout.status, fixture.orientation.status]
+        if statuses.contains(.fail) { return .fail }
+        if statuses.contains(.warn) { return .warn }
+        return .pass
+    }
+
+    static func matches(filter: FixtureVerificationSeverityFilter, fixture: FixtureVerificationFixtureResult) -> Bool {
+        switch filter {
+        case .all:
+            return true
+        case .fail:
+            return severity(for: fixture) == .fail
+        case .warn:
+            return severity(for: fixture) == .warn
+        case .pass:
+            return severity(for: fixture) == .pass
+        }
+    }
+
+    static func exposureHint(
+        primaryBaseline: Double,
+        primaryLit: Double,
+        secondaryBaseline: Double?,
+        secondaryLit: Double?,
+        observedDelta: Double
+    ) -> String? {
+        let baselineValues = [primaryBaseline, secondaryBaseline].compactMap { $0 }
+        let litValues = [primaryLit, secondaryLit].compactMap { $0 }
+        let minBaseline = baselineValues.min() ?? primaryBaseline
+        let maxLit = litValues.max() ?? primaryLit
+
+        if maxLit >= 0.97 {
+            return "Overexposed camera feed; lower exposure or reduce ambient brightness."
+        }
+        if minBaseline <= 0.05 && observedDelta < patchingThreshold {
+            return "Low-light feed; increase front light or camera gain for reliable verification."
+        }
+        return nil
     }
 }

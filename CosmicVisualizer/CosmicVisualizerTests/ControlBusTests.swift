@@ -17,6 +17,65 @@ final class ControlBusTests: XCTestCase {
         XCTAssertEqual(r.floatValue, 120.25, accuracy: 0.001)
     }
 
+    func testOSCParse_commandMappingNextScene() throws {
+        let cmd = try XCTUnwrap(OSCControlBusStub.parseCommand("/cosmic/scene/next"))
+        XCTAssertEqual(cmd.type, "NextScene")
+    }
+
+    func testOSCParse_commandMappingFractalZoom() throws {
+        let cmd = try XCTUnwrap(OSCControlBusStub.parseCommand("/cosmic/fractal/zoom f 1.75"))
+        XCTAssertEqual(cmd.type, "SetFractalZoom")
+        XCTAssertEqual(try XCTUnwrap(cmd.fractalZoom), 1.75, accuracy: 0.001)
+    }
+
+    func testOSCParse_commandMappingTempoBPM() throws {
+        let cmd = try XCTUnwrap(OSCControlBusStub.parseCommand("/cosmic/tempo/bpm f 128.0"))
+        XCTAssertEqual(cmd.type, "SetManualBPM")
+        XCTAssertEqual(try XCTUnwrap(cmd.bpm), 128.0, accuracy: 0.001)
+    }
+
+    func testOSCParse_commandMappingLiquidEnabled() throws {
+        let cmd = try XCTUnwrap(OSCControlBusStub.parseCommand("/cosmic/liquid/enabled f 1"))
+        XCTAssertEqual(cmd.type, "SetLiquidLightEnabled")
+        XCTAssertEqual(cmd.enabled, true)
+    }
+
+    func testOSCParse_commandMappingSceneJumpUUID() throws {
+        let id = UUID(uuidString: "00000000-0000-0000-0000-000000000111")!
+        let cmd = try XCTUnwrap(OSCControlBusStub.parseCommand("/cosmic/scene/jump \(id.uuidString)"))
+        XCTAssertEqual(cmd.type, "JumpToScene")
+        XCTAssertEqual(cmd.sceneID, id)
+    }
+
+    func testOSCParse_commandMappingPaletteSelectUUID() throws {
+        let id = UUID(uuidString: "00000000-0000-0000-0000-000000000222")!
+        let cmd = try XCTUnwrap(OSCControlBusStub.parseCommand("/cosmic/palette/select s \(id.uuidString)"))
+        XCTAssertEqual(cmd.type, "SetSelectedPalette")
+        XCTAssertEqual(cmd.paletteID, id)
+    }
+
+    func testOSCParse_commandMappingLightingCueIndex() throws {
+        let cmd = try XCTUnwrap(OSCControlBusStub.parseCommand("/cosmic/lighting/cue/index i 3"))
+        XCTAssertEqual(cmd.type, "SetActiveLightingCueIndex")
+        XCTAssertEqual(cmd.index, 3)
+    }
+
+    func testOSCParse_commandMappingRecordingStart() throws {
+        let cmd = try XCTUnwrap(OSCControlBusStub.parseCommand("/cosmic/recording/start"))
+        XCTAssertEqual(cmd.type, "StartLiveOutputRecording")
+    }
+
+    func testOSCParse_commandMappingRecordingSource() throws {
+        let cmd = try XCTUnwrap(OSCControlBusStub.parseCommand("/cosmic/recording/source s externalOutput"))
+        XCTAssertEqual(cmd.type, "SetLiveOutputRecordingSource")
+        XCTAssertEqual(cmd.source, "externalOutput")
+    }
+
+    func testOSCParse_stateQuery() {
+        XCTAssertTrue(OSCControlBusStub.isStateQuery("/cosmic/state/get"))
+        XCTAssertFalse(OSCControlBusStub.isStateQuery("/cosmic/scene/next"))
+    }
+
     func testDMXClamp() {
         XCTAssertEqual(DMXControlStub.clampChannel(300), 255)
         XCTAssertEqual(DMXControlStub.clampChannel(-10), 0)

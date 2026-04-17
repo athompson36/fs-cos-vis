@@ -33,6 +33,8 @@ struct StagePlanView: View {
     @State private var backdropDragStart: StageBackdropPlacement?
     @State private var backdropImportError: String?
     @State private var selectedTemplateID = stageObjectTemplates.first?.id ?? ""
+    @State private var snapToGridEnabled = true
+    @State private var snapGridDivisions = 24
 
     var body: some View {
         GroupBox("Stage layout (2D)") {
@@ -134,6 +136,7 @@ struct StagePlanView: View {
                             value: Binding(
                                 get: { object.scale },
                                 set: { newValue in
+                                    guard !object.isLocked else { return }
                                     var s = appModel.stageLayoutDocument
                                     guard let idx = s.plotObjects.firstIndex(where: { $0.id == selectedPlotObjectID }) else { return }
                                     s.plotObjects[idx].scale = max(0.3, min(3.0, newValue))
@@ -153,6 +156,7 @@ struct StagePlanView: View {
                             value: Binding(
                                 get: { object.rotation },
                                 set: { newValue in
+                                    guard !object.isLocked else { return }
                                     var s = appModel.stageLayoutDocument
                                     guard let idx = s.plotObjects.firstIndex(where: { $0.id == selectedPlotObjectID }) else { return }
                                     s.plotObjects[idx].rotation = newValue
@@ -164,6 +168,27 @@ struct StagePlanView: View {
                         Text("\(Int(object.rotation))°")
                             .font(.caption2.monospacedDigit())
                             .frame(width: 40, alignment: .trailing)
+                    }
+                    Toggle(
+                        "Lock object (disable drag/scale/rotation)",
+                        isOn: Binding(
+                            get: { object.isLocked },
+                            set: { locked in
+                                var s = appModel.stageLayoutDocument
+                                guard let idx = s.plotObjects.firstIndex(where: { $0.id == selectedPlotObjectID }) else { return }
+                                s.plotObjects[idx].isLocked = locked
+                                appModel.applyStageLayoutDocument(s)
+                            }
+                        )
+                    )
+                    .controlSize(.small)
+                    HStack {
+                        Button("Duplicate") { duplicateSelectedObject() }
+                            .controlSize(.small)
+                        Button("Send backward") { sendSelectedObjectBackward() }
+                            .controlSize(.small)
+                        Button("Bring forward") { bringSelectedObjectForward() }
+                            .controlSize(.small)
                     }
                     Button("Remove selected object", role: .destructive) {
                         var s = appModel.stageLayoutDocument
@@ -342,6 +367,22 @@ struct StagePlanView: View {
                 Button("Add object") { addStageObject() }
                     .controlSize(.small)
             }
+            HStack {
+                Toggle("Snap-to-grid", isOn: $snapToGridEnabled)
+                    .controlSize(.small)
+                Text("Grid")
+                    .font(.caption2)
+                Stepper(
+                    value: $snapGridDivisions,
+                    in: 8 ... 64,
+                    step: 4
+                ) {
+                    Text("\(snapGridDivisions)x\(snapGridDivisions)")
+                        .font(.caption2.monospacedDigit())
+                        .frame(minWidth: 62, alignment: .leading)
+                }
+                .controlSize(.small)
+            }
             Text("Objects auto-scale to stage dimensions using real footprint size and can be dragged/scaled/rotated with labels.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
@@ -466,21 +507,18 @@ struct StagePlanView: View {
     }
 
     private func stageObjectView(object: StagePlotObject, canvasSize: CGSize, isSelected: Bool) -> some View {
-        let widthMeters = max(0.2, object.footprintWidthMeters * object.scale)
-        let depthMeters = max(0.2, object.footprintDepthMeters * object.scale)
-        let stageWidth = max(1, appModel.stageLayoutDocument.dimensions.widthMeters)
-        let stageDepth = max(1, appModel.stageLayoutDocument.dimensions.depthMeters)
-        let width = max(16, CGFloat(widthMeters / stageWidth) * canvasSize.width)
-        let height = max(12, CGFloat(depthMeters / stageDepth) * canvasSize.height)
+        let normalized = object.normalizedFootprint(in: appModel.stageLayoutDocument.dimensions)
+        let width = max(16, CGFloat(normalized.width) * canvasSize.width)
+        let height = max(12, CGFloat(normalized.depth) * canvasSize.height)
         let centerX = CGFloat(object.centerX) * canvasSize.width
         let centerY = CGFloat(1 - object.centerY) * canvasSize.height
 
         return ZStack {
             RoundedRectangle(cornerRadius: 6)
-                .fill(Color.orange.opacity(0.35))
+                .fill(object.isLocked ? Color.gray.opacity(0.35) : Color.orange.opacity(0.35))
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)
-                        .stroke(isSelected ? Color.white : Color.orange.opacity(0.8), lineWidth: isSelected ? 2 : 1)
+                        .stroke(isSelected ? Color.white : (object.isLocked ? Color.gray.opacity(0.8) : Color.orange.opacity(0.8)), lineWidth: isSelected ? 2 : 1)
                 )
             Text(object.label)
                 .font(.system(size: 10, weight: .semibold, design: .rounded))
@@ -488,6 +526,13 @@ struct StagePlanView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .padding(.horizontal, 4)
+            if object.isLocked {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .padding(4)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            }
         }
         .frame(width: width, height: height)
         .position(x: centerX, y: centerY)
@@ -495,6 +540,7 @@ struct StagePlanView: View {
         .gesture(
             DragGesture()
                 .onChanged { g in
+                    guard !object.isLocked else { return }
                     if plotObjectDragStart == nil || plotObjectDragStart?.id != object.id {
                         plotObjectDragStart = object
                     }
@@ -508,6 +554,14 @@ struct StagePlanView: View {
                     appModel.applyStageLayoutDocument(s)
                 }
                 .onEnded { _ in
+                    guard !object.isLocked else { return }
+                    if snapToGridEnabled {
+                        var s = appModel.stageLayoutDocument
+                        guard let idx = s.plotObjects.firstIndex(where: { $0.id == object.id }) else { return }
+                        s.plotObjects[idx].centerX = snapToGrid(s.plotObjects[idx].centerX)
+                        s.plotObjects[idx].centerY = snapToGrid(s.plotObjects[idx].centerY)
+                        appModel.applyStageLayoutDocument(s)
+                    }
                     plotObjectDragStart = nil
                 }
         )
@@ -604,6 +658,42 @@ struct StagePlanView: View {
         )
         appModel.applyStageLayoutDocument(s)
         selectedPlotObjectID = s.plotObjects.last?.id
+    }
+
+    private func duplicateSelectedObject() {
+        guard let selectedPlotObjectID else { return }
+        var s = appModel.stageLayoutDocument
+        guard let idx = s.plotObjects.firstIndex(where: { $0.id == selectedPlotObjectID }) else { return }
+        var copy = s.plotObjects[idx]
+        copy.id = UUID()
+        copy.centerX = min(max(copy.centerX + 0.03, 0), 1)
+        copy.centerY = min(max(copy.centerY - 0.03, 0), 1)
+        copy.label = copy.label + " Copy"
+        s.plotObjects.insert(copy, at: min(idx + 1, s.plotObjects.count))
+        appModel.applyStageLayoutDocument(s)
+        self.selectedPlotObjectID = copy.id
+    }
+
+    private func bringSelectedObjectForward() {
+        guard let selectedPlotObjectID else { return }
+        var s = appModel.stageLayoutDocument
+        guard let idx = s.plotObjects.firstIndex(where: { $0.id == selectedPlotObjectID }), idx < s.plotObjects.count - 1 else { return }
+        s.plotObjects.swapAt(idx, idx + 1)
+        appModel.applyStageLayoutDocument(s)
+    }
+
+    private func sendSelectedObjectBackward() {
+        guard let selectedPlotObjectID else { return }
+        var s = appModel.stageLayoutDocument
+        guard let idx = s.plotObjects.firstIndex(where: { $0.id == selectedPlotObjectID }), idx > 0 else { return }
+        s.plotObjects.swapAt(idx, idx - 1)
+        appModel.applyStageLayoutDocument(s)
+    }
+
+    private func snapToGrid(_ value: Double) -> Double {
+        let divisions = max(1, snapGridDivisions)
+        let step = 1.0 / Double(divisions)
+        return min(max((value / step).rounded() * step, 0), 1)
     }
 
     private func importBackdrop() {

@@ -3,6 +3,12 @@ import AVFoundation
 import SwiftUI
 
 struct LightingWorkspaceView: View {
+    private enum FixtureScanSetupStep: String {
+        case primary
+        case secondary
+        case ready
+    }
+
     @EnvironmentObject private var appModel: AppModel
     @StateObject private var fogLearnWebcam = WebcamCaptureService()
     @StateObject private var fixtureVerifyWebcam = WebcamCaptureService()
@@ -28,6 +34,8 @@ struct LightingWorkspaceView: View {
     @State private var fixtureVerifyPrimaryCameraID: String?
     @State private var fixtureVerifyUseSecondaryCamera = false
     @State private var fixtureVerifySecondaryCameraID: String?
+    @State private var fixtureScanSetupStep: FixtureScanSetupStep = .primary
+    @State private var fixtureReportSeverityFilter: FixtureVerificationSeverityFilter = .all
     @State private var newBookmarkMetadataKey = ""
     @State private var newBookmarkMetadataValue = ""
 
@@ -90,7 +98,7 @@ struct LightingWorkspaceView: View {
                     Picker("Curated fixtures", selection: $selectedCatalogFixtureID) {
                         Text("Select…").tag(Optional<String>.none)
                         ForEach(oflCatalog, id: \.id) { entry in
-                            Text("\(entry.manufacturerName) · \(entry.fixtureName)\(entry.isFogRelated ? " · Fog/Haze" : "")")
+                            Text("\(entry.manufacturerName) · \(entry.fixtureName)\(entry.isFogRelated ? " · Fog/Haze" : "")\(entry.source == .curatedLocal ? " · Curated" : "")")
                                 .tag(Optional(entry.id))
                         }
                     }
@@ -807,6 +815,7 @@ struct LightingWorkspaceView: View {
                 Text("Scans each assigned fixture independently with DMX test bursts and camera luma sampling to validate patching, quantity, venue-map layout, and orientation metadata. Optional secondary wireless iOS Continuity Camera can be angled near stage depth.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                fixtureScanSetupWizard
                 if !fixtureVerifyAvailableCameras.isEmpty {
                     Picker("Primary scan camera", selection: $fixtureVerifyPrimaryCameraID) {
                         Text("System default").tag(Optional<String>.none)
@@ -831,7 +840,7 @@ struct LightingWorkspaceView: View {
                         .foregroundStyle(.secondary)
                 }
                 HStack {
-                    Button("Start fixture verification") {
+                    Button(fixtureScanSetupStep == .ready ? "Start fixture verification" : "Resume scan") {
                         appModel.startFixtureVerification(
                             primaryWebcam: fixtureVerifyWebcam,
                             primaryDeviceUniqueID: fixtureVerifyPrimaryCameraID,
@@ -839,6 +848,7 @@ struct LightingWorkspaceView: View {
                             secondaryDeviceUniqueID: fixtureVerifySecondaryCameraID
                         )
                     }
+                    .disabled(!fixtureScanReadyToRun)
                     Button("Cancel verification") {
                         appModel.cancelFixtureVerification()
                     }
@@ -849,6 +859,13 @@ struct LightingWorkspaceView: View {
                         .foregroundStyle(.secondary)
                 }
                 if let report = appModel.fixtureVerificationReport {
+                    Picker("Report severity", selection: $fixtureReportSeverityFilter) {
+                        Text("All").tag(FixtureVerificationSeverityFilter.all)
+                        Text("Fail").tag(FixtureVerificationSeverityFilter.fail)
+                        Text("Warn").tag(FixtureVerificationSeverityFilter.warn)
+                        Text("Pass").tag(FixtureVerificationSeverityFilter.pass)
+                    }
+                    .pickerStyle(.segmented)
                     HStack(spacing: 10) {
                         categoryBadge("Patching", status: aggregateStatus(report.fixtures.map(\.patching.status)))
                         categoryBadge("Quantity", status: aggregateStatus(report.fixtures.map(\.quantity.status)))
@@ -856,9 +873,19 @@ struct LightingWorkspaceView: View {
                         categoryBadge("Orientation", status: aggregateStatus(report.fixtures.map(\.orientation.status)))
                     }
                     .font(.caption2)
-                    ForEach(report.fixtures) { fixture in
+                    let filteredFixtures = report.fixtures.filter { FixtureVerificationEvaluator.matches(filter: fixtureReportSeverityFilter, fixture: $0) }
+                    if filteredFixtures.isEmpty {
+                        Text("No fixtures match the selected severity filter.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(filteredFixtures) { fixture in
                         VStack(alignment: .leading, spacing: 3) {
-                            Text("#\(fixture.fixtureIndex) \(fixture.fixtureName) @ \(fixture.startAddress)")
+                            HStack {
+                                Text("#\(fixture.fixtureIndex) \(fixture.fixtureName) @ \(fixture.startAddress)")
+                                Spacer()
+                                categoryBadge("Severity", status: FixtureVerificationEvaluator.severity(for: fixture))
+                            }
                                 .font(.caption.weight(.semibold))
                             Text("Patch \(fixture.patching.status.rawValue): \(fixture.patching.note)")
                                 .font(.caption2)
@@ -867,6 +894,18 @@ struct LightingWorkspaceView: View {
                             Text("Orientation \(fixture.orientation.status.rawValue): \(fixture.orientation.note)")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
+                            HStack {
+                                Button("Select profile") {
+                                    selectFixtureProfileInPatch(fixtureID: fixture.fixtureID)
+                                }
+                                .controlSize(.small)
+                                if fixture.layout.status != .pass {
+                                    Button("Add stage placement") {
+                                        addDefaultStagePlacement(fixtureID: fixture.fixtureID)
+                                    }
+                                    .controlSize(.small)
+                                }
+                            }
                         }
                     }
                 }
@@ -877,7 +916,102 @@ struct LightingWorkspaceView: View {
             if fixtureVerifyAvailableCameras.isEmpty {
                 fixtureVerifyAvailableCameras = WebcamCaptureService.availableVideoDevices()
             }
+            syncFixtureScanSetupStep()
         }
+        .onChange(of: fixtureVerifyUseSecondaryCamera) { _ in
+            syncFixtureScanSetupStep()
+        }
+        .onChange(of: fixtureVerifySecondaryCameraID) { _ in
+            syncFixtureScanSetupStep()
+        }
+        .onChange(of: appModel.stageLayoutDocument.primaryScanCamera.isEnabled) { _ in
+            syncFixtureScanSetupStep()
+        }
+        .onChange(of: appModel.stageLayoutDocument.secondaryScanCamera.isEnabled) { _ in
+            syncFixtureScanSetupStep()
+        }
+    }
+
+    @ViewBuilder
+    private var fixtureScanSetupWizard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Scan setup wizard")
+                .font(.caption.weight(.semibold))
+            switch fixtureScanSetupStep {
+            case .primary:
+                Text("1) Enable and position the primary scan camera overlay in Stage Layout. Drag the wedge to match your front-of-house view.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            case .secondary:
+                Text("2) Secondary scan is enabled. Choose/position the angled iOS continuity camera for depth, then continue.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            case .ready:
+                Text("3) Cameras are staged. Start or resume fixture verification scan.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            HStack {
+                Button("Back") {
+                    switch fixtureScanSetupStep {
+                    case .primary:
+                        break
+                    case .secondary:
+                        fixtureScanSetupStep = .primary
+                    case .ready:
+                        fixtureScanSetupStep = fixtureVerifyUseSecondaryCamera ? .secondary : .primary
+                    }
+                }
+                .controlSize(.small)
+                .disabled(fixtureScanSetupStep == .primary)
+                Button(fixtureScanSetupStep == .ready ? "Ready" : "Continue") {
+                    switch fixtureScanSetupStep {
+                    case .primary:
+                        if fixtureVerifyUseSecondaryCamera {
+                            fixtureScanSetupStep = .secondary
+                        } else {
+                            fixtureScanSetupStep = .ready
+                        }
+                    case .secondary:
+                        fixtureScanSetupStep = .ready
+                    case .ready:
+                        break
+                    }
+                }
+                .controlSize(.small)
+                .disabled(!fixtureWizardCanAdvance)
+            }
+        }
+        .padding(8)
+        .background(Color.white.opacity(0.04))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+
+    private var fixtureWizardCanAdvance: Bool {
+        switch fixtureScanSetupStep {
+        case .primary:
+            return appModel.stageLayoutDocument.primaryScanCamera.isEnabled
+        case .secondary:
+            return !fixtureVerifyUseSecondaryCamera || fixtureVerifySecondaryCameraID != nil
+        case .ready:
+            return true
+        }
+    }
+
+    private var fixtureScanReadyToRun: Bool {
+        fixtureScanSetupStep == .ready && appModel.stageLayoutDocument.primaryScanCamera.isEnabled
+    }
+
+    private func syncFixtureScanSetupStep() {
+        if !appModel.stageLayoutDocument.primaryScanCamera.isEnabled {
+            fixtureScanSetupStep = .primary
+            return
+        }
+        if fixtureVerifyUseSecondaryCamera {
+            fixtureScanSetupStep = fixtureVerifySecondaryCameraID == nil ? .secondary : .ready
+            return
+        }
+        fixtureScanSetupStep = .ready
     }
 
     private func cameraLabel(_ device: AVCaptureDevice) -> String {
@@ -891,6 +1025,17 @@ struct LightingWorkspaceView: View {
         if statuses.contains(.fail) { return .fail }
         if statuses.contains(.warn) { return .warn }
         return .pass
+    }
+
+    private func selectFixtureProfileInPatch(fixtureID: UUID) {
+        guard let inst = appModel.dmxPatchDocument.instances.first(where: { $0.id == fixtureID }) else { return }
+        selectedProfileID = inst.profileID
+    }
+
+    private func addDefaultStagePlacement(fixtureID: UUID) {
+        var stage = appModel.stageLayoutDocument
+        stage.placements[fixtureID.uuidString] = stage.placements[fixtureID.uuidString] ?? StagePlacement(x: 0.5, y: 0.5, rotation: 0)
+        appModel.applyStageLayoutDocument(stage)
     }
 
     private func categoryBadge(_ title: String, status: FixtureVerificationStatus) -> some View {

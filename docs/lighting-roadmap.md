@@ -30,6 +30,7 @@ This document captures current implementation status, boundaries, and next work 
    - Stage-plot scan camera overlays (primary + optional secondary angled camera)
 8. **Fixture source and import**
    - OFL import service and curated catalog sync with fog/haze-focused indexing
+   - merged enrichment pipeline now combines OFL curated sync with bundled curated fallback fixtures for offline/missing-entry coverage
 
 ## In progress
 

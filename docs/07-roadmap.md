@@ -22,7 +22,7 @@ This roadmap now tracks implementation status, not just concept phases.
   - modulation runtime
   - stage layout + 2.5D preview
   - fog/haze learn and safety controls
-  - OFL fixture import and curated catalog
+  - OFL fixture import and enriched catalog pipeline (OFL sync + bundled curated fallback source)
   - fixture verification (assisted camera workflow)
   - overlay element timeout auto-hide and metadata-bound text rendering
 
@@ -54,10 +54,12 @@ This roadmap now tracks implementation status, not just concept phases.
   - started: OSC UDP control listener with token-gated command parsing for scene/tempo/parameter commands
   - expanded: OSC parity mappings for cue index, UUID scene jumps/palette select, and additional performance toggles
   - added: OSC state query responder (`/cosmic/state/get`) using the same app snapshot contract as web state
+  - expanded: live output recorder parity (`start`/`stop`, source, quality) with recorder status/latest output path in web state snapshot
 - Capture/export pipeline hardening and automation (codec tuning, permissions diagnostics, long-duration stability)
   - implemented recorder quality presets (24/30/60 fps, bitrate tuning) and live audio-source diagnostics in Live Show
   - implemented recorder health indicators for source availability and screen/microphone permission states
   - implemented setup wizard step analytics and exportable onboarding diagnostics JSON
+  - implemented show package archive import/export automation (`.cosmicshow.zip`) plus CI smoke validation workflow
 - Sparkle appcast publication and signed installer automation hardening
 - Cross-platform feasibility spikes (Windows path)
 

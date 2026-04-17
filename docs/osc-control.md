@@ -40,6 +40,11 @@ Messages are newline-free UTF-8 lines sent over UDP.
 - `/cosmic/performance/enabled f 0`
 - `/cosmic/palette/select s <uuid>`
 - `/cosmic/lighting/cue/index i <index>`
+- `/cosmic/recording/start`
+- `/cosmic/recording/stop`
+- `/cosmic/recording/source s mainLivePreview`
+- `/cosmic/recording/source s externalOutput`
+- `/cosmic/recording/quality s performance|balanced|archival`
 
 ## State query
 

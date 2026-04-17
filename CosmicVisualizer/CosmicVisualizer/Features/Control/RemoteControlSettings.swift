@@ -109,9 +109,14 @@ extension PreviewAspectRatioSelection {
 struct RemoteControlSettings: Equatable {
     var remoteControlEnabled: Bool = false
     var remoteControlPort: Int = 8765
+    var oscControlEnabled: Bool = false
+    var oscControlPort: Int = 9000
     /// When false, HTTP server binds to loopback only.
     var bindLAN: Bool = false
+    /// When false, OSC listener binds to loopback only.
+    var oscBindLAN: Bool = false
     var authToken: String = ""
+    var oscAuthToken: String = ""
     var midiInputUID: String = ""
     /// Audio input device UID from CoreAudio. Empty = system default.
     var audioInputDeviceUID: String = ""
@@ -127,10 +132,30 @@ struct RemoteControlSettings: Equatable {
     var obsAudioForwardOutputDeviceUID: String = ""
     var dmxSerialDevicePath: String = ""
     var dmxOutputEnabled: Bool = false
-    /// `hardware` or `simulated`.
+    /// `hardware`, `simulated`, `artnet`, or `sacn`.
     var dmxOutputMode: String = "hardware"
     /// Simulated adapter profile for offline workflow.
     var dmxSimulatedInterface: String = "enttec_open_dmx"
+    /// Network target host/IP for Art-Net unicast output.
+    var dmxArtNetHost: String = "255.255.255.255"
+    /// Universe number for Art-Net/sACN output.
+    var dmxNetworkUniverse: Int = 0
+    /// Destination host for sACN output (multicast or unicast).
+    var dmxSACNHost: String = "239.255.0.1"
+    /// Enable inbound network DMX intake (desk -> app merge path).
+    var dmxInboundEnabled: Bool = false
+    /// `artnet` or `sacn`.
+    var dmxInboundMode: String = "artnet"
+    /// Universe index expected from inbound stream.
+    var dmxInboundUniverse: Int = 0
+    /// Merge policy: `htp` (max) or `lpt` (latest takes precedence).
+    var dmxInboundMergeMode: String = "htp"
+    /// Enables RDM discovery/probing scaffold controls.
+    var rdmDiscoveryEnabled: Bool = false
+    /// Discovery transport path: `hardware`, `artnet`, or `sacn`.
+    var rdmDiscoveryTransportMode: String = "hardware"
+    /// Universe targeted by RDM discovery scaffold.
+    var rdmDiscoveryUniverse: Int = 0
     /// Letterboxing for Live Show / Scene Studio Metal previews.
     var previewAspectRatioSelection: PreviewAspectRatioSelection = .auto
     /// UI-only scale for Scene Studio live preview panel.
@@ -160,6 +185,11 @@ struct RemoteControlSettings: Equatable {
     var setupWizardCompleted: Bool = false
     var setupWizardLastStepID: String = "welcome"
     var setupWizardSkippedStepIDs: [String] = []
+    var setupWizardSessionCount: Int = 0
+    var setupWizardStartedAtISO8601: String = ""
+    var setupWizardCompletedAtISO8601: String = ""
+    var setupWizardStepCompletedCounts: [String: Int] = [:]
+    var setupWizardStepSkippedCounts: [String: Int] = [:]
     var githubFeedbackRepository: String = "athompson36/fs-cos-vis"
     var githubFeedbackToken: String = ""
 }
@@ -168,8 +198,12 @@ extension RemoteControlSettings: Codable {
     private enum CodingKeys: String, CodingKey {
         case remoteControlEnabled
         case remoteControlPort
+        case oscControlEnabled
+        case oscControlPort
         case bindLAN
+        case oscBindLAN
         case authToken
+        case oscAuthToken
         case midiInputUID
         case audioInputDeviceUID
         case audioInputChannelIndex
@@ -181,6 +215,16 @@ extension RemoteControlSettings: Codable {
         case dmxOutputEnabled
         case dmxOutputMode
         case dmxSimulatedInterface
+        case dmxArtNetHost
+        case dmxNetworkUniverse
+        case dmxSACNHost
+        case dmxInboundEnabled
+        case dmxInboundMode
+        case dmxInboundUniverse
+        case dmxInboundMergeMode
+        case rdmDiscoveryEnabled
+        case rdmDiscoveryTransportMode
+        case rdmDiscoveryUniverse
         case previewAspectRatioSelection
         case sceneStudioPreviewScale
         case obsSyphonStreamEnabled
@@ -194,6 +238,11 @@ extension RemoteControlSettings: Codable {
         case setupWizardCompleted
         case setupWizardLastStepID
         case setupWizardSkippedStepIDs
+        case setupWizardSessionCount
+        case setupWizardStartedAtISO8601
+        case setupWizardCompletedAtISO8601
+        case setupWizardStepCompletedCounts
+        case setupWizardStepSkippedCounts
         case githubFeedbackRepository
         case githubFeedbackToken
     }
@@ -202,8 +251,12 @@ extension RemoteControlSettings: Codable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         remoteControlEnabled = try c.decodeIfPresent(Bool.self, forKey: .remoteControlEnabled) ?? false
         remoteControlPort = try c.decodeIfPresent(Int.self, forKey: .remoteControlPort) ?? 8765
+        oscControlEnabled = try c.decodeIfPresent(Bool.self, forKey: .oscControlEnabled) ?? false
+        oscControlPort = try c.decodeIfPresent(Int.self, forKey: .oscControlPort) ?? 9000
         bindLAN = try c.decodeIfPresent(Bool.self, forKey: .bindLAN) ?? false
+        oscBindLAN = try c.decodeIfPresent(Bool.self, forKey: .oscBindLAN) ?? false
         authToken = try c.decodeIfPresent(String.self, forKey: .authToken) ?? ""
+        oscAuthToken = try c.decodeIfPresent(String.self, forKey: .oscAuthToken) ?? ""
         midiInputUID = try c.decodeIfPresent(String.self, forKey: .midiInputUID) ?? ""
         audioInputDeviceUID = try c.decodeIfPresent(String.self, forKey: .audioInputDeviceUID) ?? ""
         audioInputChannelIndex = try c.decodeIfPresent(Int.self, forKey: .audioInputChannelIndex) ?? -1
@@ -215,6 +268,16 @@ extension RemoteControlSettings: Codable {
         dmxOutputEnabled = try c.decodeIfPresent(Bool.self, forKey: .dmxOutputEnabled) ?? false
         dmxOutputMode = try c.decodeIfPresent(String.self, forKey: .dmxOutputMode) ?? "hardware"
         dmxSimulatedInterface = try c.decodeIfPresent(String.self, forKey: .dmxSimulatedInterface) ?? "enttec_open_dmx"
+        dmxArtNetHost = try c.decodeIfPresent(String.self, forKey: .dmxArtNetHost) ?? "255.255.255.255"
+        dmxNetworkUniverse = try c.decodeIfPresent(Int.self, forKey: .dmxNetworkUniverse) ?? 0
+        dmxSACNHost = try c.decodeIfPresent(String.self, forKey: .dmxSACNHost) ?? "239.255.0.1"
+        dmxInboundEnabled = try c.decodeIfPresent(Bool.self, forKey: .dmxInboundEnabled) ?? false
+        dmxInboundMode = try c.decodeIfPresent(String.self, forKey: .dmxInboundMode) ?? "artnet"
+        dmxInboundUniverse = try c.decodeIfPresent(Int.self, forKey: .dmxInboundUniverse) ?? 0
+        dmxInboundMergeMode = try c.decodeIfPresent(String.self, forKey: .dmxInboundMergeMode) ?? "htp"
+        rdmDiscoveryEnabled = try c.decodeIfPresent(Bool.self, forKey: .rdmDiscoveryEnabled) ?? false
+        rdmDiscoveryTransportMode = try c.decodeIfPresent(String.self, forKey: .rdmDiscoveryTransportMode) ?? "hardware"
+        rdmDiscoveryUniverse = try c.decodeIfPresent(Int.self, forKey: .rdmDiscoveryUniverse) ?? 0
         previewAspectRatioSelection = try c.decodeIfPresent(PreviewAspectRatioSelection.self, forKey: .previewAspectRatioSelection) ?? .auto
         sceneStudioPreviewScale = try c.decodeIfPresent(Double.self, forKey: .sceneStudioPreviewScale) ?? 1.0
         obsSyphonStreamEnabled = try c.decodeIfPresent(Bool.self, forKey: .obsSyphonStreamEnabled) ?? false
@@ -228,6 +291,11 @@ extension RemoteControlSettings: Codable {
         setupWizardCompleted = try c.decodeIfPresent(Bool.self, forKey: .setupWizardCompleted) ?? false
         setupWizardLastStepID = try c.decodeIfPresent(String.self, forKey: .setupWizardLastStepID) ?? "welcome"
         setupWizardSkippedStepIDs = try c.decodeIfPresent([String].self, forKey: .setupWizardSkippedStepIDs) ?? []
+        setupWizardSessionCount = try c.decodeIfPresent(Int.self, forKey: .setupWizardSessionCount) ?? 0
+        setupWizardStartedAtISO8601 = try c.decodeIfPresent(String.self, forKey: .setupWizardStartedAtISO8601) ?? ""
+        setupWizardCompletedAtISO8601 = try c.decodeIfPresent(String.self, forKey: .setupWizardCompletedAtISO8601) ?? ""
+        setupWizardStepCompletedCounts = try c.decodeIfPresent([String: Int].self, forKey: .setupWizardStepCompletedCounts) ?? [:]
+        setupWizardStepSkippedCounts = try c.decodeIfPresent([String: Int].self, forKey: .setupWizardStepSkippedCounts) ?? [:]
         githubFeedbackRepository = try c.decodeIfPresent(String.self, forKey: .githubFeedbackRepository) ?? "athompson36/fs-cos-vis"
         githubFeedbackToken = try c.decodeIfPresent(String.self, forKey: .githubFeedbackToken) ?? ""
     }
@@ -236,8 +304,12 @@ extension RemoteControlSettings: Codable {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(remoteControlEnabled, forKey: .remoteControlEnabled)
         try c.encode(remoteControlPort, forKey: .remoteControlPort)
+        try c.encode(oscControlEnabled, forKey: .oscControlEnabled)
+        try c.encode(oscControlPort, forKey: .oscControlPort)
         try c.encode(bindLAN, forKey: .bindLAN)
+        try c.encode(oscBindLAN, forKey: .oscBindLAN)
         try c.encode(authToken, forKey: .authToken)
+        try c.encode(oscAuthToken, forKey: .oscAuthToken)
         try c.encode(midiInputUID, forKey: .midiInputUID)
         try c.encode(audioInputDeviceUID, forKey: .audioInputDeviceUID)
         try c.encode(audioInputChannelIndex, forKey: .audioInputChannelIndex)
@@ -249,6 +321,16 @@ extension RemoteControlSettings: Codable {
         try c.encode(dmxOutputEnabled, forKey: .dmxOutputEnabled)
         try c.encode(dmxOutputMode, forKey: .dmxOutputMode)
         try c.encode(dmxSimulatedInterface, forKey: .dmxSimulatedInterface)
+        try c.encode(dmxArtNetHost, forKey: .dmxArtNetHost)
+        try c.encode(dmxNetworkUniverse, forKey: .dmxNetworkUniverse)
+        try c.encode(dmxSACNHost, forKey: .dmxSACNHost)
+        try c.encode(dmxInboundEnabled, forKey: .dmxInboundEnabled)
+        try c.encode(dmxInboundMode, forKey: .dmxInboundMode)
+        try c.encode(dmxInboundUniverse, forKey: .dmxInboundUniverse)
+        try c.encode(dmxInboundMergeMode, forKey: .dmxInboundMergeMode)
+        try c.encode(rdmDiscoveryEnabled, forKey: .rdmDiscoveryEnabled)
+        try c.encode(rdmDiscoveryTransportMode, forKey: .rdmDiscoveryTransportMode)
+        try c.encode(rdmDiscoveryUniverse, forKey: .rdmDiscoveryUniverse)
         try c.encode(previewAspectRatioSelection, forKey: .previewAspectRatioSelection)
         try c.encode(sceneStudioPreviewScale, forKey: .sceneStudioPreviewScale)
         try c.encode(obsSyphonStreamEnabled, forKey: .obsSyphonStreamEnabled)
@@ -262,6 +344,11 @@ extension RemoteControlSettings: Codable {
         try c.encode(setupWizardCompleted, forKey: .setupWizardCompleted)
         try c.encode(setupWizardLastStepID, forKey: .setupWizardLastStepID)
         try c.encode(setupWizardSkippedStepIDs, forKey: .setupWizardSkippedStepIDs)
+        try c.encode(setupWizardSessionCount, forKey: .setupWizardSessionCount)
+        try c.encode(setupWizardStartedAtISO8601, forKey: .setupWizardStartedAtISO8601)
+        try c.encode(setupWizardCompletedAtISO8601, forKey: .setupWizardCompletedAtISO8601)
+        try c.encode(setupWizardStepCompletedCounts, forKey: .setupWizardStepCompletedCounts)
+        try c.encode(setupWizardStepSkippedCounts, forKey: .setupWizardStepSkippedCounts)
         try c.encode(githubFeedbackRepository, forKey: .githubFeedbackRepository)
         try c.encode(githubFeedbackToken, forKey: .githubFeedbackToken)
     }

@@ -50,9 +50,15 @@ Last updated: 2026-04-17
   - Added OSC address-to-command mappings for core scene/tempo/look controls and parser unit coverage.
   - Expanded OSC mappings to include manual BPM, liquid enable, scene jump by UUID, palette select by UUID, and lighting cue index selection.
   - Added OSC state query path (`/cosmic/state/get`) returning the same JSON snapshot used by web control state.
-- [ ] Export/import automation around full show packages and CI smoke validation.
-- [ ] Additional fixture-source enrichment pipeline beyond OFL-first strategy.
-- [ ] Add web/remote command parity for live recording start/stop/status and latest output path.
+- [x] Export/import automation around full show packages and CI smoke validation.
+  - Added project-package archive automation (`.cosmicshow.zip`) with import/export actions in Settings.
+  - Added CI smoke workflow (`show-package-smoke`) running package roundtrip and archive import/export tests.
+- [x] Additional fixture-source enrichment pipeline beyond OFL-first strategy.
+  - Added merged fixture catalog pipeline combining OFL curated sync results with bundled curated fallback fixtures.
+  - Added source tagging (`ofl_curated` / `curated_local`) and backward-compatible cache decode for older catalogs.
+- [x] Add web/remote command parity for live recording start/stop/status and latest output path.
+  - Added remote/web command handlers for live recorder start/stop plus source and quality preset selection.
+  - Added OSC mappings for recording start/stop/source/quality and exposed recorder status/latest output path in `/api/state`.
 - [ ] Add authenticated API relay option for feedback issue submission without storing personal tokens locally.
 
 ## Completion criterion for “full implementation”

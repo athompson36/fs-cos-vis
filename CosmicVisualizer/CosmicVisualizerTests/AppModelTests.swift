@@ -38,6 +38,9 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(dto.lightingActiveCueIndex, 1)
         XCTAssertEqual(dto.lightingActiveCueName, "Spots")
         XCTAssertEqual(dto.lightingCueCount, 2)
+        XCTAssertEqual(dto.liveOutputRecordingSource, model.liveOutputRecordingSource.rawValue)
+        XCTAssertEqual(dto.liveOutputRecordingQualityPreset, model.liveOutputRecordingQualityPreset.rawValue)
+        XCTAssertEqual(dto.liveOutputRecording, model.isLiveOutputRecording)
     }
 
     func testResolvedOverlayText_usesActiveCueBookmarkMetadata() {
@@ -74,6 +77,42 @@ final class AppModelTests: XCTestCase {
         XCTAssertTrue(model.shouldRenderOverlayElement(id: shapeID, timeoutSeconds: nil))
     }
 
+    func testOverlayMetadataAndTimeout_resetsOnCueTransition() {
+        let model = AppModel()
+        let cueAID = UUID(uuidString: "00000000-0000-0000-0000-0000000003A1")!
+        let cueBID = UUID(uuidString: "00000000-0000-0000-0000-0000000003B2")!
+        let cueDoc = LightingCueDocument(
+            version: 1,
+            cues: [
+                LightingCue(id: cueAID, name: "Cue A", fadeSeconds: 1, channelValues: []),
+                LightingCue(id: cueBID, name: "Cue B", fadeSeconds: 1, channelValues: []),
+            ],
+            activeCueIndex: 0,
+            bookmarkedCueIds: [cueAID, cueBID],
+            bookmarkMetadataByCueID: [
+                cueAID.uuidString: ["song_title": "Song A"],
+                cueBID.uuidString: ["song_title": "Song B"],
+            ]
+        )
+        model.applyLightingCueDocument(cueDoc)
+
+        let textID = UUID(uuidString: "00000000-0000-0000-0000-0000000003C3")!
+        let textLayer = OverlayCardTextLayer(id: textID, text: "Fallback", metadataKey: "song_title", timeoutSeconds: 1.0)
+        model.applyOverlayCardDocument(
+            OverlayCardDocument(version: 1, name: "Now Playing", shapes: [], texts: [textLayer])
+        )
+
+        XCTAssertEqual(model.resolvedOverlayText(for: textLayer), "Song A")
+        XCTAssertTrue(model.shouldRenderOverlayElement(id: textID, timeoutSeconds: 1.0))
+
+        model.resetOverlayElementTimers(now: Date(timeIntervalSinceNow: -2.0))
+        XCTAssertFalse(model.shouldRenderOverlayElement(id: textID, timeoutSeconds: 1.0))
+
+        model.setActiveLightingCueIndex(1)
+        XCTAssertEqual(model.resolvedOverlayText(for: textLayer), "Song B")
+        XCTAssertTrue(model.shouldRenderOverlayElement(id: textID, timeoutSeconds: 1.0))
+    }
+
     func testSaveShowProject_createsArtifactsAndBackupOnResave() throws {
         let model = AppModel()
         let tempRoot = FileManager.default.temporaryDirectory
@@ -99,6 +138,14 @@ final class AppModelTests: XCTestCase {
         model.startLiveOutputRecording(preferredMainWindowNumber: nil)
         XCTAssertFalse(model.isLiveOutputRecording)
         XCTAssertTrue(model.liveOutputRecordingStatus.contains("unavailable"))
+    }
+
+    func testRecordingRemoteCommands_updateSourceAndQuality() {
+        let model = AppModel()
+        model.applyRemoteCommand(RemoteControlCommand(type: "SetLiveOutputRecordingSource", source: "externalOutput"))
+        model.applyRemoteCommand(RemoteControlCommand(type: "SetLiveOutputRecordingQualityPreset", source: "archival"))
+        XCTAssertEqual(model.liveOutputRecordingSource, .externalOutput)
+        XCTAssertEqual(model.liveOutputRecordingQualityPreset, .archival)
     }
 
     func testSetupWizard_completionAndReset() {
@@ -141,5 +188,57 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(info.apiWebsite, "https://www.anthropic.com/api")
         XCTAssertEqual(info.defaultBaseURLHint, "Base URL (empty = https://api.anthropic.com/v1/messages)")
         XCTAssertTrue(info.setupSteps.contains { $0.contains("Anthropic API key") })
+    }
+
+    func testLiveOutputRecordingQualityPreset_mapsCaptureSettings() {
+        let perf = AppModel.LiveOutputRecordingQualityPreset.performance.captureQuality
+        XCTAssertEqual(perf.framesPerSecond, 24)
+        XCTAssertEqual(perf.videoBitrate, 5_000_000)
+
+        let balanced = AppModel.LiveOutputRecordingQualityPreset.balanced.captureQuality
+        XCTAssertEqual(balanced.framesPerSecond, 30)
+        XCTAssertEqual(balanced.videoBitrate, 8_000_000)
+
+        let archival = AppModel.LiveOutputRecordingQualityPreset.archival.captureQuality
+        XCTAssertEqual(archival.framesPerSecond, 60)
+        XCTAssertEqual(archival.videoBitrate, 16_000_000)
+    }
+
+    func testRecordingHealthPermissionMessages() {
+        XCTAssertEqual(
+            AppModel.screenCapturePermissionHealthMessage(isGranted: true),
+            "Screen recording permission granted."
+        )
+        XCTAssertEqual(
+            AppModel.screenCapturePermissionHealthMessage(isGranted: false),
+            "Screen recording permission missing. Enable it in System Settings > Privacy & Security > Screen Recording."
+        )
+        XCTAssertEqual(
+            AppModel.audioPermissionHealthMessage(status: .authorized),
+            "Microphone permission granted."
+        )
+        XCTAssertEqual(
+            AppModel.audioPermissionHealthMessage(status: .notDetermined),
+            "Microphone permission not determined. Starting recording will prompt for access."
+        )
+    }
+
+    func testSetupWizard_analyticsAndDiagnosticsExport() throws {
+        let model = AppModel()
+        model.resetSetupWizard()
+        model.beginSetupWizardSessionIfNeeded()
+        model.markSetupWizardStep("audio", skipped: true)
+        model.markSetupWizardStep("output", skipped: false)
+        model.completeSetupWizard()
+
+        XCTAssertGreaterThanOrEqual(model.remoteSettings.setupWizardSessionCount, 1)
+        XCTAssertGreaterThanOrEqual(model.remoteSettings.setupWizardStepSkippedCounts["audio"] ?? 0, 1)
+        XCTAssertGreaterThanOrEqual(model.remoteSettings.setupWizardStepCompletedCounts["output"] ?? 0, 1)
+        XCTAssertFalse(model.remoteSettings.setupWizardCompletedAtISO8601.isEmpty)
+
+        model.exportSetupWizardDiagnostics()
+        let onboardingRoot = model.projectArtifactsFolderURL().appendingPathComponent("Onboarding", isDirectory: true)
+        let paths = try FileManager.default.contentsOfDirectory(atPath: onboardingRoot.path)
+        XCTAssertFalse(paths.isEmpty)
     }
 }

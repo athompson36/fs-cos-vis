@@ -6,6 +6,11 @@ enum OFLImportError: Error {
 
 /// Fetch / cache Open Fixture Library JSON and map a mode into `FixtureProfile`.
 enum OFLFixtureImportService {
+    enum CatalogSource: String, Codable, Equatable, Hashable, Sendable {
+        case oflCurated = "ofl_curated"
+        case curatedLocal = "curated_local"
+    }
+
     struct CatalogEntry: Codable, Equatable, Hashable, Sendable, Identifiable {
         var id: String { "\(manufacturerSlug)/\(fixtureSlug)" }
         var manufacturerSlug: String
@@ -14,6 +19,46 @@ enum OFLFixtureImportService {
         var fixtureName: String
         var categories: [String]
         var isFogRelated: Bool
+        var source: CatalogSource
+
+        enum CodingKeys: String, CodingKey {
+            case manufacturerSlug
+            case manufacturerName
+            case fixtureSlug
+            case fixtureName
+            case categories
+            case isFogRelated
+            case source
+        }
+
+        init(
+            manufacturerSlug: String,
+            manufacturerName: String,
+            fixtureSlug: String,
+            fixtureName: String,
+            categories: [String],
+            isFogRelated: Bool,
+            source: CatalogSource
+        ) {
+            self.manufacturerSlug = manufacturerSlug
+            self.manufacturerName = manufacturerName
+            self.fixtureSlug = fixtureSlug
+            self.fixtureName = fixtureName
+            self.categories = categories
+            self.isFogRelated = isFogRelated
+            self.source = source
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            manufacturerSlug = try container.decode(String.self, forKey: .manufacturerSlug)
+            manufacturerName = try container.decode(String.self, forKey: .manufacturerName)
+            fixtureSlug = try container.decode(String.self, forKey: .fixtureSlug)
+            fixtureName = try container.decode(String.self, forKey: .fixtureName)
+            categories = try container.decode([String].self, forKey: .categories)
+            isFogRelated = try container.decode(Bool.self, forKey: .isFogRelated)
+            source = try container.decodeIfPresent(CatalogSource.self, forKey: .source) ?? .oflCurated
+        }
     }
 
     struct CatalogCache: Codable, Equatable, Sendable {
@@ -89,7 +134,7 @@ enum OFLFixtureImportService {
     /// Fetches OFL register and builds a curated local catalog for quick fixture browsing/import.
     static func syncCuratedCatalog(limitPerManufacturer: Int = 60) async throws -> CatalogCache {
         let register = try await fetchFixtureRegister()
-        let cache = buildCuratedCatalog(from: register, limitPerManufacturer: limitPerManufacturer)
+        let cache = buildUnifiedCatalog(from: register, limitPerManufacturer: limitPerManufacturer)
         try FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
         try JSONEncoder().encode(cache).write(to: fixtureCatalogCacheURL, options: .atomic)
         return cache
@@ -97,7 +142,7 @@ enum OFLFixtureImportService {
 
     static func buildCuratedCatalog(from registerData: Data, limitPerManufacturer: Int = 60) throws -> CatalogCache {
         let register = try JSONDecoder().decode(FixtureRegister.self, from: registerData)
-        return buildCuratedCatalog(from: register, limitPerManufacturer: limitPerManufacturer)
+        return buildUnifiedCatalog(from: register, limitPerManufacturer: limitPerManufacturer)
     }
 
     private static func buildCuratedCatalog(from register: FixtureRegister, limitPerManufacturer: Int) -> CatalogCache {
@@ -125,7 +170,8 @@ enum OFLFixtureImportService {
                     fixtureSlug: fixtureSlug,
                     fixtureName: fixtureMeta.name,
                     categories: cats,
-                    isFogRelated: fog
+                    isFogRelated: fog,
+                    source: .oflCurated
                 )
             )
             perManufacturerCount[manufacturerSlug] = count + 1
@@ -137,6 +183,42 @@ enum OFLFixtureImportService {
             return $0.fixtureName < $1.fixtureName
         }
         return CatalogCache(generatedAt: Date(), entries: entries)
+    }
+
+    private static func buildUnifiedCatalog(from register: FixtureRegister, limitPerManufacturer: Int) -> CatalogCache {
+        var merged = buildCuratedCatalog(from: register, limitPerManufacturer: limitPerManufacturer).entries
+        merged = mergeCatalogEntries(primary: merged, secondary: bundledCuratedFallbackCatalog())
+        merged.sort {
+            if $0.isFogRelated != $1.isFogRelated { return $0.isFogRelated && !$1.isFogRelated }
+            if $0.manufacturerName != $1.manufacturerName { return $0.manufacturerName < $1.manufacturerName }
+            return $0.fixtureName < $1.fixtureName
+        }
+        return CatalogCache(generatedAt: Date(), entries: merged)
+    }
+
+    private static func mergeCatalogEntries(primary: [CatalogEntry], secondary: [CatalogEntry]) -> [CatalogEntry] {
+        var byKey: [String: CatalogEntry] = [:]
+        for entry in primary {
+            byKey[entry.id] = entry
+        }
+        for entry in secondary where byKey[entry.id] == nil {
+            byKey[entry.id] = entry
+        }
+        return Array(byKey.values)
+    }
+
+    static func bundledCuratedFallbackCatalog() -> [CatalogEntry] {
+        curatedFallbackFixtures.map { fixture in
+            CatalogEntry(
+                manufacturerSlug: fixture.manufacturerSlug,
+                manufacturerName: fixture.manufacturerName,
+                fixtureSlug: fixture.fixtureSlug,
+                fixtureName: fixture.fixtureName,
+                categories: fixture.categories,
+                isFogRelated: isFogRelated(fixtureName: fixture.fixtureName, categories: fixture.categories),
+                source: .curatedLocal
+            )
+        }
     }
 
     static func loadCuratedCatalog() -> CatalogCache? {
@@ -219,6 +301,27 @@ enum OFLFixtureImportService {
         var manufacturers: [String: String]
         var fixtures: [String: FixtureMeta]
     }
+
+    private struct CuratedFallbackFixture: Codable {
+        var manufacturerSlug: String
+        var manufacturerName: String
+        var fixtureSlug: String
+        var fixtureName: String
+        var categories: [String]
+    }
+
+    private static let curatedFallbackFixtures: [CuratedFallbackFixture] = [
+        CuratedFallbackFixture(manufacturerSlug: "chauvet-dj", manufacturerName: "Chauvet DJ", fixtureSlug: "intimidator-spot-260x", fixtureName: "Intimidator Spot 260X", categories: ["Moving Head"]),
+        CuratedFallbackFixture(manufacturerSlug: "adj", manufacturerName: "ADJ", fixtureSlug: "focus-spot-4z", fixtureName: "Focus Spot 4Z", categories: ["Moving Head"]),
+        CuratedFallbackFixture(manufacturerSlug: "robe", manufacturerName: "Robe", fixtureSlug: "megapointe", fixtureName: "MegaPointe", categories: ["Moving Head"]),
+        CuratedFallbackFixture(manufacturerSlug: "etc", manufacturerName: "ETC", fixtureSlug: "source-four-led-series-2", fixtureName: "Source Four LED Series 2", categories: ["Color Changer"]),
+        CuratedFallbackFixture(manufacturerSlug: "clay-paky", manufacturerName: "Clay Paky", fixtureSlug: "sharpy-plus", fixtureName: "Sharpy Plus", categories: ["Moving Head"]),
+        CuratedFallbackFixture(manufacturerSlug: "elation", manufacturerName: "Elation", fixtureSlug: "platinum-beam-5r-pro", fixtureName: "Platinum Beam 5R Pro", categories: ["Moving Head"]),
+        CuratedFallbackFixture(manufacturerSlug: "antari", manufacturerName: "Antari", fixtureSlug: "hz-500", fixtureName: "HZ-500 Hazer", categories: ["Effect"]),
+        CuratedFallbackFixture(manufacturerSlug: "look-solutions", manufacturerName: "Look Solutions", fixtureSlug: "unique-2-1", fixtureName: "Unique 2.1 Hazer", categories: ["Effect"]),
+        CuratedFallbackFixture(manufacturerSlug: "magicfx", manufacturerName: "MAGICFX", fixtureSlug: "stadium-shot-ii", fixtureName: "Stadium Shot II", categories: ["Effect"]),
+        CuratedFallbackFixture(manufacturerSlug: "ultratec", manufacturerName: "Ultratec", fixtureSlug: "radiance-hazer", fixtureName: "Radiance Hazer", categories: ["Effect"]),
+    ]
 
     private static func fetchFixtureRegister() async throws -> FixtureRegister {
         let local = cacheDirectory.appendingPathComponent("fixtures-register.json")

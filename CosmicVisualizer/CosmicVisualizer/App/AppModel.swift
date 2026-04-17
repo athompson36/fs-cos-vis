@@ -433,6 +433,12 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             externalOutputScreenIndex: externalOutputScreenIndex,
             palettes: pal,
             selectedPaletteID: selectedPaletteID,
+            liveOutputRecording: isLiveOutputRecording,
+            liveOutputRecordingSource: liveOutputRecordingSource.rawValue,
+            liveOutputRecordingQualityPreset: liveOutputRecordingQualityPreset.rawValue,
+            liveOutputRecordingStatus: liveOutputRecordingStatus,
+            liveOutputRecordingAudioDiagnostic: liveOutputRecordingAudioDiagnostic,
+            liveOutputLastRecordingPath: lastRecordingURL?.path,
             lightingPatchFixtureCount: patchInstCount,
             lightingCueCount: lcSnap.cues.count,
             lightingActiveCueIndex: lcSnap.activeCueIndex,
@@ -666,6 +672,20 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         case "RefreshAudioDevices":
             audioEngine.refreshDevices()
             refreshDeviceLabel()
+        case "SetLiveOutputRecordingSource":
+            if let raw = command.source,
+               let source = LiveOutputRecordingSource(rawValue: raw) {
+                liveOutputRecordingSource = source
+            }
+        case "SetLiveOutputRecordingQualityPreset":
+            if let raw = command.source,
+               let preset = LiveOutputRecordingQualityPreset(rawValue: raw) {
+                liveOutputRecordingQualityPreset = preset
+            }
+        case "StartLiveOutputRecording":
+            startLiveOutputRecording(preferredMainWindowNumber: nil)
+        case "StopLiveOutputRecording":
+            stopLiveOutputRecording()
         case "SetActiveLightingCueIndex":
             if let i = command.index {
                 lightingDMXLock.lock()
@@ -1050,11 +1070,14 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             requiredToken: remoteSettings.oscAuthToken
         ) { [weak self] cmd in
             self?.applyRemoteCommand(cmd)
+        } onStateQuery: { [weak self] in
+            guard let self else { return "{}" }
+            return String(data: self.makeWebStateSnapshotData(), encoding: .utf8) ?? "{}"
         }
         if let err, !err.isEmpty {
             oscControlStatus = err
         } else {
-            oscControlStatus = "Listening on UDP \(remoteSettings.oscControlPort) (\(remoteSettings.oscBindLAN ? "LAN" : "localhost"))"
+            oscControlStatus = "Listening on UDP \(remoteSettings.oscControlPort) (\(remoteSettings.oscBindLAN ? "LAN" : "localhost")) · query: /cosmic/state/get"
         }
     }
 
@@ -2610,6 +2633,50 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         } catch {
             let a = NSAlert()
             a.messageText = "Could not open project"
+            a.informativeText = error.localizedDescription
+            a.runModal()
+        }
+    }
+
+    func presentExportShowProjectArchivePanel() {
+        guard let folder = currentShowProjectFolder else {
+            let a = NSAlert()
+            a.messageText = "No active project folder"
+            a.informativeText = "Save a show project folder first, then export its archive."
+            a.runModal()
+            return
+        }
+        let panel = NSSavePanel()
+        panel.title = "Export show package archive"
+        panel.canCreateDirectories = true
+        panel.showsTagField = false
+        panel.nameFieldStringValue = ShowProjectPackage.suggestedArchiveFilename(for: showProjectMetadata)
+        guard panel.runModal() == .OK, let archiveURL = panel.url else { return }
+        do {
+            try ShowProjectPackage.exportArchive(from: folder, to: archiveURL)
+        } catch {
+            let a = NSAlert()
+            a.messageText = "Could not export show package"
+            a.informativeText = error.localizedDescription
+            a.runModal()
+        }
+    }
+
+    func presentImportShowProjectArchivePanel() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [UTType.zip]
+        guard panel.runModal() == .OK, let archiveURL = panel.url else { return }
+        do {
+            let extractionRoot = FileManager.default.temporaryDirectory
+                .appendingPathComponent("cosmic-import-\(UUID().uuidString)", isDirectory: true)
+            let packageRoot = try ShowProjectPackage.importArchive(from: archiveURL, to: extractionRoot)
+            try loadShowProject(from: packageRoot)
+        } catch {
+            let a = NSAlert()
+            a.messageText = "Could not import show package"
             a.informativeText = error.localizedDescription
             a.runModal()
         }

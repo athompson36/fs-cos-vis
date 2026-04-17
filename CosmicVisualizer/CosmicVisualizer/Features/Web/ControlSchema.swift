@@ -79,6 +79,10 @@ struct ControlSchema: Codable, Equatable, Sendable {
                 fields: [
                     Field(id: "openPresentation", label: "Open presentation display", kind: "command", commandType: "OpenExternalVisualization"),
                     Field(id: "closePresentation", label: "Close presentation", kind: "command", commandType: "CloseExternalVisualization"),
+                    Field(id: "recStart", label: "Start live output recording", kind: "command", commandType: "StartLiveOutputRecording"),
+                    Field(id: "recStop", label: "Stop live output recording", kind: "command", commandType: "StopLiveOutputRecording"),
+                    Field(id: "recSource", label: "Recording source (mainLivePreview|externalOutput)", kind: "string", commandType: "SetLiveOutputRecordingSource"),
+                    Field(id: "recQuality", label: "Recording quality (performance|balanced|archival)", kind: "string", commandType: "SetLiveOutputRecordingQualityPreset"),
                 ]
             ),
             Section(

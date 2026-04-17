@@ -130,6 +130,12 @@ private extension SettingsView {
                     Button("Open project folder…") {
                         appModel.presentOpenShowProjectPanel()
                     }
+                    Button("Export package archive…") {
+                        appModel.presentExportShowProjectArchivePanel()
+                    }
+                    Button("Import package archive…") {
+                        appModel.presentImportShowProjectArchivePanel()
+                    }
                 }
                 Text(appModel.currentShowProjectFolder?.path ?? "No project folder — context files go to Application Support.")
                     .font(.caption2)

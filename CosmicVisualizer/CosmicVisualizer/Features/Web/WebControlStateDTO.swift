@@ -44,6 +44,12 @@ struct WebControlStateDTO: Codable, Equatable, Sendable {
     var externalOutputScreenIndex: Int
     var palettes: [PaletteSummary]
     var selectedPaletteID: UUID?
+    var liveOutputRecording: Bool
+    var liveOutputRecordingSource: String
+    var liveOutputRecordingQualityPreset: String
+    var liveOutputRecordingStatus: String
+    var liveOutputRecordingAudioDiagnostic: String
+    var liveOutputLastRecordingPath: String?
 
     /// Patched fixtures (universe 0 instances) for quick remote readouts.
     var lightingPatchFixtureCount: Int

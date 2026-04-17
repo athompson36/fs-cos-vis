@@ -1,0 +1,16 @@
+name: show-package-smoke
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  smoke:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run show package smoke validation
+        run: bash scripts/ci/smoke-show-package.sh

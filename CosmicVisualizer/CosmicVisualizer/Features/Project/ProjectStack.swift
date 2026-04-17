@@ -77,6 +77,7 @@ enum ShowProjectPackage {
     private static let stageLayoutFilename = "stage_layout.json"
     private static let overlayCardsFilename = "overlay_cards.json"
     private static let mediaDir = "Media"
+    private static let archiveExtension = "cosmicshow.zip"
 
     static func defaultProjectsRoot() -> URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -154,6 +155,74 @@ enum ShowProjectPackage {
 
     static func mediaDirectory(forPackage folder: URL) -> URL {
         folder.appendingPathComponent(mediaDir, isDirectory: true)
+    }
+
+    static func suggestedArchiveFilename(for project: ShowProjectDocument) -> String {
+        let base = project.show.title
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+        let sanitized = base.isEmpty ? "CosmicVisualizer-Show" : base
+        return "\(sanitized).\(archiveExtension)"
+    }
+
+    /// Creates a zip archive from a saved package folder using `ditto`.
+    static func exportArchive(from folder: URL, to archiveURL: URL) throws {
+        let fm = FileManager.default
+        let parent = archiveURL.deletingLastPathComponent()
+        try fm.createDirectory(at: parent, withIntermediateDirectories: true)
+        if fm.fileExists(atPath: archiveURL.path) {
+            try fm.removeItem(at: archiveURL)
+        }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+        process.arguments = ["-c", "-k", "--sequesterRsrc", "--keepParent", folder.path, archiveURL.path]
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            throw NSError(domain: "ShowProjectPackage", code: Int(process.terminationStatus), userInfo: [
+                NSLocalizedDescriptionKey: "Failed to export show package archive.",
+            ])
+        }
+    }
+
+    /// Extracts a `.cosmicshow.zip` archive and returns the detected package folder.
+    static func importArchive(from archiveURL: URL, to extractionRoot: URL) throws -> URL {
+        let fm = FileManager.default
+        if fm.fileExists(atPath: extractionRoot.path) {
+            try fm.removeItem(at: extractionRoot)
+        }
+        try fm.createDirectory(at: extractionRoot, withIntermediateDirectories: true)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+        process.arguments = ["-x", "-k", archiveURL.path, extractionRoot.path]
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            throw NSError(domain: "ShowProjectPackage", code: Int(process.terminationStatus), userInfo: [
+                NSLocalizedDescriptionKey: "Failed to extract show package archive.",
+            ])
+        }
+        return try findPackageRoot(in: extractionRoot)
+    }
+
+    private static func findPackageRoot(in extractionRoot: URL) throws -> URL {
+        let marker = extractionRoot.appendingPathComponent(projectFilename)
+        if FileManager.default.fileExists(atPath: marker.path) {
+            return extractionRoot
+        }
+        let entries = try FileManager.default.contentsOfDirectory(at: extractionRoot, includingPropertiesForKeys: nil)
+        for entry in entries {
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: entry.path, isDirectory: &isDir), isDir.boolValue else { continue }
+            let candidate = entry.appendingPathComponent(projectFilename)
+            if FileManager.default.fileExists(atPath: candidate.path) {
+                return entry
+            }
+        }
+        throw NSError(domain: "ShowProjectPackage", code: 1, userInfo: [
+            NSLocalizedDescriptionKey: "Archive does not contain a valid Cosmic show package.",
+        ])
     }
 }
 

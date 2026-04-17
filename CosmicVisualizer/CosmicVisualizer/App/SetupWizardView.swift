@@ -144,6 +144,9 @@ struct SetupWizardView: View {
                 Text("OSC helper scripts are available at scripts/osc/ for send/query examples.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                Text("Recorder remote control: /cosmic/recording/start · /cosmic/recording/stop · /cosmic/recording/source s mainLivePreview|externalOutput · /cosmic/recording/quality s performance|balanced|archival.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
                 Toggle("Enable Syphon stream for OBS", isOn: Binding(
                     get: { appModel.remoteSettings.obsSyphonStreamEnabled },
                     set: { v in var s = appModel.remoteSettings; s.obsSyphonStreamEnabled = v; appModel.remoteSettings = s }

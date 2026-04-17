@@ -23,6 +23,23 @@ enum FixtureVerificationService {
         return 0
     }
 
+    static func resolvedProbeDelta(
+        primaryBaseline: Double,
+        primaryLit: Double,
+        secondaryBaseline: Double?,
+        secondaryLit: Double?
+    ) -> (delta: Double, usedSecondary: Bool) {
+        let primaryDelta = max(0, primaryLit - primaryBaseline)
+        guard let secondaryBaseline, let secondaryLit else {
+            return (primaryDelta, false)
+        }
+        let secondaryDelta = max(0, secondaryLit - secondaryBaseline)
+        if secondaryDelta > primaryDelta {
+            return (secondaryDelta, true)
+        }
+        return (primaryDelta, false)
+    }
+
     static func persist(report: FixtureVerificationDocument, outputFolder: URL) {
         let ctx = outputFolder.appendingPathComponent("context", isDirectory: true)
         try? FileManager.default.createDirectory(at: ctx, withIntermediateDirectories: true)

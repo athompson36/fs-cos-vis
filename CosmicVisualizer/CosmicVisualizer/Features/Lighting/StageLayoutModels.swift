@@ -79,6 +79,7 @@ struct StagePlotObject: Codable, Equatable, Identifiable, Sendable {
     var centerY: Double
     var rotation: Double
     var scale: Double
+    var isLocked: Bool
 
     init(
         id: UUID = UUID(),
@@ -89,7 +90,8 @@ struct StagePlotObject: Codable, Equatable, Identifiable, Sendable {
         centerX: Double = 0.5,
         centerY: Double = 0.5,
         rotation: Double = 0,
-        scale: Double = 1
+        scale: Double = 1,
+        isLocked: Bool = false
     ) {
         self.id = id
         self.templateID = templateID
@@ -100,6 +102,42 @@ struct StagePlotObject: Codable, Equatable, Identifiable, Sendable {
         self.centerY = centerY
         self.rotation = rotation
         self.scale = scale
+        self.isLocked = isLocked
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case templateID
+        case label
+        case footprintWidthMeters
+        case footprintDepthMeters
+        case centerX
+        case centerY
+        case rotation
+        case scale
+        case isLocked
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        templateID = try container.decode(String.self, forKey: .templateID)
+        label = try container.decode(String.self, forKey: .label)
+        footprintWidthMeters = try container.decode(Double.self, forKey: .footprintWidthMeters)
+        footprintDepthMeters = try container.decode(Double.self, forKey: .footprintDepthMeters)
+        centerX = try container.decodeIfPresent(Double.self, forKey: .centerX) ?? 0.5
+        centerY = try container.decodeIfPresent(Double.self, forKey: .centerY) ?? 0.5
+        rotation = try container.decodeIfPresent(Double.self, forKey: .rotation) ?? 0
+        scale = try container.decodeIfPresent(Double.self, forKey: .scale) ?? 1
+        isLocked = try container.decodeIfPresent(Bool.self, forKey: .isLocked) ?? false
+    }
+
+    func normalizedFootprint(in dimensions: StageDimensions) -> (width: Double, depth: Double) {
+        let widthMeters = max(0.2, footprintWidthMeters * scale)
+        let depthMeters = max(0.2, footprintDepthMeters * scale)
+        let stageWidth = max(1, dimensions.widthMeters)
+        let stageDepth = max(1, dimensions.depthMeters)
+        return (widthMeters / stageWidth, depthMeters / stageDepth)
     }
 }
 
