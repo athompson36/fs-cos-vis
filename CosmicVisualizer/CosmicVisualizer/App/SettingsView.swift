@@ -14,12 +14,17 @@ struct SettingsView: View {
     @State private var obsAudioStatus = ""
     @State private var shareStatus = ""
     @State private var lanIPv4 = ""
+    @State private var feedbackTitle = "Beta feedback"
+    @State private var feedbackBody = ""
 
     var body: some View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 14) {
+                betaSection
                 showProjectSection
                 performanceStripsSection
+                updatesSection
+                feedbackSection
                 hybridAISection
                 calibrationSection
                 audioInputSection
@@ -44,6 +49,73 @@ struct SettingsView: View {
 }
 
 private extension SettingsView {
+    var betaSection: some View {
+        GroupBox("Build") {
+            HStack {
+                Text(AppBuildInfo.displayVersion)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Re-run setup wizard") {
+                    appModel.resetSetupWizard()
+                }
+                .controlSize(.small)
+            }
+        }
+    }
+
+    var updatesSection: some View {
+        GroupBox("App updates") {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Updater channel: \(AppBuildInfo.betaLabel)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button("Check for updates now") {
+                    appModel.checkForAppUpdates()
+                }
+                .controlSize(.small)
+                if !appModel.appUpdateStatus.isEmpty {
+                    Text(appModel.appUpdateStatus)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    var feedbackSection: some View {
+        GroupBox("Feedback and error logs") {
+            VStack(alignment: .leading, spacing: 8) {
+                TextField("Issue title", text: $feedbackTitle)
+                    .textFieldStyle(.roundedBorder)
+                TextField("Feedback / error details", text: $feedbackBody, axis: .vertical)
+                    .lineLimit(3 ... 6)
+                    .textFieldStyle(.roundedBorder)
+                TextField("GitHub repo (owner/name)", text: stringBinding(\.githubFeedbackRepository))
+                    .textFieldStyle(.roundedBorder)
+                SecureField("GitHub token (optional)", text: stringBinding(\.githubFeedbackToken))
+                    .textFieldStyle(.roundedBorder)
+                HStack {
+                    Button("Create local feedback bundle") {
+                        appModel.createFeedbackBundle(message: feedbackBody)
+                    }
+                    .controlSize(.small)
+                    Button("Submit GitHub issue") {
+                        appModel.submitFeedbackIssue(title: feedbackTitle, body: feedbackBody)
+                    }
+                    .controlSize(.small)
+                }
+                if !appModel.feedbackStatus.isEmpty {
+                    Text(appModel.feedbackStatus)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
     var showProjectSection: some View {
         GroupBox("Venue / show project") {
             VStack(alignment: .leading, spacing: 10) {
@@ -106,9 +178,18 @@ private extension SettingsView {
         GroupBox("Hybrid AI assistant (optional cloud)") {
             VStack(alignment: .leading, spacing: 10) {
                 Toggle("Enable LLM panel (API key in Keychain)", isOn: boolBinding(\.hybridAIAssistantEnabled))
+                Picker("Provider", selection: stringBinding(\.llmProvider)) {
+                    Text("OpenAI-compatible").tag("openai")
+                    Text("Claude (Anthropic)").tag("anthropic")
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: 320, alignment: .leading)
                 TextField("Model id", text: stringBinding(\.llmModel))
                     .textFieldStyle(.roundedBorder)
-                TextField("Base URL (empty = OpenAI-compatible default)", text: stringBinding(\.llmBaseURL))
+                TextField(
+                    AIProviderInfo(providerID: appModel.remoteSettings.llmProvider).defaultBaseURLHint,
+                    text: stringBinding(\.llmBaseURL)
+                )
                     .textFieldStyle(.roundedBorder)
                 SecureField("API key", text: $llmKeyDraft)
                     .textFieldStyle(.roundedBorder)

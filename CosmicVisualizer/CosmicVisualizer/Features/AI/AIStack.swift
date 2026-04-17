@@ -415,8 +415,11 @@ struct LLMChatClient {
         apiKey: String,
         settings: Settings
     ) async throws -> String {
+        let provider = settings.provider.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let base = settings.baseURL?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
-            ?? "https://api.openai.com/v1/chat/completions"
+            ?? (provider == "anthropic" || provider == "claude"
+                ? "https://api.anthropic.com/v1/messages"
+                : "https://api.openai.com/v1/chat/completions")
         guard let url = URL(string: base) else {
             throw URLError(.badURL)
         }
@@ -425,26 +428,55 @@ struct LLMChatClient {
             ctxBlock += "\n### \(f.name)\n\(f.content)\n"
         }
         let userBody = "Context files:\n\(ctxBlock)\n\nUser request:\n\(userPrompt)"
-        let body: [String: Any] = [
-            "model": settings.model,
-            "temperature": 0.1,
-            "messages": [
-                ["role": "system", "content": systemPrompt],
-                ["role": "user", "content": userBody],
-            ],
-        ]
+        let body: [String: Any]
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        if provider == "anthropic" || provider == "claude" {
+            body = [
+                "model": settings.model,
+                "max_tokens": 1200,
+                "temperature": 0.1,
+                "system": systemPrompt,
+                "messages": [
+                    ["role": "user", "content": userBody],
+                ],
+            ]
+            req.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+            req.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        } else {
+            body = [
+                "model": settings.model,
+                "temperature": 0.1,
+                "messages": [
+                    ["role": "system", "content": systemPrompt],
+                    ["role": "user", "content": userBody],
+                ],
+            ]
+            req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (data, resp) = try await URLSession.shared.data(for: req)
         guard let http = resp as? HTTPURLResponse, (200 ... 299).contains(http.statusCode) else {
             let s = String(data: data, encoding: .utf8) ?? ""
             throw AIToolExecutionError.invalidArguments("LLM HTTP error: \(s.prefix(200))")
         }
+        let root = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        if provider == "anthropic" || provider == "claude" {
+            guard
+                let root,
+                let content = root["content"] as? [[String: Any]]
+            else {
+                throw AIToolExecutionError.invalidArguments("Claude response parse failed")
+            }
+            let text = content.compactMap { $0["text"] as? String }.joined(separator: "\n")
+            guard !text.isEmpty else {
+                throw AIToolExecutionError.invalidArguments("Claude returned empty text")
+            }
+            return text
+        }
         guard
-            let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let root,
             let choices = root["choices"] as? [[String: Any]],
             let msg = choices.first?["message"] as? [String: Any],
             let content = msg["content"] as? String

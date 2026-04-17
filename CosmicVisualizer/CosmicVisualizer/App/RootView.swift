@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject private var appModel: AppModel
+    @State private var showSetupWizard = false
 
     var body: some View {
         TabView {
@@ -22,7 +23,14 @@ struct RootView: View {
         }
         .cosmicShellBackground()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear { appModel.startAudio() }
+        .onAppear {
+            appModel.startAudio()
+            showSetupWizard = !appModel.remoteSettings.setupWizardCompleted
+        }
         .onDisappear { appModel.stopAudio() }
+        .sheet(isPresented: $showSetupWizard) {
+            SetupWizardView()
+                .environmentObject(appModel)
+        }
     }
 }
