@@ -121,6 +121,29 @@ struct SetupWizardView: View {
                     get: { appModel.remoteSettings.bindLAN },
                     set: { v in var s = appModel.remoteSettings; s.bindLAN = v; appModel.remoteSettings = s }
                 ))
+                Toggle("Enable OSC UDP control", isOn: Binding(
+                    get: { appModel.remoteSettings.oscControlEnabled },
+                    set: { v in var s = appModel.remoteSettings; s.oscControlEnabled = v; appModel.remoteSettings = s }
+                ))
+                HStack(spacing: 8) {
+                    Text("OSC Port")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    TextField("9000", value: Binding(
+                        get: { appModel.remoteSettings.oscControlPort },
+                        set: { v in var s = appModel.remoteSettings; s.oscControlPort = v; appModel.remoteSettings = s }
+                    ), format: .number)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 120)
+                    Toggle("OSC Bind LAN", isOn: Binding(
+                        get: { appModel.remoteSettings.oscBindLAN },
+                        set: { v in var s = appModel.remoteSettings; s.oscBindLAN = v; appModel.remoteSettings = s }
+                    ))
+                }
+                .disabled(!appModel.remoteSettings.oscControlEnabled)
+                Text("OSC helper scripts are available at scripts/osc/ for send/query examples.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
                 Toggle("Enable Syphon stream for OBS", isOn: Binding(
                     get: { appModel.remoteSettings.obsSyphonStreamEnabled },
                     set: { v in var s = appModel.remoteSettings; s.obsSyphonStreamEnabled = v; appModel.remoteSettings = s }

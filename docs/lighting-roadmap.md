@@ -36,19 +36,31 @@ This document captures current implementation status, boundaries, and next work 
 - Verification fidelity improvements:
   - stronger confidence/diagnostic outputs
   - deeper camera calibration guidance
+  - mid-scan camera disconnect handling with resume guidance and partial-progress persistence
+  - verification report severity filters and quick correction actions (select fixture profile, add default stage placement)
+  - low-light / overexposure scan hints during per-fixture verification progress
 - Stage plot workflow polish for scan setup and correction loops
+  - added explicit scan setup wizard steps in fixture verification workflow (position cameras, then resume)
 
 ## Next milestones
 
 1. **Transport expansion**
    - Art-Net/sACN multi-universe output
+   - started scaffold: output mode selection, network host/universe settings, transport diagnostics, and packet framing placeholders
+   - now sending UDP packets on Art-Net/sACN ports with reusable packet builders covered by unit tests
+   - inbound desk path scaffolded with UDP listener, universe filter, and HTP/LPT merge into built universe
+   - RDM probe scaffold now available with operator controls and deterministic mock discovery output for workflow/testing
    - inbound DMX and RDM discovery roadmap
-2. **Verification depth**
+2. **Performance profiling**
+   - DMX runtime profiler now records build/send/total frame timing, max frame duration, and over-budget frame counts
+   - diagnostics surfaced in Settings to evaluate fixture/modulator load behavior before deeper optimization passes
+3. **Verification depth**
    - richer CV/geometric fixture localization beyond luma-only checks
    - orientation/layout validation confidence metrics
-3. **Console-scale workflow**
+4. **Console-scale workflow**
    - advanced chaser/sequence graphs
    - higher-density fixture/scene authoring ergonomics
+   - OSC parity scaffold in progress (UDP listener + command mapping parity with core web/MIDI actions)
 
 ## Non-goals (current shipping scope)
 

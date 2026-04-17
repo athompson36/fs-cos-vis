@@ -40,6 +40,7 @@ For full details, see:
 - `docs/lighting-roadmap.md`
 - `docs/todo-full-implementation.md`
 - `docs/beta-0.1a-release.md`
+- `docs/osc-control.md`
 
 ## Recommended stack
 

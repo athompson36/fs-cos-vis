@@ -31,15 +31,33 @@ This roadmap now tracks implementation status, not just concept phases.
 - Fixture verification quality pass:
   - stronger confidence scoring
   - richer dual-camera guidance and validation feedback
+  - deterministic dual-camera fallback and stage-camera persistence test coverage
+  - overlay metadata/timeout cue-transition regression coverage
 - Stage plot UX:
   - camera overlay guidance, object editing polish, scan-setup flow
+  - implemented: snap-to-grid, duplicate object, lock object, and layer ordering controls
+ - Authoring surface consolidation:
+   - Palette Browser and Overlay Manager remain intentionally consolidated into Scene Studio
+   - Live Show now includes quick palette access (picker + prev/next) for performance parity
 
 ## Next up (backlog)
 
 - Network DMX expansion (Art-Net/sACN multi-universe)
+  - started: DMX output mode scaffolding and operator settings wiring for Art-Net/sACN target + universe selection
+  - implemented: initial UDP transport send path and packet-construction test coverage
 - Inbound DMX and RDM discovery path
+  - started: inbound Art-Net/sACN listener scaffold with universe filtering and HTP/LPT merge diagnostics
+  - started: RDM discovery/probe scaffold with mock transport-safe discovery results and operator diagnostics
+- Performance profiling for larger fixture counts / modulation density
+  - started: DMX tick profiler with runtime timing diagnostics and over-budget frame tracking in Settings
 - OSC control surface parity with existing web/MIDI paths
+  - started: OSC UDP control listener with token-gated command parsing for scene/tempo/parameter commands
+  - expanded: OSC parity mappings for cue index, UUID scene jumps/palette select, and additional performance toggles
+  - added: OSC state query responder (`/cosmic/state/get`) using the same app snapshot contract as web state
 - Capture/export pipeline hardening and automation (codec tuning, permissions diagnostics, long-duration stability)
+  - implemented recorder quality presets (24/30/60 fps, bitrate tuning) and live audio-source diagnostics in Live Show
+  - implemented recorder health indicators for source availability and screen/microphone permission states
+  - implemented setup wizard step analytics and exportable onboarding diagnostics JSON
 - Sparkle appcast publication and signed installer automation hardening
 - Cross-platform feasibility spikes (Windows path)
 

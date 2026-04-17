@@ -9,35 +9,47 @@ Last updated: 2026-04-17
 
 ## Priority P0 (stability and correctness)
 
-- [ ] Add deterministic tests for dual-camera fixture verification flow (primary + secondary fallback).
-- [ ] Add regression tests for stage layout camera overlays and scan-angle persistence.
-- [ ] Add coverage for stage object auto-scaling against stage dimensions and JSON migration.
-- [ ] Harden fixture verification cancellation/resume behavior under camera disconnect/reconnect.
-- [ ] Add integration test for live overlay metadata substitution + timeout behavior during cue transitions.
+- [x] Add deterministic tests for dual-camera fixture verification flow (primary + secondary fallback).
+- [x] Add regression tests for stage layout camera overlays and scan-angle persistence.
+- [x] Add coverage for stage object auto-scaling against stage dimensions and JSON migration.
+- [x] Harden fixture verification cancellation/resume behavior under camera disconnect/reconnect.
+- [x] Add integration test for live overlay metadata substitution + timeout behavior during cue transitions.
 
 ## Priority P1 (operator UX and throughput)
 
-- [ ] Stage plot UX polish: snap-to-grid, duplicate object, lock object, layer ordering.
-- [ ] Stage plot scan setup wizard: explicit “position cameras, then resume scan” guided steps.
-- [ ] Verification report UX: jump-to-fixture correction actions and confidence severity filters.
-- [ ] Improve scan messaging for low-light/overexposure conditions.
-- [ ] Add recording quality controls (fps/bitrate presets) and explicit audio-source diagnostics in Live Show recorder UI.
-- [ ] Add recorder health indicators for external-output availability and screen/audio permissions.
-- [ ] Add setup wizard step analytics (completion/skip rates) and exportable onboarding diagnostics.
-- [ ] Resolve Palette Browser spec mismatch (dedicated surface vs intentional Scene Studio consolidation).
-- [ ] Resolve Overlay Manager spec mismatch (dedicated surface vs intentional Scene Studio consolidation).
-- [ ] Audit/implement quick palette access parity in Live Show workflow.
+- [x] Stage plot UX polish: snap-to-grid, duplicate object, lock object, layer ordering.
+- [x] Stage plot scan setup wizard: explicit “position cameras, then resume scan” guided steps.
+- [x] Verification report UX: jump-to-fixture correction actions and confidence severity filters.
+- [x] Improve scan messaging for low-light/overexposure conditions.
+- [x] Add recording quality controls (fps/bitrate presets) and explicit audio-source diagnostics in Live Show recorder UI.
+- [x] Add recorder health indicators for external-output availability and screen/audio permissions.
+- [x] Add setup wizard step analytics (completion/skip rates) and exportable onboarding diagnostics.
+- [x] Resolve Palette Browser spec mismatch (dedicated surface vs intentional Scene Studio consolidation).
+- [x] Resolve Overlay Manager spec mismatch (dedicated surface vs intentional Scene Studio consolidation).
+- [x] Audit/implement quick palette access parity in Live Show workflow.
 
 ## Priority P2 (DMX expansion)
 
 - [ ] Multi-universe transport support via Art-Net/sACN.
+  - Added initial transport-mode scaffolding (`artnet` / `sacn`) with settings fields, universe targeting, frame diagnostics, and packet-framing placeholders in the DMX service.
+  - Implemented UDP output send path (Art-Net port `6454`, sACN port `5568`) plus mode-specific serial-path gating and packet-builder test coverage.
 - [ ] Inbound DMX path for external desk integration.
+  - Added inbound listener scaffold with selectable Art-Net/sACN mode, universe filter, HTP/LPT merge policy, and live intake diagnostics in Settings.
+  - Added inbound packet decode tests for Art-Net/sACN framing compatibility with current packet builders.
 - [ ] RDM discovery/probing roadmap implementation.
+  - Added operator-facing RDM scaffold controls (transport mode + universe + probe trigger) and status reporting in Settings.
+  - Added deterministic mock probe service/result model plus focused unit coverage for discovery output shape.
 - [ ] Performance profiling for larger fixture counts and high modulator density.
+  - Added DMX runtime performance profiling (build/send/total tick timings, max tick, over-budget frame count) surfaced in Settings diagnostics.
+  - Added deterministic unit coverage for profiler aggregation math and budget-threshold tracking.
 
 ## Priority P3 (integration parity)
 
 - [ ] OSC control surface parity with existing web + MIDI controls.
+  - Added OSC UDP listener settings (port/LAN/token) and runtime status diagnostics.
+  - Added OSC address-to-command mappings for core scene/tempo/look controls and parser unit coverage.
+  - Expanded OSC mappings to include manual BPM, liquid enable, scene jump by UUID, palette select by UUID, and lighting cue index selection.
+  - Added OSC state query path (`/cosmic/state/get`) returning the same JSON snapshot used by web control state.
 - [ ] Export/import automation around full show packages and CI smoke validation.
 - [ ] Additional fixture-source enrichment pipeline beyond OFL-first strategy.
 - [ ] Add web/remote command parity for live recording start/stop/status and latest output path.
