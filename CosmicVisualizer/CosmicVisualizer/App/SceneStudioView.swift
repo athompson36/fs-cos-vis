@@ -5,10 +5,11 @@ struct SceneStudioView: View {
     @EnvironmentObject private var appModel: AppModel
     @State private var newPalettePresented = false
     @State private var paletteDraftName = "Custom nebula"
-    @State private var paletteDraftPrimary = "#0B0118"
-    @State private var paletteDraftSecondary = "#1A0A33"
-    @State private var paletteDraftAccent = "#00E5FF"
-    @State private var paletteDraftGlow = "#FF2EE6"
+    @State private var paletteDraftPrimary = Color(nsColor: NSColor(hexRGB: "#0B0118") ?? .black)
+    @State private var paletteDraftSecondary = Color(nsColor: NSColor(hexRGB: "#1A0A33") ?? .black)
+    @State private var paletteDraftAccent = Color(nsColor: NSColor(hexRGB: "#00E5FF") ?? .cyan)
+    @State private var paletteDraftGlow = Color(nsColor: NSColor(hexRGB: "#FF2EE6") ?? .magenta)
+    @State private var paletteAIPrompt = "cosmic neon"
     @State private var fractalSectionExpanded = true
     @State private var lookSectionExpanded = true
     @State private var liquidSectionExpanded = true
@@ -69,14 +70,29 @@ struct SceneStudioView: View {
         .sheet(isPresented: $newPalettePresented) {
             NavigationStack {
                 Form {
-                    TextField("Name", text: $paletteDraftName)
-                    TextField("Primary #RRGGBB", text: $paletteDraftPrimary)
-                    TextField("Secondary #RRGGBB", text: $paletteDraftSecondary)
-                    TextField("Accent #RRGGBB", text: $paletteDraftAccent)
-                    TextField("Glow #RRGGBB", text: $paletteDraftGlow)
+                    Section("Step 1 · Name") {
+                        TextField("Name", text: $paletteDraftName)
+                    }
+                    Section("Step 2 · Color wheel selection") {
+                        colorWheelRow(title: "Primary", color: $paletteDraftPrimary)
+                        colorWheelRow(title: "Secondary", color: $paletteDraftSecondary)
+                        colorWheelRow(title: "Accent", color: $paletteDraftAccent)
+                        colorWheelRow(title: "Glow", color: $paletteDraftGlow)
+                    }
+                    Section("Step 3 · AI assist") {
+                        TextField("Mood prompt (example: dreamy synthwave)", text: $paletteAIPrompt)
+                        Button("AI assist palette") {
+                            applyAIAssistPalette(prompt: paletteAIPrompt)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        Text("AI assist proposes wheel colors from the mood prompt. You can fine-tune each wheel before saving.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .formStyle(.grouped)
-                .navigationTitle("New palette")
+                .navigationTitle("New palette wizard")
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel") { newPalettePresented = false }
@@ -86,10 +102,10 @@ struct SceneStudioView: View {
                             let pal = ThemePalette(
                                 name: paletteDraftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                                     ? "Custom" : paletteDraftName,
-                                primaryHex: Self.normalizedHex(paletteDraftPrimary),
-                                secondaryHex: Self.normalizedHex(paletteDraftSecondary),
-                                accentHex: Self.normalizedHex(paletteDraftAccent),
-                                glowHex: Self.normalizedHex(paletteDraftGlow)
+                                primaryHex: Self.hexString(from: paletteDraftPrimary),
+                                secondaryHex: Self.hexString(from: paletteDraftSecondary),
+                                accentHex: Self.hexString(from: paletteDraftAccent),
+                                glowHex: Self.hexString(from: paletteDraftGlow)
                             )
                             appModel.addPalette(pal)
                             appModel.selectedPaletteID = pal.id
@@ -764,6 +780,12 @@ struct SceneStudioView: View {
                     .font(.caption.weight(.semibold))
                 Spacer()
                 Button("New…") {
+                    paletteDraftName = "Custom nebula"
+                    paletteDraftPrimary = Color(nsColor: NSColor(hexRGB: "#0B0118") ?? .black)
+                    paletteDraftSecondary = Color(nsColor: NSColor(hexRGB: "#1A0A33") ?? .black)
+                    paletteDraftAccent = Color(nsColor: NSColor(hexRGB: "#00E5FF") ?? .cyan)
+                    paletteDraftGlow = Color(nsColor: NSColor(hexRGB: "#FF2EE6") ?? .magenta)
+                    paletteAIPrompt = "cosmic neon"
                     newPalettePresented = true
                 }
                 .font(.caption2)
@@ -813,10 +835,43 @@ struct SceneStudioView: View {
             .overlay(Circle().strokeBorder(Color.white.opacity(0.25), lineWidth: 0.5))
     }
 
-    private static func normalizedHex(_ raw: String) -> String {
-        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        if !s.hasPrefix("#") { s = "#" + s }
-        return s
+    private func colorWheelRow(title: String, color: Binding<Color>) -> some View {
+        HStack {
+            ColorPicker(title, selection: color, supportsOpacity: false)
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(color.wrappedValue)
+                .frame(width: 36, height: 18)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.25), lineWidth: 0.8)
+                }
+            Text(Self.hexString(from: color.wrappedValue))
+                .font(.caption.monospaced())
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func applyAIAssistPalette(prompt: String) {
+        let seed = abs(prompt.lowercased().hashValue)
+        let baseHue = Double(seed % 360) / 360.0
+        let accentHue = (baseHue + 0.38).truncatingRemainder(dividingBy: 1)
+        let glowHue = (baseHue + 0.82).truncatingRemainder(dividingBy: 1)
+        paletteDraftPrimary = Color(hue: baseHue, saturation: 0.78, brightness: 0.16)
+        paletteDraftSecondary = Color(hue: (baseHue + 0.08).truncatingRemainder(dividingBy: 1), saturation: 0.72, brightness: 0.26)
+        paletteDraftAccent = Color(hue: accentHue, saturation: 0.92, brightness: 0.94)
+        paletteDraftGlow = Color(hue: glowHue, saturation: 0.84, brightness: 0.96)
+        if paletteDraftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            paletteDraftName = "AI \(prompt.capitalized)"
+        }
+    }
+
+    private static func hexString(from color: Color) -> String {
+        let ns = NSColor(color)
+        guard let rgb = ns.usingColorSpace(.deviceRGB) else { return "#808080" }
+        let r = Int((max(0, min(1, rgb.redComponent)) * 255).rounded())
+        let g = Int((max(0, min(1, rgb.greenComponent)) * 255).rounded())
+        let b = Int((max(0, min(1, rgb.blueComponent)) * 255).rounded())
+        return String(format: "#%02X%02X%02X", r, g, b)
     }
 }
 
