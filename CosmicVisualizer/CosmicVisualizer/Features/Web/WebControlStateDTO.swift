@@ -44,4 +44,13 @@ struct WebControlStateDTO: Codable, Equatable, Sendable {
     var externalOutputScreenIndex: Int
     var palettes: [PaletteSummary]
     var selectedPaletteID: UUID?
+
+    /// Patched fixtures (universe 0 instances) for quick remote readouts.
+    var lightingPatchFixtureCount: Int
+    var lightingCueCount: Int
+    /// Active cue list index when set.
+    var lightingActiveCueIndex: Int?
+    /// Name of the active cue, if any.
+    var lightingActiveCueName: String?
+    var lightingModulatorCount: Int
 }

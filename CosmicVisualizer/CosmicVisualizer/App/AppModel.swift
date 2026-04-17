@@ -205,6 +205,14 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         }
         let pal = palettes.map { WebControlStateDTO.PaletteSummary(id: $0.id, name: $0.name) }
         let dmxD = dmxService?.extendedDiagnostics()
+        lightingDMXLock.lock()
+        let lcSnap = lightingCueDocument
+        let patchInstCount = dmxPatchDocument.instances.count
+        let modSnapCount = modulationDocument.modulators.count
+        lightingDMXLock.unlock()
+        let activeCueName: String? = lcSnap.activeCueIndex.flatMap { i in
+            lcSnap.cues.indices.contains(i) ? lcSnap.cues[i].name : nil
+        }
         let dto = WebControlStateDTO(
             bpm: tempoClock.effectiveBPM,
             beatPhase: tempoClock.beatPhase,
@@ -233,7 +241,12 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             externalPresentationOpen: isExternalVisualizationOpen,
             externalOutputScreenIndex: externalOutputScreenIndex,
             palettes: pal,
-            selectedPaletteID: selectedPaletteID
+            selectedPaletteID: selectedPaletteID,
+            lightingPatchFixtureCount: patchInstCount,
+            lightingCueCount: lcSnap.cues.count,
+            lightingActiveCueIndex: lcSnap.activeCueIndex,
+            lightingActiveCueName: activeCueName,
+            lightingModulatorCount: modSnapCount
         )
         return (try? JSONEncoder().encode(dto)) ?? Data()
     }

@@ -38,6 +38,16 @@
     qs("#dmxStat").textContent = dmxOn ? "on ~" + (s.dmxNominalHz || 0) + " Hz" : "off";
     qs("#dmxErr").textContent = s.dmxLastError ? " · " + s.dmxLastError : "";
 
+    const fx = s.lightingPatchFixtureCount ?? 0;
+    const nCues = s.lightingCueCount ?? 0;
+    const cueName = s.lightingActiveCueName;
+    let lightingLine = fx + " patch · " + nCues + " cue" + (nCues === 1 ? "" : "s");
+    if (cueName) lightingLine += " · " + cueName;
+    if ((s.lightingModulatorCount ?? 0) > 0) {
+      lightingLine += " · " + s.lightingModulatorCount + " mod";
+    }
+    qs("#lightingStat").textContent = lightingLine;
+
     const list = qs("#sceneList");
     list.innerHTML = "";
     (s.scenes || []).forEach((sc, i) => {

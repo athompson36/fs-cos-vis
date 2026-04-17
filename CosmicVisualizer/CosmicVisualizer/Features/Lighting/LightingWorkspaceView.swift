@@ -494,8 +494,15 @@ struct LightingWorkspaceView: View {
                     }
                 }
                 if !copilotStatus.isEmpty {
-                    Text(copilotStatus)
-                        .font(.caption)
+                    HStack(alignment: .top) {
+                        Text(copilotStatus)
+                            .font(.caption)
+                        Spacer(minLength: 8)
+                        Button("Clear status") {
+                            copilotStatus = ""
+                        }
+                        .controlSize(.small)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
