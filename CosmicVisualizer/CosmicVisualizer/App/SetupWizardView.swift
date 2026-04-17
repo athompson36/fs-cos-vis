@@ -19,6 +19,11 @@ struct SetupWizardView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 stepContent
+                if !appModel.setupWizardDiagnosticsStatus.isEmpty {
+                    Text(appModel.setupWizardDiagnosticsStatus)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
                 HStack {
                     if stepIndex > 0 {
                         Button("Back") { stepIndex -= 1 }
@@ -41,7 +46,15 @@ struct SetupWizardView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Finish later") { dismiss() }
                 }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Export diagnostics") {
+                        appModel.exportSetupWizardDiagnostics()
+                    }
+                }
             }
+        }
+        .onAppear {
+            appModel.beginSetupWizardSessionIfNeeded()
         }
     }
 
@@ -84,6 +97,19 @@ struct SetupWizardView: View {
                         Text(choice.label).tag(choice)
                     }
                 }
+                Text("Cosmic Visualizer needs microphone access for audio-reactive visuals. If macOS blocks access after a new build/install, use the button below to reopen Privacy settings.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Button("Open Microphone Settings") {
+                        appModel.openMicrophonePrivacySettings()
+                    }
+                    .controlSize(.small)
+                    Button("Retry audio start") {
+                        appModel.startAudio()
+                    }
+                    .controlSize(.small)
+                }
             }
         case "output":
             VStack(alignment: .leading, spacing: 8) {
@@ -112,6 +138,8 @@ struct SetupWizardView: View {
                 )) {
                     Text("Hardware").tag("hardware")
                     Text("Simulated").tag("simulated")
+                    Text("Art-Net (scaffold)").tag("artnet")
+                    Text("sACN E1.31 (scaffold)").tag("sacn")
                 }
             }
         default:

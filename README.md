@@ -31,6 +31,7 @@ Cosmic Visualizer has progressed beyond starter scaffolding into a substantial i
 - Live Show includes project-scoped output recording (video + audio) with source selection and share/reveal actions
 - fractal zoom now includes Standard / Infinite Tunnel / Event Horizon modes with expanded zoom modulation range
 - first-run Setup Wizard (beta 0.1a) now guides project/audio/output/DMX/AI setup with skippable steps and provider-specific AI API onboarding links/instructions (OpenAI-compatible vs Claude/Anthropic)
+- audio startup now requests microphone permission explicitly and includes one-click recovery actions to open macOS Microphone Privacy settings if access is denied after a new build/install
 - Settings now includes beta update checks and dual-path feedback/error-log reporting (local bundle + optional GitHub issue)
 
 For full details, see:
@@ -84,7 +85,7 @@ Run tests from Xcode (**Cmd-U**) or from the terminal:
 xcodebuild -scheme CosmicVisualizer -destination 'platform=macOS' test
 ```
 
-The app requires microphone access for live audio analysis (see Info usage string in `project.yml`).
+The app requires microphone access for live audio analysis (see Info usage string in `project.yml`). If permission is denied, use the in-app **Open Microphone Settings** action to jump directly to macOS Privacy settings and then retry audio start.
 
 If the build fails with **missing Metal Toolchain** when compiling `.metal` files, install Apple’s component:
 

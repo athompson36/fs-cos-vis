@@ -268,6 +268,29 @@ private extension SettingsView {
                 TextField("Auth token (optional)", text: stringBinding(\.authToken))
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 420)
+                Divider()
+                Toggle("Enable OSC UDP control", isOn: boolBinding(\.oscControlEnabled))
+                HStack {
+                    Text("OSC Port")
+                        .foregroundStyle(.secondary)
+                    TextField("9000", value: intBinding(\.oscControlPort), format: .number)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 90)
+                    Toggle("OSC Bind LAN", isOn: boolBinding(\.oscBindLAN))
+                }
+                .disabled(!appModel.remoteSettings.oscControlEnabled)
+                TextField("OSC token (optional, append token=<value>)", text: stringBinding(\.oscAuthToken))
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 420)
+                    .disabled(!appModel.remoteSettings.oscControlEnabled)
+                if !appModel.oscControlStatus.isEmpty {
+                    Text(appModel.oscControlStatus)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Text("OSC line examples: /cosmic/scene/next · /cosmic/fractal/zoom f 1.4 · /cosmic/overlay/enabled f 1")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
                 if let launchURL = remoteLaunchURL {
                     HStack(spacing: 8) {
                         Text(launchURL.absoluteString)
@@ -357,6 +380,19 @@ private extension SettingsView {
                     Text(obsAudioStatus)
                         .font(.caption)
                         .foregroundStyle(obsAudioStatus.lowercased().contains("error") ? .red : .secondary)
+                }
+                if let err = appModel.audioError {
+                    HStack(spacing: 8) {
+                        Text(err)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                        if appModel.isMicrophonePermissionDenied {
+                            Button("Open Microphone Settings") {
+                                appModel.openMicrophonePrivacySettings()
+                            }
+                            .controlSize(.small)
+                        }
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -450,6 +486,8 @@ private extension SettingsView {
                 Picker("DMX output mode", selection: stringBinding(\.dmxOutputMode)) {
                     Text("Hardware interface").tag("hardware")
                     Text("Simulated interface (offline)").tag("simulated")
+                    Text("Art-Net (scaffold)").tag("artnet")
+                    Text("sACN E1.31 (scaffold)").tag("sacn")
                 }
                 .pickerStyle(.menu)
                 .frame(maxWidth: 320, alignment: .leading)
@@ -462,6 +500,34 @@ private extension SettingsView {
                     .pickerStyle(.menu)
                     .frame(maxWidth: 320, alignment: .leading)
                 }
+                if appModel.remoteSettings.dmxOutputMode == "artnet" {
+                    TextField("Art-Net target host/IP", text: stringBinding(\.dmxArtNetHost))
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 320)
+                    Stepper(
+                        "Network universe: \(max(0, appModel.remoteSettings.dmxNetworkUniverse))",
+                        value: intBinding(\.dmxNetworkUniverse),
+                        in: 0 ... 32767
+                    )
+                    .frame(maxWidth: 320, alignment: .leading)
+                    Text("Scaffold mode: packet formatting and diagnostics are wired; full UDP output routing is next.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                if appModel.remoteSettings.dmxOutputMode == "sacn" {
+                    TextField("sACN destination host", text: stringBinding(\.dmxSACNHost))
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 320)
+                    Stepper(
+                        "Network universe: \(max(0, appModel.remoteSettings.dmxNetworkUniverse))",
+                        value: intBinding(\.dmxNetworkUniverse),
+                        in: 0 ... 63999
+                    )
+                    .frame(maxWidth: 320, alignment: .leading)
+                    Text("Scaffold mode: framing and diagnostics are wired; multicast/unicast send is next.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
                 Picker("Detected DMX USB interfaces", selection: dmxPathSelectionBinding) {
                     Text("Select detected interface").tag("")
                     ForEach(dmxDevicePaths, id: \.self) { path in
@@ -470,7 +536,7 @@ private extension SettingsView {
                 }
                 .pickerStyle(.menu)
                 .frame(maxWidth: 420, alignment: .leading)
-                .disabled(appModel.remoteSettings.dmxOutputMode == "simulated")
+                .disabled(appModel.remoteSettings.dmxOutputMode != "hardware")
                 HStack(spacing: 8) {
                     Button("Rescan DMX interfaces") {
                         refreshDMXDevices()
@@ -480,7 +546,7 @@ private extension SettingsView {
                         .textFieldStyle(.roundedBorder)
                         .frame(maxWidth: 420)
                 }
-                .disabled(appModel.remoteSettings.dmxOutputMode == "simulated")
+                .disabled(appModel.remoteSettings.dmxOutputMode != "hardware")
                 TimelineView(.periodic(from: .now, by: 0.5)) { _ in
                     let d = appModel.dmxOutputDiagnostics()
                     HStack(alignment: .top, spacing: 8) {
@@ -505,6 +571,88 @@ private extension SettingsView {
                 if appModel.remoteSettings.dmxOutputMode == "simulated",
                    let sim = appModel.dmxSimulationSnapshot() {
                     Text("Simulation: \(sim.info) · Ch1=\(sim.universe.first ?? 0)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Divider()
+                Toggle("Enable inbound DMX merge", isOn: boolBinding(\.dmxInboundEnabled))
+                Picker("Inbound mode", selection: stringBinding(\.dmxInboundMode)) {
+                    Text("Art-Net").tag("artnet")
+                    Text("sACN").tag("sacn")
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: 320, alignment: .leading)
+                .disabled(!appModel.remoteSettings.dmxInboundEnabled)
+                Stepper(
+                    "Inbound universe: \(max(0, appModel.remoteSettings.dmxInboundUniverse))",
+                    value: intBinding(\.dmxInboundUniverse),
+                    in: 0 ... 63999
+                )
+                .frame(maxWidth: 320, alignment: .leading)
+                .disabled(!appModel.remoteSettings.dmxInboundEnabled)
+                Picker("Inbound merge mode", selection: stringBinding(\.dmxInboundMergeMode)) {
+                    Text("HTP (highest takes precedence)").tag("htp")
+                    Text("LTP/LPT (latest inbound frame)").tag("lpt")
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: 320, alignment: .leading)
+                .disabled(!appModel.remoteSettings.dmxInboundEnabled)
+                TimelineView(.periodic(from: .now, by: 0.5)) { _ in
+                    let inbound = appModel.dmxInboundDiagnostics()
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("Inbound")
+                            .font(.caption.weight(.semibold))
+                        Text(inbound.running ? "\(inbound.status) · frames: \(inbound.frames)" : inbound.status)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        if let err = inbound.lastError, !err.isEmpty {
+                            Text(err)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+                    }
+                }
+                TimelineView(.periodic(from: .now, by: 1.0)) { _ in
+                    let perf = appModel.dmxPerformanceDiagnostics()
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("Perf")
+                            .font(.caption.weight(.semibold))
+                        Text(
+                            "frames: \(perf.frameCount) · avg build: \(String(format: "%.2f", perf.avgBuildMS)) ms · avg send: \(String(format: "%.2f", perf.avgSendMS)) ms · avg total: \(String(format: "%.2f", perf.avgTotalMS)) ms · max: \(String(format: "%.2f", perf.maxTotalMS)) ms · over budget: \(perf.overBudgetFrameCount)"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                }
+                Divider()
+                Toggle("Enable RDM discovery scaffold", isOn: boolBinding(\.rdmDiscoveryEnabled))
+                Picker("RDM transport", selection: stringBinding(\.rdmDiscoveryTransportMode)) {
+                    Text("Hardware (USB/OpenDMX path)").tag("hardware")
+                    Text("Art-Net").tag("artnet")
+                    Text("sACN").tag("sacn")
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: 320, alignment: .leading)
+                .disabled(!appModel.remoteSettings.rdmDiscoveryEnabled)
+                Stepper(
+                    "RDM universe: \(max(0, appModel.remoteSettings.rdmDiscoveryUniverse))",
+                    value: intBinding(\.rdmDiscoveryUniverse),
+                    in: 0 ... 63999
+                )
+                .frame(maxWidth: 320, alignment: .leading)
+                .disabled(!appModel.remoteSettings.rdmDiscoveryEnabled)
+                Button("Run RDM discovery probe") {
+                    appModel.startRDMDiscoveryProbe()
+                }
+                .disabled(!appModel.remoteSettings.rdmDiscoveryEnabled)
+                .controlSize(.small)
+                if !appModel.rdmDiscoveryStatus.isEmpty {
+                    Text(appModel.rdmDiscoveryStatus)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if let result = appModel.rdmDiscoveryResult {
+                    Text("Last probe: \(result.mode.uppercased()) universe \(result.universe) · \(result.devices.count) device(s)")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }

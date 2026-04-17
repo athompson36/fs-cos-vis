@@ -24,9 +24,17 @@ struct LiveShowView: View {
                 }
 
                 if let err = appModel.audioError {
-                    Text(err)
-                        .font(.caption)
-                        .foregroundStyle(.red)
+                    HStack(spacing: 8) {
+                        Text(err)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                        if appModel.isMicrophonePermissionDenied {
+                            Button("Open Microphone Settings") {
+                                appModel.openMicrophonePrivacySettings()
+                            }
+                            .controlSize(.small)
+                        }
+                    }
                 }
 
                 HStack {
@@ -68,6 +76,7 @@ struct LiveShowView: View {
                 }
 
                 liveSceneControls
+                quickPaletteControls
                 recordingControls
                 overlayAndLiquidToggles
             }
@@ -179,6 +188,52 @@ struct LiveShowView: View {
         .tint(Color(red: 0.45, green: 0.2, blue: 0.75))
     }
 
+    private var quickPaletteControls: some View {
+        GroupBox("Palette quick access") {
+            VStack(alignment: .leading, spacing: 8) {
+                if appModel.palettes.isEmpty {
+                    Text("No palettes available. Add palettes in Scene Studio.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Picker("Palette", selection: Binding(
+                        get: { appModel.selectedPaletteID ?? appModel.palettes.first?.id },
+                        set: { newID in
+                            appModel.selectedPaletteID = newID
+                        }
+                    )) {
+                        ForEach(appModel.palettes) { palette in
+                            Text(palette.name).tag(Optional(palette.id))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    HStack(spacing: 8) {
+                        Button("Previous palette") {
+                            guard !appModel.palettes.isEmpty else { return }
+                            let current = appModel.selectedPaletteID ?? appModel.palettes.first!.id
+                            guard let idx = appModel.palettes.firstIndex(where: { $0.id == current }) else { return }
+                            let prev = idx > 0 ? idx - 1 : appModel.palettes.count - 1
+                            appModel.selectedPaletteID = appModel.palettes[prev].id
+                        }
+                        .controlSize(.small)
+                        Button("Next palette") {
+                            guard !appModel.palettes.isEmpty else { return }
+                            let current = appModel.selectedPaletteID ?? appModel.palettes.first!.id
+                            guard let idx = appModel.palettes.firstIndex(where: { $0.id == current }) else { return }
+                            let next = (idx + 1) % appModel.palettes.count
+                            appModel.selectedPaletteID = appModel.palettes[next].id
+                        }
+                        .controlSize(.small)
+                    }
+                    Text("For full palette and overlay authoring, use Scene Studio (intentional consolidation).")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
     private var overlayAndLiquidToggles: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 16) {
@@ -222,6 +277,27 @@ struct LiveShowView: View {
                 }
                 .pickerStyle(.menu)
                 .disabled(appModel.isLiveOutputRecording)
+                Picker("Quality", selection: $appModel.liveOutputRecordingQualityPreset) {
+                    ForEach(AppModel.LiveOutputRecordingQualityPreset.allCases) { preset in
+                        Text(preset.title).tag(preset)
+                    }
+                }
+                .pickerStyle(.menu)
+                .disabled(appModel.isLiveOutputRecording)
+                let healthItems = appModel.liveOutputRecorderHealthItems(
+                    preferredMainWindowNumber: NSApp.keyWindow?.windowNumber
+                )
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(healthItems) { item in
+                        HStack(spacing: 6) {
+                            Image(systemName: item.isHealthy ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                                .foregroundStyle(item.isHealthy ? Color.green : Color.orange)
+                            Text(item.message)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
 
                 HStack(spacing: 10) {
                     if appModel.isLiveOutputRecording {
@@ -257,6 +333,11 @@ struct LiveShowView: View {
                 if !appModel.liveOutputRecordingStatus.isEmpty {
                     Text(appModel.liveOutputRecordingStatus)
                         .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if !appModel.liveOutputRecordingAudioDiagnostic.isEmpty {
+                    Text(appModel.liveOutputRecordingAudioDiagnostic)
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
             }

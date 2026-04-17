@@ -10,6 +10,18 @@ import Syphon
 import UniformTypeIdentifiers
 
 final class AppModel: ObservableObject, @unchecked Sendable {
+    struct SetupWizardDiagnosticsSnapshot: Codable, Sendable {
+        var exportedAt: Date
+        var sessionCount: Int
+        var startedAtISO8601: String
+        var completedAtISO8601: String
+        var lastStepID: String
+        var skippedStepIDs: [String]
+        var stepCompletedCounts: [String: Int]
+        var stepSkippedCounts: [String: Int]
+        var setupWizardCompleted: Bool
+    }
+
     enum LiveOutputRecordingSource: String, CaseIterable, Identifiable {
         case mainLivePreview
         case externalOutput
@@ -19,6 +31,36 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             switch self {
             case .mainLivePreview: "Main live preview"
             case .externalOutput: "External fullscreen output"
+            }
+        }
+    }
+    struct LiveOutputRecorderHealthItem: Identifiable, Equatable {
+        var id: String { message }
+        var message: String
+        var isHealthy: Bool
+    }
+    enum LiveOutputRecordingQualityPreset: String, CaseIterable, Identifiable {
+        case performance
+        case balanced
+        case archival
+
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .performance: "Performance (24fps · 5 Mbps)"
+            case .balanced: "Balanced (30fps · 8 Mbps)"
+            case .archival: "Archival (60fps · 16 Mbps)"
+            }
+        }
+
+        var captureQuality: CaptureSession.RecordingQuality {
+            switch self {
+            case .performance:
+                return .init(framesPerSecond: 24, videoBitrate: 5_000_000)
+            case .balanced:
+                return .init(framesPerSecond: 30, videoBitrate: 8_000_000)
+            case .archival:
+                return .init(framesPerSecond: 60, videoBitrate: 16_000_000)
             }
         }
     }
@@ -108,7 +150,9 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     @Published private(set) var currentShowProjectFolder: URL?
     @Published var aiAssistantLastMessage: String = ""
     @Published var liveOutputRecordingSource: LiveOutputRecordingSource = .mainLivePreview
+    @Published var liveOutputRecordingQualityPreset: LiveOutputRecordingQualityPreset = .balanced
     @Published private(set) var liveOutputRecordingStatus: String = ""
+    @Published private(set) var liveOutputRecordingAudioDiagnostic: String = ""
     @Published private(set) var isLiveOutputRecording = false
     @Published private(set) var liveOutputRecordingStartedAt: Date?
     @Published private(set) var lastRecordingURL: URL?
@@ -134,6 +178,11 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     private var fixtureVerificationTask: Task<Void, Never>?
     @Published private(set) var feedbackStatus: String = ""
     @Published private(set) var appUpdateStatus: String = ""
+    @Published private(set) var setupWizardDiagnosticsStatus: String = ""
+    @Published private(set) var dmxInboundStatus: String = ""
+    @Published private(set) var rdmDiscoveryStatus: String = ""
+    @Published private(set) var rdmDiscoveryResult: RDMDiscoveryResult?
+    @Published private(set) var oscControlStatus: String = ""
 
     @Published private(set) var sceneEditStates: [UUID: SceneEditState] = [:]
 
@@ -144,7 +193,12 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     lazy var commandHub: ControlCommandHub = ControlCommandHub(model: self)
 
     private var midiControl: MIDIControlService?
+    private var oscControl: OSCControlService?
     private var dmxService: DMXOutputService?
+    private var dmxInputService: DMXInputService?
+    private let rdmDiscoveryService = RDMDiscoveryService()
+    private var inboundDMXFrame: [UInt8] = []
+    private var inboundDMXReceivedAt: TimeInterval?
     /// Published so Controller UI can show current MIDI assignments.
     @Published private(set) var midiMapping: MIDIMapping = MIDIMappingStore.loadOrDefault()
 
@@ -328,7 +382,9 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         teardownOBSStream()
         webControl.stop()
         midiControl?.stop()
+        oscControl?.stop()
         dmxService?.stop()
+        dmxInputService?.stop()
         stopExternalVisualizationSession()
     }
 
@@ -851,7 +907,9 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         webControl.applySettings(remoteSettings)
         configureMIDIService()
         midiControl?.start()
+        configureOSCService()
         configureDMXService()
+        configureDMXInputService()
         syncOBSStreamPipeline()
     }
 
@@ -977,6 +1035,29 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         midiControl = m
     }
 
+    private func configureOSCService() {
+        guard remoteSettings.oscControlEnabled else {
+            oscControl?.stop()
+            oscControlStatus = "OSC disabled"
+            return
+        }
+        if oscControl == nil {
+            oscControl = OSCControlService()
+        }
+        let err = oscControl?.configure(
+            port: remoteSettings.oscControlPort,
+            bindLAN: remoteSettings.oscBindLAN,
+            requiredToken: remoteSettings.oscAuthToken
+        ) { [weak self] cmd in
+            self?.applyRemoteCommand(cmd)
+        }
+        if let err, !err.isEmpty {
+            oscControlStatus = err
+        } else {
+            oscControlStatus = "Listening on UDP \(remoteSettings.oscControlPort) (\(remoteSettings.oscBindLAN ? "LAN" : "localhost"))"
+        }
+    }
+
     private func configureDMXService() {
         if remoteSettings.dmxOutputEnabled {
             if dmxService == nil {
@@ -985,6 +1066,34 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             dmxService?.start()
         } else {
             dmxService?.stop()
+        }
+    }
+
+    private func configureDMXInputService() {
+        guard remoteSettings.dmxInboundEnabled else {
+            dmxInputService?.stop()
+            dmxInboundStatus = "Inbound DMX disabled"
+            return
+        }
+        if dmxInputService == nil {
+            dmxInputService = DMXInputService()
+        }
+        dmxInputService?.stop()
+        dmxInputService?.configure(
+            mode: remoteSettings.dmxInboundMode,
+            universe: remoteSettings.dmxInboundUniverse
+        ) { [weak self] _, frame in
+            guard let self else { return }
+            self.lightingDMXLock.lock()
+            self.inboundDMXFrame = frame
+            self.inboundDMXReceivedAt = CFAbsoluteTimeGetCurrent()
+            self.lightingDMXLock.unlock()
+        }
+        dmxInputService?.start()
+        if let d = dmxInputService?.diagnostics(), let err = d.lastError, !err.isEmpty {
+            dmxInboundStatus = err
+        } else {
+            dmxInboundStatus = "Listening for \(remoteSettings.dmxInboundMode.uppercased()) universe \(remoteSettings.dmxInboundUniverse)"
         }
     }
 
@@ -1393,17 +1502,60 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     }
 
     func startAudio() {
-        audioEngine.refreshDevices()
-        do {
-            try audioEngine.start()
-            audioError = nil
-        } catch {
-            audioError = error.localizedDescription
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let hasPermission = await self.ensureMicrophonePermissionForAudioStart()
+            guard hasPermission else { return }
+            self.audioEngine.refreshDevices()
+            do {
+                try self.audioEngine.start()
+                self.audioError = nil
+            } catch {
+                self.audioError = error.localizedDescription
+            }
         }
     }
 
     func stopAudio() {
         audioEngine.stop()
+    }
+
+    @MainActor
+    func openMicrophonePrivacySettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") else {
+            return
+        }
+        NSWorkspace.shared.open(url)
+    }
+
+    var isMicrophonePermissionDenied: Bool {
+        let status = AVCaptureDevice.authorizationStatus(for: .audio)
+        return status == .denied || status == .restricted
+    }
+
+    @MainActor
+    private func ensureMicrophonePermissionForAudioStart() async -> Bool {
+        let status = AVCaptureDevice.authorizationStatus(for: .audio)
+        switch status {
+        case .authorized:
+            return true
+        case .notDetermined:
+            let granted = await withCheckedContinuation { continuation in
+                AVCaptureDevice.requestAccess(for: .audio) { allowed in
+                    continuation.resume(returning: allowed)
+                }
+            }
+            if !granted {
+                audioError = "Microphone permission is required for audio-reactive visuals. Enable access in System Settings > Privacy & Security > Microphone."
+            }
+            return granted
+        case .denied, .restricted:
+            audioError = "Microphone permission is required for audio-reactive visuals. Enable access in System Settings > Privacy & Security > Microphone."
+            return false
+        @unknown default:
+            audioError = "Microphone permission state is unknown."
+            return false
+        }
     }
 
     func nextScene() {
@@ -1539,6 +1691,39 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         dmxService?.simulationSnapshot()
     }
 
+    func dmxInboundDiagnostics() -> (lastError: String?, running: Bool, frames: UInt64, status: String) {
+        let d = dmxInputService?.diagnostics() ?? (lastError: nil, running: false, frames: 0)
+        return (d.lastError, d.running, d.frames, dmxInboundStatus)
+    }
+
+    func dmxPerformanceDiagnostics() -> DMXPerformanceSnapshot {
+        dmxService?.performanceSnapshot() ?? DMXPerformanceSnapshot(
+            frameCount: 0,
+            overBudgetFrameCount: 0,
+            avgBuildMS: 0,
+            avgSendMS: 0,
+            avgTotalMS: 0,
+            maxTotalMS: 0
+        )
+    }
+
+    func startRDMDiscoveryProbe() {
+        guard remoteSettings.rdmDiscoveryEnabled else {
+            rdmDiscoveryStatus = "Enable RDM discovery scaffold in Settings first."
+            return
+        }
+        rdmDiscoveryStatus = "Running RDM probe..."
+        Task { @MainActor in
+            let result = await rdmDiscoveryService.runMockProbe(
+                mode: remoteSettings.rdmDiscoveryTransportMode,
+                universe: remoteSettings.rdmDiscoveryUniverse,
+                serialPath: remoteSettings.dmxSerialDevicePath
+            )
+            rdmDiscoveryResult = result
+            rdmDiscoveryStatus = "Probe complete: \(result.devices.count) device(s) on universe \(result.universe)."
+        }
+    }
+
     /// DMX channel → value from the active cue and any in-progress crossfade (matches output timing when `time` is `CFAbsoluteTimeGetCurrent()`).
     func resolvedCueChannelMap(at time: TimeInterval) -> [Int: UInt8] {
         lightingDMXLock.lock()
@@ -1558,6 +1743,8 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         let bpm = tempoClock.effectiveBPM
         let beatPhase = tempoClock.beatPhase
         let audio = audioEngine.features
+        let inboundFrame = inboundDMXFrame
+        let inboundReceivedAt = inboundDMXReceivedAt
         lightingDMXLock.unlock()
 
         var cueMap = LightingCueResolver.resolveChannelMap(document: cueDoc, crossfade: xf, now: time)
@@ -1580,13 +1767,28 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             audio: audio,
             lastSmoothed: &lastSmoothed
         )
-        return DMXUniverseBuilder.build(
+        var universe = DMXUniverseBuilder.build(
             model: self,
             patch: patch,
             cueChannelMap: cueMap,
             modulationOffsets: offsets,
             hazeEmergencyKill: hazeEmergencyKillActive
         )
+        if remoteSettings.dmxInboundEnabled,
+           inboundFrame.count == 512,
+           remoteSettings.dmxInboundMergeMode == "htp" || remoteSettings.dmxInboundMergeMode == "lpt" {
+            let now = CFAbsoluteTimeGetCurrent()
+            if let inboundReceivedAt, now - inboundReceivedAt <= 3 {
+                if remoteSettings.dmxInboundMergeMode == "htp" {
+                    for idx in 0 ..< 512 {
+                        universe[idx] = max(universe[idx], inboundFrame[idx])
+                    }
+                } else {
+                    universe = inboundFrame
+                }
+            }
+        }
+        return universe
     }
 
     func applyDMXPatchDocument(_ doc: DMXPatchDocument) {
@@ -1681,28 +1883,64 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             defer { applyDMXPatchDocument(originalPatch) }
             let fixtures = originalPatch.instances
             var results: [FixtureVerificationFixtureResult] = []
+            var runStatus: FixtureVerificationRunStatus = .completed
             for (idx, inst) in fixtures.enumerated() {
-                if Task.isCancelled { return }
+                if Task.isCancelled {
+                    runStatus = .cancelled
+                    break
+                }
+                if !primaryWebcam.isRunning {
+                    do {
+                        try await primaryWebcam.startIfAuthorized(preferredDeviceUniqueID: primaryDeviceUniqueID)
+                        fixtureVerificationPhase = "Primary camera reconnected; resuming verification…"
+                    } catch {
+                        runStatus = .pausedPrimaryCameraDisconnected
+                        break
+                    }
+                }
                 guard let profile = originalPatch.profile(id: inst.profileID) else { continue }
                 let channelIndex = FixtureVerificationService.bestProbeChannel(profile: profile)
                 let expected = stageLayoutDocument.placements[inst.id.uuidString]
                 let baselinePrimary = await FixtureVerificationService.sampleLuma(webcam: primaryWebcam, seconds: 0.25)
-                let baselineSecondary: Double = if usingSecondary, let secondaryWebcam {
+                var secondaryReadyForThisFixture = false
+                if usingSecondary, let secondaryWebcam {
+                    if !secondaryWebcam.isRunning {
+                        do {
+                            try await secondaryWebcam.startIfAuthorized(preferredDeviceUniqueID: secondaryDeviceUniqueID)
+                        } catch {
+                            usingSecondary = false
+                            fixtureVerificationPhase = "Secondary camera disconnected; continuing with primary camera."
+                        }
+                    }
+                    secondaryReadyForThisFixture = usingSecondary && secondaryWebcam.isRunning
+                }
+                let baselineSecondary: Double = if secondaryReadyForThisFixture, let secondaryWebcam {
                     await FixtureVerificationService.sampleLuma(webcam: secondaryWebcam, seconds: 0.25)
                 } else {
                     baselinePrimary
                 }
                 setFixtureVerificationManual(fixtureID: inst.id, channelIndex: channelIndex, value: 255)
                 let litPrimary = await FixtureVerificationService.sampleLuma(webcam: primaryWebcam, seconds: 0.25)
-                let litSecondary: Double = if usingSecondary, let secondaryWebcam {
+                let litSecondary: Double = if secondaryReadyForThisFixture, let secondaryWebcam {
                     await FixtureVerificationService.sampleLuma(webcam: secondaryWebcam, seconds: 0.25)
                 } else {
                     litPrimary
                 }
                 setFixtureVerificationManual(fixtureID: inst.id, channelIndex: channelIndex, value: 0)
-                let primaryDelta = max(0, litPrimary - baselinePrimary)
-                let secondaryDelta = max(0, litSecondary - baselineSecondary)
-                let delta = max(primaryDelta, secondaryDelta)
+                let resolved = FixtureVerificationService.resolvedProbeDelta(
+                    primaryBaseline: baselinePrimary,
+                    primaryLit: litPrimary,
+                    secondaryBaseline: secondaryReadyForThisFixture ? baselineSecondary : nil,
+                    secondaryLit: secondaryReadyForThisFixture ? litSecondary : nil
+                )
+                let delta = resolved.delta
+                let exposureHint = FixtureVerificationEvaluator.exposureHint(
+                    primaryBaseline: baselinePrimary,
+                    primaryLit: litPrimary,
+                    secondaryBaseline: secondaryReadyForThisFixture ? baselineSecondary : nil,
+                    secondaryLit: secondaryReadyForThisFixture ? litSecondary : nil,
+                    observedDelta: delta
+                )
                 results.append(
                     FixtureVerificationFixtureResult(
                         fixtureID: inst.id,
@@ -1718,18 +1956,19 @@ final class AppModel: ObservableObject, @unchecked Sendable {
                         orientation: FixtureVerificationEvaluator.orientationResult(profile: profile, placement: expected)
                     )
                 )
-                fixtureVerificationPhase = "Verified fixture \(idx + 1)/\(fixtures.count): \(profile.name)\(usingSecondary ? " (dual camera)" : "")"
+                let baseStatus = "Verified fixture \(idx + 1)/\(fixtures.count): \(profile.name)\(usingSecondary ? " (dual camera)" : "")"
+                fixtureVerificationPhase = exposureHint.map { "\(baseStatus) • \($0)" } ?? baseStatus
             }
             let report = FixtureVerificationDocument(
                 fixtureCountExpected: fixtures.count,
                 fixtureCountScanned: results.count,
-                notes: "Assisted fixture verification using DMX one-fixture-at-a-time luma probing\(usingSecondary ? ", primary + secondary angled camera" : ", primary camera only").",
+                notes: FixtureVerificationEvaluator.notesText(status: runStatus, usedSecondary: usingSecondary),
                 fixtures: results
             )
             fixtureVerificationReport = report
             FixtureVerificationService.persist(report: report, outputFolder: outputFolder)
             exportAIContextNow(targetRoot: outputFolder)
-            fixtureVerificationPhase = "Fixture verification complete (\(results.count)/\(fixtures.count))."
+            fixtureVerificationPhase = FixtureVerificationEvaluator.phaseText(status: runStatus, scanned: results.count, expected: fixtures.count)
         }
     }
 
@@ -1944,6 +2183,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     func startLiveOutputRecording(preferredMainWindowNumber: Int?) {
         guard !isLiveOutputRecording else { return }
         let source = liveOutputRecordingSource
+        let qualityPreset = liveOutputRecordingQualityPreset
         let windowNumber: Int?
         switch source {
         case .mainLivePreview:
@@ -1953,6 +2193,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         }
         guard let windowNumber else {
             liveOutputRecordingStatus = "Recording source is unavailable."
+            liveOutputRecordingAudioDiagnostic = "Audio source is not evaluated until recording starts."
             return
         }
         let timestamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
@@ -1971,13 +2212,81 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             try captureSession.begin(
                 windowNumber: CGWindowID(windowNumber),
                 outputURL: outURL,
-                preferredAudioDeviceName: preferredAudioName
+                preferredAudioDeviceName: preferredAudioName,
+                quality: qualityPreset.captureQuality
             )
             isLiveOutputRecording = true
             liveOutputRecordingStartedAt = Date()
-            liveOutputRecordingStatus = "Recording… audio input mode: \(channelModeLabel)"
+            liveOutputRecordingAudioDiagnostic = captureSession.audioDiagnosticMessage
+            liveOutputRecordingStatus = "Recording… \(qualityPreset.title), audio input mode: \(channelModeLabel)"
         } catch {
             liveOutputRecordingStatus = "Recording failed to start: \(error.localizedDescription)"
+            liveOutputRecordingAudioDiagnostic = captureSession.audioDiagnosticMessage
+        }
+    }
+
+    func liveOutputRecorderHealthItems(preferredMainWindowNumber: Int?) -> [LiveOutputRecorderHealthItem] {
+        var items: [LiveOutputRecorderHealthItem] = []
+        let windowAvailable: Bool = {
+            switch liveOutputRecordingSource {
+            case .mainLivePreview:
+                return (preferredMainWindowNumber ?? NSApp.mainWindow?.windowNumber) != nil
+            case .externalOutput:
+                return externalOutputWindow?.windowNumber != nil
+            }
+        }()
+        items.append(
+            LiveOutputRecorderHealthItem(
+                message: windowAvailable
+                    ? "Video source available."
+                    : "Selected video source unavailable. Open the target output first.",
+                isHealthy: windowAvailable
+            )
+        )
+
+        let screenAllowed: Bool = {
+            if #available(macOS 10.15, *) {
+                return CGPreflightScreenCaptureAccess()
+            }
+            return true
+        }()
+        if let screenMessage = Self.screenCapturePermissionHealthMessage(isGranted: screenAllowed) {
+            items.append(
+                LiveOutputRecorderHealthItem(
+                    message: screenMessage,
+                    isHealthy: screenAllowed
+                )
+            )
+        }
+
+        let audioStatus = AVCaptureDevice.authorizationStatus(for: .audio)
+        if let audioMessage = Self.audioPermissionHealthMessage(status: audioStatus) {
+            items.append(
+                LiveOutputRecorderHealthItem(
+                    message: audioMessage,
+                    isHealthy: audioStatus == .authorized
+                )
+            )
+        }
+        return items
+    }
+
+    static func screenCapturePermissionHealthMessage(isGranted: Bool) -> String? {
+        isGranted
+            ? "Screen recording permission granted."
+            : "Screen recording permission missing. Enable it in System Settings > Privacy & Security > Screen Recording."
+    }
+
+    static func audioPermissionHealthMessage(status: AVAuthorizationStatus) -> String? {
+        switch status {
+        case .authorized:
+            return "Microphone permission granted."
+        case .notDetermined:
+            return "Microphone permission not determined. Starting recording will prompt for access."
+        case .denied, .restricted:
+            return "Microphone permission denied/restricted. Enable access in System Settings > Privacy & Security > Microphone."
+        @unknown default:
+            return "Microphone permission state is unknown."
         }
     }
 
@@ -1989,6 +2298,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             isLiveOutputRecording = false
             liveOutputRecordingStartedAt = nil
             lastRecordingURL = captureSession.outputURL
+            liveOutputRecordingAudioDiagnostic = captureSession.audioDiagnosticMessage
             if let lastRecordingURL {
                 liveOutputRecordingStatus = "Saved recording: \(lastRecordingURL.lastPathComponent)"
             } else {
@@ -2060,20 +2370,36 @@ final class AppModel: ObservableObject, @unchecked Sendable {
 
     func markSetupWizardStep(_ stepID: String, skipped: Bool) {
         var s = remoteSettings
+        if s.setupWizardStartedAtISO8601.isEmpty {
+            s.setupWizardSessionCount += 1
+            s.setupWizardStartedAtISO8601 = ISO8601DateFormatter().string(from: Date())
+        }
         s.setupWizardLastStepID = stepID
         var skippedSet = Set(s.setupWizardSkippedStepIDs)
         if skipped {
             skippedSet.insert(stepID)
+            s.setupWizardStepSkippedCounts[stepID, default: 0] += 1
         } else {
             skippedSet.remove(stepID)
+            s.setupWizardStepCompletedCounts[stepID, default: 0] += 1
         }
         s.setupWizardSkippedStepIDs = Array(skippedSet).sorted()
         remoteSettings = s
     }
 
+    func beginSetupWizardSessionIfNeeded() {
+        var s = remoteSettings
+        if s.setupWizardStartedAtISO8601.isEmpty {
+            s.setupWizardSessionCount += 1
+            s.setupWizardStartedAtISO8601 = ISO8601DateFormatter().string(from: Date())
+            remoteSettings = s
+        }
+    }
+
     func completeSetupWizard() {
         var s = remoteSettings
         s.setupWizardCompleted = true
+        s.setupWizardCompletedAtISO8601 = ISO8601DateFormatter().string(from: Date())
         remoteSettings = s
     }
 
@@ -2082,7 +2408,35 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         s.setupWizardCompleted = false
         s.setupWizardLastStepID = "welcome"
         s.setupWizardSkippedStepIDs = []
+        s.setupWizardStartedAtISO8601 = ""
+        s.setupWizardCompletedAtISO8601 = ""
         remoteSettings = s
+    }
+
+    func exportSetupWizardDiagnostics() {
+        let s = remoteSettings
+        let snapshot = SetupWizardDiagnosticsSnapshot(
+            exportedAt: Date(),
+            sessionCount: s.setupWizardSessionCount,
+            startedAtISO8601: s.setupWizardStartedAtISO8601,
+            completedAtISO8601: s.setupWizardCompletedAtISO8601,
+            lastStepID: s.setupWizardLastStepID,
+            skippedStepIDs: s.setupWizardSkippedStepIDs,
+            stepCompletedCounts: s.setupWizardStepCompletedCounts,
+            stepSkippedCounts: s.setupWizardStepSkippedCounts,
+            setupWizardCompleted: s.setupWizardCompleted
+        )
+        let root = projectArtifactsFolderURL().appendingPathComponent("Onboarding", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+            let fileURL = root.appendingPathComponent("setup-wizard-diagnostics-\(stamp).json")
+            let data = try JSONEncoder().encode(snapshot)
+            try data.write(to: fileURL, options: .atomic)
+            setupWizardDiagnosticsStatus = "Exported onboarding diagnostics: \(fileURL.lastPathComponent)"
+        } catch {
+            setupWizardDiagnosticsStatus = "Diagnostics export failed: \(error.localizedDescription)"
+        }
     }
 
     func createFeedbackBundle(message: String) {
