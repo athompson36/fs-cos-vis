@@ -8,6 +8,7 @@ struct StagePlanView: View {
     @State private var dragKey: String?
     @State private var dragStart: StagePlacement?
     @State private var selectedFixtureKey: String?
+    @State private var backdropImportError: String?
 
     var body: some View {
         GroupBox("Stage layout (2D)") {
@@ -24,6 +25,11 @@ struct StagePlanView: View {
                     if selectedFixtureKey != nil {
                         Button("Clear selection") { selectedFixtureKey = nil }
                     }
+                }
+                if let backdropImportError {
+                    Text(backdropImportError)
+                        .font(.caption2)
+                        .foregroundStyle(.red)
                 }
                 GeometryReader { geo in
                     ZStack(alignment: .topLeading) {
@@ -172,6 +178,7 @@ struct StagePlanView: View {
         p.canChooseFiles = true
         p.allowsMultipleSelection = false
         guard p.runModal() == .OK, let url = p.url else { return }
+        backdropImportError = nil
         let id = UUID()
         do {
             let path = try StageLayoutBackdropSupport.copyBackdropToAppSupport(from: url, id: id)
@@ -179,7 +186,7 @@ struct StagePlanView: View {
             s.backdropAssetPath = path
             appModel.applyStageLayoutDocument(s)
         } catch {
-            // Silent failure; settings-style UI could surface an alert later.
+            backdropImportError = error.localizedDescription
         }
     }
 }

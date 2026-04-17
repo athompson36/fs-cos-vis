@@ -47,4 +47,13 @@ final class DMXUniverseBuilderTests: XCTestCase {
         XCTAssertFalse(msgs.isEmpty, "Expected overlap on channels 12–13 for two 4-channel fixtures at 10 and 12")
         XCTAssertTrue(msgs.contains { $0.contains("Channel 12") })
     }
+
+    func testDMXPatchDocument_JSONRoundTrip() throws {
+        let original = DMXPatchDocument.default()
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(DMXPatchDocument.self, from: data)
+        XCTAssertEqual(decoded.profiles.count, original.profiles.count)
+        XCTAssertEqual(decoded.instances.count, original.instances.count)
+        XCTAssertEqual(decoded.useLegacyVisualizationSlots, original.useLegacyVisualizationSlots)
+    }
 }

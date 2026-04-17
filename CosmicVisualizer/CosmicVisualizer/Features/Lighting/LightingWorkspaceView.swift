@@ -10,6 +10,7 @@ struct LightingWorkspaceView: View {
     @State private var cueTransportJSON = ""
     @State private var profileTransportJSON = ""
     @State private var modulationTransportJSON = ""
+    @State private var patchTransportJSON = ""
 
     var body: some View {
         ScrollView {
@@ -46,6 +47,16 @@ struct LightingWorkspaceView: View {
                     .foregroundStyle(.secondary)
 
                 patchHealthAndDMXStatusRow
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Universe 0 · channels 1–32 (live)")
+                        .font(.caption.weight(.semibold))
+                    DMXUniverseMonitorView(channelCount: 32)
+                        .environmentObject(appModel)
+                    Text("Values follow the same build as USB output (legacy slots, patch, cues, modulation).")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
 
                 profileLibrarySection
 
@@ -281,6 +292,26 @@ struct LightingWorkspaceView: View {
     private var jsonTransportSection: some View {
         GroupBox("Templates & JSON transport") {
             VStack(alignment: .leading, spacing: 12) {
+                Text("DMX patch document")
+                    .font(.caption.weight(.semibold))
+                HStack {
+                    Button("Copy full patch JSON") { exportFullPatchJSONToClipboard() }
+                    Button("Paste clipboard → editor") { pastePatchFromClipboard() }
+                }
+                TextEditor(text: $patchTransportJSON)
+                    .font(.system(.caption, design: .monospaced))
+                    .frame(minHeight: 56, maxHeight: 120)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(Color.secondary.opacity(0.25), lineWidth: 1)
+                    )
+                Button("Replace patch from JSON above", role: .destructive) { replacePatchFromTransportJSON() }
+                Text("Replacing the patch rewrites profiles and fixtures. Stage positions are keyed by fixture ID—imports with different IDs may need repositioning on the stage plan.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                Divider().padding(.vertical, 4)
+
                 Text("Cue")
                     .font(.caption.weight(.semibold))
                 HStack {
@@ -1036,6 +1067,47 @@ struct LightingWorkspaceView: View {
             copilotStatus = "Imported cue \"\(cue.name)\"."
         } catch {
             copilotStatus = "Cue JSON decode failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func exportFullPatchJSONToClipboard() {
+        let doc = appModel.dmxPatchDocument
+        guard let str = Self.prettyJSONString(doc) else {
+            copilotStatus = "Patch encode failed."
+            return
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(str, forType: .string)
+        patchTransportJSON = str
+        copilotStatus = "Copied DMX patch (\(doc.profiles.count) profiles, \(doc.instances.count) fixtures)."
+    }
+
+    private func pastePatchFromClipboard() {
+        guard let str = NSPasteboard.general.string(forType: .string), !str.isEmpty else {
+            copilotStatus = "Clipboard is empty."
+            return
+        }
+        patchTransportJSON = str
+        copilotStatus = "Pasted into patch JSON editor."
+    }
+
+    private func replacePatchFromTransportJSON() {
+        let raw = patchTransportJSON.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else {
+            copilotStatus = "Paste patch JSON first."
+            return
+        }
+        guard let data = raw.data(using: .utf8) else { return }
+        do {
+            var doc = try JSONDecoder().decode(DMXPatchDocument.self, from: data)
+            doc.version = DMXPatchDocument.currentVersion
+            appModel.applyDMXPatchDocument(doc)
+            if selectedProfileID.map({ appModel.dmxPatchDocument.profile(id: $0) == nil }) ?? true {
+                selectedProfileID = appModel.dmxPatchDocument.profiles.first?.id
+            }
+            copilotStatus = "Replaced DMX patch (\(doc.profiles.count) profiles, \(doc.instances.count) fixtures)."
+        } catch {
+            copilotStatus = "Patch JSON decode failed: \(error.localizedDescription)"
         }
     }
 
