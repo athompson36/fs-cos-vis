@@ -154,6 +154,14 @@ struct RemoteControlSettings: Equatable {
     var llmModel: String = "gpt-4o-mini"
     /// Empty = default OpenAI-compatible `/v1/chat/completions` for the provider.
     var llmBaseURL: String = ""
+
+    // MARK: - Setup wizard + release support
+
+    var setupWizardCompleted: Bool = false
+    var setupWizardLastStepID: String = "welcome"
+    var setupWizardSkippedStepIDs: [String] = []
+    var githubFeedbackRepository: String = "athompson36/fs-cos-vis"
+    var githubFeedbackToken: String = ""
 }
 
 extension RemoteControlSettings: Codable {
@@ -183,6 +191,11 @@ extension RemoteControlSettings: Codable {
         case llmProvider
         case llmModel
         case llmBaseURL
+        case setupWizardCompleted
+        case setupWizardLastStepID
+        case setupWizardSkippedStepIDs
+        case githubFeedbackRepository
+        case githubFeedbackToken
     }
 
     init(from decoder: Decoder) throws {
@@ -212,6 +225,11 @@ extension RemoteControlSettings: Codable {
         llmProvider = try c.decodeIfPresent(String.self, forKey: .llmProvider) ?? "openai"
         llmModel = try c.decodeIfPresent(String.self, forKey: .llmModel) ?? "gpt-4o-mini"
         llmBaseURL = try c.decodeIfPresent(String.self, forKey: .llmBaseURL) ?? ""
+        setupWizardCompleted = try c.decodeIfPresent(Bool.self, forKey: .setupWizardCompleted) ?? false
+        setupWizardLastStepID = try c.decodeIfPresent(String.self, forKey: .setupWizardLastStepID) ?? "welcome"
+        setupWizardSkippedStepIDs = try c.decodeIfPresent([String].self, forKey: .setupWizardSkippedStepIDs) ?? []
+        githubFeedbackRepository = try c.decodeIfPresent(String.self, forKey: .githubFeedbackRepository) ?? "athompson36/fs-cos-vis"
+        githubFeedbackToken = try c.decodeIfPresent(String.self, forKey: .githubFeedbackToken) ?? ""
     }
 
     func encode(to encoder: Encoder) throws {
@@ -241,6 +259,11 @@ extension RemoteControlSettings: Codable {
         try c.encode(llmProvider, forKey: .llmProvider)
         try c.encode(llmModel, forKey: .llmModel)
         try c.encode(llmBaseURL, forKey: .llmBaseURL)
+        try c.encode(setupWizardCompleted, forKey: .setupWizardCompleted)
+        try c.encode(setupWizardLastStepID, forKey: .setupWizardLastStepID)
+        try c.encode(setupWizardSkippedStepIDs, forKey: .setupWizardSkippedStepIDs)
+        try c.encode(githubFeedbackRepository, forKey: .githubFeedbackRepository)
+        try c.encode(githubFeedbackToken, forKey: .githubFeedbackToken)
     }
 }
 

@@ -1,0 +1,32 @@
+name: release-macos-beta
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v0.1a*"
+
+jobs:
+  build-release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Build app
+        run: |
+          xcodebuild -project "CosmicVisualizer.xcodeproj" -scheme "CosmicVisualizer" -configuration Release -derivedDataPath build
+
+      - name: Package ZIP
+        run: |
+          bash scripts/release/package-beta.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CosmicVisualizer-beta
+          path: dist/*

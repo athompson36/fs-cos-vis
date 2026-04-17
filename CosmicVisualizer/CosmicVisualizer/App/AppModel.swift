@@ -122,6 +122,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     private var hazeEnvelopeStartedAt: CFAbsoluteTime?
 
     let lightingCopilotService = LightingCopilotService()
+    let appUpdateService = AppUpdateService()
 
     /// Latched fog/haze emergency off (final override in DMX build).
     @Published var hazeEmergencyKillActive = false
@@ -131,6 +132,8 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     @Published private(set) var fixtureVerificationPhase: String = ""
     @Published private(set) var fixtureVerificationReport: FixtureVerificationDocument?
     private var fixtureVerificationTask: Task<Void, Never>?
+    @Published private(set) var feedbackStatus: String = ""
+    @Published private(set) var appUpdateStatus: String = ""
 
     @Published private(set) var sceneEditStates: [UUID: SceneEditState] = [:]
 
@@ -2049,6 +2052,72 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             performanceFlags: flags,
             calibrationRelativePath: calRel
         )
+    }
+
+    func makeContextSnapshotForFeedback() -> ShowContextSnapshot {
+        makeContextSnapshot()
+    }
+
+    func markSetupWizardStep(_ stepID: String, skipped: Bool) {
+        var s = remoteSettings
+        s.setupWizardLastStepID = stepID
+        var skippedSet = Set(s.setupWizardSkippedStepIDs)
+        if skipped {
+            skippedSet.insert(stepID)
+        } else {
+            skippedSet.remove(stepID)
+        }
+        s.setupWizardSkippedStepIDs = Array(skippedSet).sorted()
+        remoteSettings = s
+    }
+
+    func completeSetupWizard() {
+        var s = remoteSettings
+        s.setupWizardCompleted = true
+        remoteSettings = s
+    }
+
+    func resetSetupWizard() {
+        var s = remoteSettings
+        s.setupWizardCompleted = false
+        s.setupWizardLastStepID = "welcome"
+        s.setupWizardSkippedStepIDs = []
+        remoteSettings = s
+    }
+
+    func createFeedbackBundle(message: String) {
+        let root = projectArtifactsFolderURL().appendingPathComponent("Feedback", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            let result = try FeedbackAndLogsService.createBundle(outputFolder: root, message: message, appModel: self)
+            feedbackStatus = result.summary
+        } catch {
+            feedbackStatus = "Feedback bundle failed: \(error.localizedDescription)"
+        }
+    }
+
+    func submitFeedbackIssue(title: String, body: String) {
+        let settings = remoteSettings
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                try await FeedbackAndLogsService.submitGithubIssue(
+                    repository: settings.githubFeedbackRepository,
+                    token: settings.githubFeedbackToken,
+                    title: title,
+                    body: body
+                )
+                feedbackStatus = "Submitted GitHub issue."
+            } catch {
+                feedbackStatus = "Issue submission failed: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    @MainActor
+    func checkForAppUpdates() {
+        appUpdateService.checkForUpdates()
+        appUpdateStatus = appUpdateService.status
     }
 
     func saveShowProject(to folder: URL) throws {

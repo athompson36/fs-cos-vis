@@ -13,6 +13,9 @@ packages:
   FlyingFox:
     url: https://github.com/swhitty/FlyingFox
     exactVersion: 0.26.2
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.6.4
 
 projectReferences:
   Syphon:
@@ -30,6 +33,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.cosmicvisualizer.app
         PRODUCT_NAME: CosmicVisualizer
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_NSMicrophoneUsageDescription: Cosmic Visualizer analyzes live audio to drive visuals.
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: Cosmic Visualizer can expose an optional LAN control server when you enable it in settings.
@@ -39,6 +44,8 @@ targets:
     dependencies:
       - package: FlyingFox
         product: FlyingFox
+      - package: Sparkle
+        product: Sparkle
       - target: Syphon/Syphon
         embed: true
 
