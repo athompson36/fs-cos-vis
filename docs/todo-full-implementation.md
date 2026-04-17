@@ -21,6 +21,8 @@ Last updated: 2026-04-17
 - [ ] Stage plot scan setup wizard: explicit “position cameras, then resume scan” guided steps.
 - [ ] Verification report UX: jump-to-fixture correction actions and confidence severity filters.
 - [ ] Improve scan messaging for low-light/overexposure conditions.
+- [ ] Add recording quality controls (fps/bitrate presets) and explicit audio-source diagnostics in Live Show recorder UI.
+- [ ] Add recorder health indicators for external-output availability and screen/audio permissions.
 
 ## Priority P2 (DMX expansion)
 
@@ -34,6 +36,7 @@ Last updated: 2026-04-17
 - [ ] OSC control surface parity with existing web + MIDI controls.
 - [ ] Export/import automation around full show packages and CI smoke validation.
 - [ ] Additional fixture-source enrichment pipeline beyond OFL-first strategy.
+- [ ] Add web/remote command parity for live recording start/stop/status and latest output path.
 
 ## Completion criterion for “full implementation”
 

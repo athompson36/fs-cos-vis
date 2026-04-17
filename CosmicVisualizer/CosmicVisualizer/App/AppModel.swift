@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import Combine
 import CoreAudio
 import Foundation
@@ -9,6 +10,18 @@ import Syphon
 import UniformTypeIdentifiers
 
 final class AppModel: ObservableObject, @unchecked Sendable {
+    enum LiveOutputRecordingSource: String, CaseIterable, Identifiable {
+        case mainLivePreview
+        case externalOutput
+
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .mainLivePreview: "Main live preview"
+            case .externalOutput: "External fullscreen output"
+            }
+        }
+    }
     struct AudioInputChannelChoice: Hashable, Identifiable {
         enum Kind: Hashable {
             case stereoPair(startIndex: Int)
@@ -94,8 +107,14 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     @Published var showProjectMetadata = ShowProjectDocument()
     @Published private(set) var currentShowProjectFolder: URL?
     @Published var aiAssistantLastMessage: String = ""
+    @Published var liveOutputRecordingSource: LiveOutputRecordingSource = .mainLivePreview
+    @Published private(set) var liveOutputRecordingStatus: String = ""
+    @Published private(set) var isLiveOutputRecording = false
+    @Published private(set) var liveOutputRecordingStartedAt: Date?
+    @Published private(set) var lastRecordingURL: URL?
 
     private var contextRefreshTask: Task<Void, Never>?
+    private let captureSession = CaptureSession()
 
     private let lightingDMXLock = NSLock()
     private var lightingCueCrossfade: LightingCueCrossfade?
@@ -479,7 +498,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         case "SetFractalExplore":
             if let z = command.fractalExplore { mutateCurrentEdit { $0.layer.fractalExplore = max(0, min(1, z)) } }
         case "SetFractalExploreSpeed":
-            if let z = command.fractalExploreSpeed { mutateCurrentEdit { $0.layer.fractalExploreSpeed = max(0.05, min(3, z)) } }
+            if let z = command.fractalExploreSpeed { mutateCurrentEdit { $0.layer.fractalExploreSpeed = max(0.05, min(6, z)) } }
         case "SetFractalIterBoost":
             if let z = command.fractalIterBoost { mutateCurrentEdit { $0.layer.fractalIterBoost = max(0.25, min(3, z)) } }
         case "SetZoomEffectType":
@@ -1896,6 +1915,98 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             .appendingPathComponent("CosmicVisualizer", isDirectory: true)
     }
 
+    func projectRecordingsFolderURL() -> URL {
+        let base = contextParentFolder()
+        let out = base
+            .appendingPathComponent("Media", isDirectory: true)
+            .appendingPathComponent("Recordings", isDirectory: true)
+        try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+        return out
+    }
+
+    func projectArtifactsFolderURL() -> URL {
+        let base = contextParentFolder()
+        let out = base.appendingPathComponent("Artifacts", isDirectory: true)
+        try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+        return out
+    }
+
+    func projectBackupsFolderURL() -> URL {
+        let base = contextParentFolder()
+        let out = base.appendingPathComponent("Backups", isDirectory: true)
+        try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+        return out
+    }
+
+    func startLiveOutputRecording(preferredMainWindowNumber: Int?) {
+        guard !isLiveOutputRecording else { return }
+        let source = liveOutputRecordingSource
+        let windowNumber: Int?
+        switch source {
+        case .mainLivePreview:
+            windowNumber = preferredMainWindowNumber ?? NSApp.mainWindow?.windowNumber
+        case .externalOutput:
+            windowNumber = externalOutputWindow?.windowNumber
+        }
+        guard let windowNumber else {
+            liveOutputRecordingStatus = "Recording source is unavailable."
+            return
+        }
+        let timestamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+        let fileName = "live-output-\(source.rawValue)-\(timestamp).mov"
+        let outURL = projectRecordingsFolderURL().appendingPathComponent(fileName)
+        let preferredAudioName = audioEngine.selectedInputDeviceID
+            .flatMap { did in audioEngine.availableInputDevices.first(where: { $0.id == did })?.name }
+        let channelModeLabel: String = {
+            switch audioEngine.selectedInputChannelSelection {
+            case .mixAll: "mix-all"
+            case let .mono(index): "mono-\(index + 1)"
+            case let .stereoPair(startIndex): "stereo-\(startIndex + 1)/\(startIndex + 2)"
+            }
+        }()
+        do {
+            try captureSession.begin(
+                windowNumber: CGWindowID(windowNumber),
+                outputURL: outURL,
+                preferredAudioDeviceName: preferredAudioName
+            )
+            isLiveOutputRecording = true
+            liveOutputRecordingStartedAt = Date()
+            liveOutputRecordingStatus = "Recording… audio input mode: \(channelModeLabel)"
+        } catch {
+            liveOutputRecordingStatus = "Recording failed to start: \(error.localizedDescription)"
+        }
+    }
+
+    func stopLiveOutputRecording() {
+        guard isLiveOutputRecording else { return }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await captureSession.end()
+            isLiveOutputRecording = false
+            liveOutputRecordingStartedAt = nil
+            lastRecordingURL = captureSession.outputURL
+            if let lastRecordingURL {
+                liveOutputRecordingStatus = "Saved recording: \(lastRecordingURL.lastPathComponent)"
+            } else {
+                liveOutputRecordingStatus = "Recording stopped."
+            }
+        }
+    }
+
+    func revealLastRecordingInFinder() {
+        guard let lastRecordingURL else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([lastRecordingURL])
+    }
+
+    func shareLastRecording() {
+        guard let lastRecordingURL,
+              let contentView = NSApp.keyWindow?.contentView
+        else { return }
+        let picker = NSSharingServicePicker(items: [lastRecordingURL])
+        picker.show(relativeTo: .init(x: 32, y: 32, width: 1, height: 1), of: contentView, preferredEdge: .minY)
+    }
+
     private func makeContextSnapshot() -> ShowContextSnapshot {
         lightingDMXLock.lock()
         let patch = dmxPatchDocument
@@ -1941,6 +2052,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     }
 
     func saveShowProject(to folder: URL) throws {
+        try backupProjectFilesIfPresent(at: folder)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let scenesData = try makeScenesDocumentData()
         let controlsData = try makeSceneControlsDocumentData()
@@ -1967,9 +2079,54 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             stageLayoutData: stageData,
             overlayCardsData: overlayData
         )
+        try persistProjectConfigSnapshot(projectFolder: folder)
         exportAIContextNow(targetRoot: folder)
         LastShowProjectBookmark.save(folder)
         currentShowProjectFolder = folder
+    }
+
+    private func persistProjectConfigSnapshot(projectFolder: URL) throws {
+        let root = projectFolder.appendingPathComponent("Artifacts", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let out = root.appendingPathComponent("config_snapshot.json")
+        struct ConfigSnapshot: Codable {
+            var capturedAt: Date
+            var remoteSettings: RemoteControlSettings
+            var projectMetadata: ShowProjectDocument
+        }
+        let snap = ConfigSnapshot(capturedAt: Date(), remoteSettings: remoteSettings, projectMetadata: showProjectMetadata)
+        let data = try JSONEncoder().encode(snap)
+        try data.write(to: out, options: .atomic)
+    }
+
+    private func backupProjectFilesIfPresent(at folder: URL) throws {
+        let fm = FileManager.default
+        let marker = folder.appendingPathComponent("project.json")
+        guard fm.fileExists(atPath: marker.path) else { return }
+        let ts = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+        let backupsRoot = folder.appendingPathComponent("Backups", isDirectory: true)
+        let backupFolder = backupsRoot.appendingPathComponent("backup-\(ts)", isDirectory: true)
+        try fm.createDirectory(at: backupFolder, withIntermediateDirectories: true)
+        let filenames = [
+            "project.json",
+            "scenes.json",
+            "scene_controls.json",
+            "dmx_patch.json",
+            "lighting_cues.json",
+            "backdrop_cues.json",
+            "modulation.json",
+            "stage_layout.json",
+            "overlay_cards.json",
+        ]
+        for filename in filenames {
+            let src = folder.appendingPathComponent(filename)
+            guard fm.fileExists(atPath: src.path) else { continue }
+            let dst = backupFolder.appendingPathComponent(filename)
+            if fm.fileExists(atPath: dst.path) {
+                try fm.removeItem(at: dst)
+            }
+            try fm.copyItem(at: src, to: dst)
+        }
     }
 
     func loadShowProject(from folder: URL) throws {

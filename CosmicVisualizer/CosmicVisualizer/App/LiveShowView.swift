@@ -68,6 +68,7 @@ struct LiveShowView: View {
                 }
 
                 liveSceneControls
+                recordingControls
                 overlayAndLiquidToggles
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -209,6 +210,66 @@ struct LiveShowView: View {
             }
         }
         .font(.subheadline)
+    }
+
+    private var recordingControls: some View {
+        GroupBox("Live output recorder") {
+            VStack(alignment: .leading, spacing: 8) {
+                Picker("Video source", selection: $appModel.liveOutputRecordingSource) {
+                    ForEach(AppModel.LiveOutputRecordingSource.allCases) { source in
+                        Text(source.title).tag(source)
+                    }
+                }
+                .pickerStyle(.menu)
+                .disabled(appModel.isLiveOutputRecording)
+
+                HStack(spacing: 10) {
+                    if appModel.isLiveOutputRecording {
+                        Button("Stop recording") {
+                            appModel.stopLiveOutputRecording()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.red)
+                    } else {
+                        Button("Start recording") {
+                            appModel.startLiveOutputRecording(preferredMainWindowNumber: NSApp.keyWindow?.windowNumber)
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    if let url = appModel.lastRecordingURL {
+                        ShareLink(item: url) {
+                            Label("Share…", systemImage: "square.and.arrow.up")
+                        }
+                        .controlSize(.small)
+                        Button("Reveal in Finder") {
+                            appModel.revealLastRecordingInFinder()
+                        }
+                        .controlSize(.small)
+                    }
+                }
+                if appModel.isLiveOutputRecording {
+                    TimelineView(.periodic(from: .now, by: 1)) { _ in
+                        Text("Recording \(recordingDurationString())")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.red)
+                    }
+                }
+                if !appModel.liveOutputRecordingStatus.isEmpty {
+                    Text(appModel.liveOutputRecordingStatus)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func recordingDurationString() -> String {
+        guard let started = appModel.liveOutputRecordingStartedAt else { return "00:00" }
+        let elapsed = max(0, Int(Date().timeIntervalSince(started)))
+        let mins = elapsed / 60
+        let secs = elapsed % 60
+        return String(format: "%02d:%02d", mins, secs)
     }
 
     private var tempoStatusRow: some View {

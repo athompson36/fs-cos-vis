@@ -28,6 +28,8 @@ Cosmic Visualizer has progressed beyond starter scaffolding into a substantial i
 - OFL fixture import and curated catalog sync are integrated
 - stage plot supports fixture placement, gear objects, and scan-camera overlays
 - cue bookmarks now support metadata (for example song title/artist), and overlay elements support metadata binding + per-element auto-hide timeout
+- Live Show includes project-scoped output recording (video + audio) with source selection and share/reveal actions
+- fractal zoom now includes Standard / Infinite Tunnel / Event Horizon modes with expanded zoom modulation range
 
 For full details, see:
 

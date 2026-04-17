@@ -29,18 +29,29 @@ fragment float4 fractalFragment(VertexOut in [[stage_in]],
     float aspect = u.resolution.x / max(u.resolution.y, 1.0f);
     float2 p = float2((uv.x - 0.5f) * 2.0f * aspect, (uv.y - 0.5f) * 2.0f);
 
-    float zoomBase = clamp(u.fractalZoom, 0.12f, 4.5f);
+    float zoomBase = clamp(u.fractalZoom, 0.08f, 24.0f);
     float ex = clamp(u.fractalExplore, 0.0f, 1.0f);
-    float spd = max(0.05f, u.fractalExploreSpeed);
+    float spd = clamp(u.fractalExploreSpeed, 0.05f, 6.0f);
     float2 drift = float2(sin(u.time * spd), cos(u.time * spd * 0.87f)) * 0.22f * ex;
     float effZoom = zoomBase;
-    if (u.zoomEffectType < 0.5f) {
-        effZoom *= (1.0f + 0.14f * sin(u.time * spd * 1.1f) * ex);
-    } else if (u.zoomEffectType < 1.5f) {
-        effZoom *= (1.0f + 0.22f * (0.5f + 0.5f * sin(u.time * spd * 2.3f)) * ex);
-    } else {
-        effZoom *= (1.0f + 0.1f * sin(u.time * spd * 0.55f) * ex);
+    if (u.zoomEffectType < 0.5f) { // Standard
+        effZoom *= (1.0f + 0.22f * sin(u.time * spd * 1.2f) * ex);
+        drift *= 1.0f;
+    } else if (u.zoomEffectType < 1.5f) { // Infinite tunnel
+        float ramp = (0.45f + 0.55f * sin(u.time * spd * 2.0f));
+        float tunnelGain = 1.0f + ex * (10.0f * ramp);
+        effZoom *= tunnelGain;
+        drift *= (0.25f + 0.75f * (1.0f - ex));
+    } else { // Event horizon
+        float collapse = 1.0f + ex * (18.0f + 8.0f * sin(u.time * spd * 1.7f));
+        effZoom *= collapse;
+        float spin = u.time * (0.35f + 2.0f * ex);
+        float cs = cos(spin);
+        float sn = sin(spin);
+        p = float2(p.x * cs - p.y * sn, p.x * sn + p.y * cs);
+        drift += normalize(p + float2(1e-4f, 1e-4f)) * (0.04f + 0.22f * ex);
     }
+    effZoom = clamp(effZoom, 0.06f, 120.0f);
     p = p / effZoom + drift + float2(u.fractalPanX, u.fractalPanY) * 0.6f;
 
     float pulse = u.beatPulse * 0.15f;

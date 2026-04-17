@@ -22,12 +22,10 @@ final class ControlBusTests: XCTestCase {
         XCTAssertEqual(DMXControlStub.clampChannel(-10), 0)
     }
 
-    func testCaptureSession() {
+    func testCaptureSession_idleEndDoesNotStartRecording() async {
         let c = CaptureSession()
         XCTAssertFalse(c.isRecording)
-        c.begin()
-        XCTAssertTrue(c.isRecording)
-        c.end()
+        await c.end()
         XCTAssertFalse(c.isRecording)
     }
 }

@@ -8,7 +8,9 @@ This roadmap now tracks implementation status, not just concept phases.
 
 - Audio input picker, live analysis metrics, FFT/BPM feeds
 - Fractal + liquid render stack with compositing and palette controls
+  - Extended fractal zoom motion modes (Standard / Infinite Tunnel / Event Horizon) with higher modulation range
 - Live and studio control surfaces with external display routing
+  - Live output recorder with source picker, project-folder recording destination, and share/reveal flow
 - Scene persistence, overlays, transitions, and performance workflow refinements
 - MIDI mapping baseline and remote/web control API foundation
 - DMX/lighting vertical slice:
@@ -35,7 +37,7 @@ This roadmap now tracks implementation status, not just concept phases.
 - Network DMX expansion (Art-Net/sACN multi-universe)
 - Inbound DMX and RDM discovery path
 - OSC control surface parity with existing web/MIDI paths
-- Capture/export pipeline hardening and automation
+- Capture/export pipeline hardening and automation (codec tuning, permissions diagnostics, long-duration stability)
 - Cross-platform feasibility spikes (Windows path)
 
 ## Notes

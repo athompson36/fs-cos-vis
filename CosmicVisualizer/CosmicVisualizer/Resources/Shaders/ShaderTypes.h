@@ -33,7 +33,7 @@ typedef struct {
     float fractalPanX;
     float fractalPanY;
     float fractalIterBoost;           // scales iteration budget
-    float zoomEffectType;             // 0 drift, 1 pulse, 2 breathe
+    float zoomEffectType;             // 0 standard, 1 infinite tunnel, 2 event horizon
     float liquidTiltX;                // tray tilt → phase shift
     float liquidTiltY;
     float dyeMix;                     // dye contribution in liquid pass

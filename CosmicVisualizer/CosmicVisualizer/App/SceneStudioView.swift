@@ -287,7 +287,7 @@ struct SceneStudioView: View {
                 .controlSize(.small)
             HStack(alignment: .top, spacing: 10) {
                 studioCaptionSlider(title: "Explore amt", value: fractalExploreAmountBinding, in: 0 ... 1)
-                studioCaptionSlider(title: "Explore spd", value: fractalExploreSpeedBinding, in: 0.05 ... 1.2)
+                studioCaptionSlider(title: "Explore spd", value: fractalExploreSpeedBinding, in: 0.05 ... 6)
             }
             HStack(alignment: .top, spacing: 10) {
                 studioCaptionSlider(title: "Pan X", value: fractalPanXBinding, in: -1.2 ... 1.2)
@@ -295,9 +295,9 @@ struct SceneStudioView: View {
             }
             studioCaptionSlider(title: "Iteration boost", value: fractalIterBoostBinding, in: 0.25 ... 3)
             Picker("Motion", selection: zoomEffectTypeBinding) {
-                Text("Drift").tag(0)
-                Text("Pulse").tag(1)
-                Text("Breathe").tag(2)
+                Text("Standard").tag(0)
+                Text("Infinite tunnel").tag(1)
+                Text("Event horizon").tag(2)
             }
             .pickerStyle(.segmented)
             studioCaptionSlider(title: "Smooth shading", value: appModel.layerFloatBinding(for: .fractalSmoothShading), in: 0 ... 1)

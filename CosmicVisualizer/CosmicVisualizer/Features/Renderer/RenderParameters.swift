@@ -77,7 +77,7 @@ struct RenderParameters {
     var fractalExploreSpeed: Float = 0.35
     var fractalPan: SIMD2<Float> = .zero
     var fractalIterBoost: Float = 1
-    /// 0 = drift, 1 = pulse, 2 = breathe (affects explore animation).
+    /// 0 = standard, 1 = infinite tunnel, 2 = event horizon.
     var zoomEffectType: Float = 0
     var liquidTilt: SIMD2<Float> = .zero
     /// How strongly the dye texture tints the liquid (0…1).

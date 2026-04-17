@@ -47,14 +47,14 @@ enum LayerControlParameter: String, CaseIterable, Identifiable, Sendable {
     /// Slider range used for UI and MIDI 0…127 lerp.
     var floatRange: ClosedRange<Float> {
         switch self {
-        case .fractalZoom: 0.12 ... 4.5
+        case .fractalZoom: 0.08 ... 24
         case .liquidTurbulence: 0.2 ... 2.5
         case .compositeBlend: 0 ... 1
         case .liquidFocus: 0 ... 1
         case .fractalAppearance: 0 ... 1
         case .overlayFractalFusion: 0 ... 1
         case .fractalExplore: 0 ... 1
-        case .fractalExploreSpeed: 0.05 ... 1.2
+        case .fractalExploreSpeed: 0.05 ... 6
         case .fractalIterBoost: 0.25 ... 3
         case .zoomEffectType: 0 ... 2
         case .liquidReconstituteAmount: 0 ... 1

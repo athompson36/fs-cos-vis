@@ -19,12 +19,16 @@ This document captures current implementation status, boundaries, and next work 
    - 2D stage placement editor with backdrop import and persisted layout
    - 2.5D preview driven from the same built DMX universe
    - Overlay card runtime now supports cue-metadata text binding and per-element timeout gating
-5. **Fog/haze**
+5. **Live output capture + project persistence**
+   - Live Show can record main preview or external output to project-local `Media/Recordings`
+   - Post-record sharing/reveal is integrated in live controls
+   - Project save now writes config snapshots and rolling backups under project-local folders
+6. **Fog/haze**
    - Camera-assisted learn presets, cue envelope support, emergency kill/resume handling
-6. **Verification and planning**
+7. **Verification and planning**
    - Assisted fixture verification runs with persisted JSON report
    - Stage-plot scan camera overlays (primary + optional secondary angled camera)
-7. **Fixture source and import**
+8. **Fixture source and import**
    - OFL import service and curated catalog sync with fog/haze-focused indexing
 
 ## In progress
@@ -62,4 +66,7 @@ This document captures current implementation status, boundaries, and next work 
 | `stage_layout.json` | Placements, backdrop, dimensions, stage objects, scan-camera overlays |
 | `context/calibration.json` | Calibration sweep artifact |
 | `context/fixture_verification.json` | Fixture verification report |
+| `Media/Recordings/*.mov` | Live output recordings (project-local when project folder active) |
+| `Artifacts/config_snapshot.json` | Captured project/runtime config snapshot on save |
+| `Backups/backup-*/...` | Rolling backups of core project JSON documents |
 | `Stage/*.png` (etc.) | Imported stage backdrop copies |

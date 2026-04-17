@@ -73,4 +73,31 @@ final class AppModelTests: XCTestCase {
         XCTAssertFalse(model.shouldRenderOverlayElement(id: shapeID, timeoutSeconds: 1.5))
         XCTAssertTrue(model.shouldRenderOverlayElement(id: shapeID, timeoutSeconds: nil))
     }
+
+    func testSaveShowProject_createsArtifactsAndBackupOnResave() throws {
+        let model = AppModel()
+        let tempRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CosmicVisualizerTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempRoot) }
+        let projectFolder = tempRoot.appendingPathComponent("MyShow", isDirectory: true)
+
+        try model.saveShowProject(to: projectFolder)
+        let artifactsFolder = projectFolder.appendingPathComponent("Artifacts", isDirectory: true)
+        let configSnapshot = artifactsFolder.appendingPathComponent("config_snapshot.json")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: configSnapshot.path))
+
+        try model.saveShowProject(to: projectFolder)
+        let backupsFolder = projectFolder.appendingPathComponent("Backups", isDirectory: true)
+        let backups = try FileManager.default.contentsOfDirectory(atPath: backupsFolder.path)
+        XCTAssertFalse(backups.isEmpty)
+    }
+
+    func testStartLiveOutputRecording_withoutAvailableWindow_setsStatus() {
+        let model = AppModel()
+        model.liveOutputRecordingSource = .externalOutput
+        model.startLiveOutputRecording(preferredMainWindowNumber: nil)
+        XCTAssertFalse(model.isLiveOutputRecording)
+        XCTAssertTrue(model.liveOutputRecordingStatus.contains("unavailable"))
+    }
 }
