@@ -445,6 +445,42 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         case "RefreshAudioDevices":
             audioEngine.refreshDevices()
             refreshDeviceLabel()
+        case "SetActiveLightingCueIndex":
+            if let i = command.index {
+                lightingDMXLock.lock()
+                let count = lightingCueDocument.cues.count
+                lightingDMXLock.unlock()
+                guard count > 0 else { break }
+                if i >= 0, i < count {
+                    setActiveLightingCueIndex(i)
+                }
+            } else {
+                setActiveLightingCueIndex(nil)
+            }
+        case "NextLightingCue":
+            lightingDMXLock.lock()
+            let cues = lightingCueDocument.cues
+            let current = lightingCueDocument.activeCueIndex
+            lightingDMXLock.unlock()
+            guard !cues.isEmpty else { break }
+            let nextIdx: Int = {
+                guard let c = current else { return 0 }
+                let n = c + 1
+                return n < cues.count ? n : 0
+            }()
+            setActiveLightingCueIndex(nextIdx)
+        case "PreviousLightingCue":
+            lightingDMXLock.lock()
+            let cues = lightingCueDocument.cues
+            let current = lightingCueDocument.activeCueIndex
+            lightingDMXLock.unlock()
+            guard !cues.isEmpty else { break }
+            let prevIdx: Int = {
+                guard let c = current else { return cues.count - 1 }
+                let n = c - 1
+                return n >= 0 ? n : cues.count - 1
+            }()
+            setActiveLightingCueIndex(prevIdx)
         default:
             break
         }

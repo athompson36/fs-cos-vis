@@ -16,6 +16,7 @@
 		0B66B5F31E323AD2D5E1552A /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A4FBA8DE1758E7E33DA9EA2 /* SettingsView.swift */; };
 		0CEA6F2901B6D8C34EAC9446 /* MIDIControlService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD35D192C412115E768ED127 /* MIDIControlService.swift */; };
 		0DD8CAA82D749D96EEA31735 /* WebControlServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 971BCB3605950DDA0AA9C1F6 /* WebControlServer.swift */; };
+		116210360FB8DECA6C597696 /* RemoteLightingCommandTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 432D788F5762C4DC0EB4C7A2 /* RemoteLightingCommandTests.swift */; };
 		14D013405043EBC55CE3B918 /* RemoteControlCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90A048658D9FC97C9209F12F /* RemoteControlCommand.swift */; };
 		1553620810E5994E84F65A70 /* BlendMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = E11824D183F0A94E6499D2BB /* BlendMath.swift */; };
 		16A5093119B2AFE355D8C9E6 /* AudioFeatureExtractorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B457B95B451C7FB114BE1837 /* AudioFeatureExtractorTests.swift */; };
@@ -181,6 +182,7 @@
 		4042557155BD74A6543C7032 /* DMXUniverseBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DMXUniverseBuilder.swift; sourceTree = "<group>"; };
 		4221C6102F018128EA04EA4E /* DyeAccumulate.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = DyeAccumulate.metal; sourceTree = "<group>"; };
 		42D7A9A8371AC415E534C0C0 /* CompositePass.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = CompositePass.metal; sourceTree = "<group>"; };
+		432D788F5762C4DC0EB4C7A2 /* RemoteLightingCommandTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteLightingCommandTests.swift; sourceTree = "<group>"; };
 		4373AB872EB4F86B83755C69 /* RemoteControlSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteControlSettings.swift; sourceTree = "<group>"; };
 		45CA5F2DEF1EAA4B84539092 /* ControlSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlSchema.swift; sourceTree = "<group>"; };
 		45FC5017C9CF68DAF44AD77F /* ControllerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControllerView.swift; sourceTree = "<group>"; };
@@ -498,6 +500,7 @@
 				37D3CF9C85F689B6C07C7D33 /* MIDIMappingTests.swift */,
 				87FE7C10F8E93D766B4C275B /* ModelCodableTests.swift */,
 				CC8A105CE5B22CD1BD6BAAF4 /* OverlayBlendModeTests.swift */,
+				432D788F5762C4DC0EB4C7A2 /* RemoteLightingCommandTests.swift */,
 				0BE6810BE2ECB21B755E281F /* RenderParametersTests.swift */,
 				52EDBCEBB6739A20787A6BB2 /* SceneControlStoreTests.swift */,
 				F8BCA208C519F8E3A826BE66 /* SceneLibraryStoreTests.swift */,
@@ -682,6 +685,7 @@
 				46B1785E6C79703F8E4A1982 /* MIDIMappingTests.swift in Sources */,
 				70E0172B08514A34CA7A09B4 /* ModelCodableTests.swift in Sources */,
 				DBB4A6776E4CFE49D8C09137 /* OverlayBlendModeTests.swift in Sources */,
+				116210360FB8DECA6C597696 /* RemoteLightingCommandTests.swift in Sources */,
 				C99D2D859B664EAEBFC9B201 /* RenderParametersTests.swift in Sources */,
 				339CFDD756004007F4ECDD52 /* SceneControlStoreTests.swift in Sources */,
 				D4522AAAEDAD7F2F201B712F /* SceneLibraryStoreTests.swift in Sources */,

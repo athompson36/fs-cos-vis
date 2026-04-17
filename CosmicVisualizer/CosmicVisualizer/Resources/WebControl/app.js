@@ -77,6 +77,10 @@
   qs("#del").onclick = () => postCommand({ type: "DeleteScene" });
   qs("#saveScenes").onclick = () => postCommand({ type: "PersistScenes" });
 
+  qs("#cuePrev").onclick = () => postCommand({ type: "PreviousLightingCue" });
+  qs("#cueNext").onclick = () => postCommand({ type: "NextLightingCue" });
+  qs("#cueClear").onclick = () => postCommand({ type: "SetActiveLightingCueIndex" });
+
   const fz = qs("#fractalZoom");
   const lt = qs("#liqTurbo");
   const cb = qs("#composite");
