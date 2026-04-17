@@ -11,6 +11,8 @@ This roadmap now tracks implementation status, not just concept phases.
   - Extended fractal zoom motion modes (Standard / Infinite Tunnel / Event Horizon) with higher modulation range
 - Live and studio control surfaces with external display routing
   - Live output recorder with source picker, project-folder recording destination, and share/reveal flow
+  - First-run setup wizard with skippable steps (project/audio/output/DMX/AI)
+  - Beta update and operator feedback/reporting controls in Settings
 - Scene persistence, overlays, transitions, and performance workflow refinements
 - MIDI mapping baseline and remote/web control API foundation
 - DMX/lighting vertical slice:
@@ -38,6 +40,7 @@ This roadmap now tracks implementation status, not just concept phases.
 - Inbound DMX and RDM discovery path
 - OSC control surface parity with existing web/MIDI paths
 - Capture/export pipeline hardening and automation (codec tuning, permissions diagnostics, long-duration stability)
+- Sparkle appcast publication and signed installer automation hardening
 - Cross-platform feasibility spikes (Windows path)
 
 ## Notes

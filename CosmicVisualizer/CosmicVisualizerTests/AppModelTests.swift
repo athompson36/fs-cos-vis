@@ -100,4 +100,46 @@ final class AppModelTests: XCTestCase {
         XCTAssertFalse(model.isLiveOutputRecording)
         XCTAssertTrue(model.liveOutputRecordingStatus.contains("unavailable"))
     }
+
+    func testSetupWizard_completionAndReset() {
+        let model = AppModel()
+        model.resetSetupWizard()
+        XCTAssertFalse(model.remoteSettings.setupWizardCompleted)
+        model.markSetupWizardStep("audio", skipped: true)
+        XCTAssertTrue(model.remoteSettings.setupWizardSkippedStepIDs.contains("audio"))
+        model.completeSetupWizard()
+        XCTAssertTrue(model.remoteSettings.setupWizardCompleted)
+    }
+
+    func testFeedbackBundle_creationInProjectArtifacts() throws {
+        let model = AppModel()
+        let tempRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CosmicVisualizerFeedbackTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempRoot) }
+        let projectFolder = tempRoot.appendingPathComponent("MyShow", isDirectory: true)
+        try model.saveShowProject(to: projectFolder)
+        model.createFeedbackBundle(message: "Test issue details")
+        let feedbackRoot = projectFolder
+            .appendingPathComponent("Artifacts", isDirectory: true)
+            .appendingPathComponent("Feedback", isDirectory: true)
+        let paths = try FileManager.default.contentsOfDirectory(atPath: feedbackRoot.path)
+        XCTAssertFalse(paths.isEmpty)
+    }
+
+    func testAIProviderInfo_mappingOpenAI() {
+        let info = AIProviderInfo(providerID: "openai")
+        XCTAssertEqual(info.displayName, "OpenAI-compatible")
+        XCTAssertEqual(info.apiWebsite, "https://platform.openai.com/docs/api-reference")
+        XCTAssertEqual(info.defaultBaseURLHint, "Base URL (empty = OpenAI-compatible default)")
+        XCTAssertFalse(info.setupSteps.isEmpty)
+    }
+
+    func testAIProviderInfo_mappingAnthropicAlias() {
+        let info = AIProviderInfo(providerID: "claude")
+        XCTAssertEqual(info.displayName, "Claude (Anthropic)")
+        XCTAssertEqual(info.apiWebsite, "https://www.anthropic.com/api")
+        XCTAssertEqual(info.defaultBaseURLHint, "Base URL (empty = https://api.anthropic.com/v1/messages)")
+        XCTAssertTrue(info.setupSteps.contains { $0.contains("Anthropic API key") })
+    }
 }

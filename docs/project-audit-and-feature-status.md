@@ -57,6 +57,16 @@ This audit summarizes the current implementation state of Cosmic Visualizer base
 - `docs/07-roadmap.md` updated from legacy phase list to status-oriented roadmap
 - `docs/lighting-roadmap.md` updated with completed status + remaining roadmap
 - `docs/todo-full-implementation.md` added as consolidated backlog
+- `docs/fs-cos-vis-cursor-context-pack-updated/` reviewed and folded into current execution priorities
+
+## Context-pack audit deltas (integrated)
+
+- Treat the product as late-stage hybrid visualizer + show-control (completion-first, not starter scaffolding)
+- Track explicit spec-alignment checks for:
+  - dedicated palette browser vs current Scene Studio flow
+  - dedicated overlay manager vs current consolidated authoring flow
+  - quick palette access in live workflow
+- Maintain anti-duplication discipline: refine existing systems before introducing parallel UI or storage paths
 
 ## Gaps and risks (remaining backlog)
 

@@ -30,12 +30,15 @@ Cosmic Visualizer has progressed beyond starter scaffolding into a substantial i
 - cue bookmarks now support metadata (for example song title/artist), and overlay elements support metadata binding + per-element auto-hide timeout
 - Live Show includes project-scoped output recording (video + audio) with source selection and share/reveal actions
 - fractal zoom now includes Standard / Infinite Tunnel / Event Horizon modes with expanded zoom modulation range
+- first-run Setup Wizard (beta 0.1a) now guides project/audio/output/DMX/AI setup with skippable steps and provider-specific AI API onboarding links/instructions (OpenAI-compatible vs Claude/Anthropic)
+- Settings now includes beta update checks and dual-path feedback/error-log reporting (local bundle + optional GitHub issue)
 
 For full details, see:
 
 - `docs/project-audit-and-feature-status.md`
 - `docs/lighting-roadmap.md`
 - `docs/todo-full-implementation.md`
+- `docs/beta-0.1a-release.md`
 
 ## Recommended stack
 

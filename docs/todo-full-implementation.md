@@ -23,6 +23,10 @@ Last updated: 2026-04-17
 - [ ] Improve scan messaging for low-light/overexposure conditions.
 - [ ] Add recording quality controls (fps/bitrate presets) and explicit audio-source diagnostics in Live Show recorder UI.
 - [ ] Add recorder health indicators for external-output availability and screen/audio permissions.
+- [ ] Add setup wizard step analytics (completion/skip rates) and exportable onboarding diagnostics.
+- [ ] Resolve Palette Browser spec mismatch (dedicated surface vs intentional Scene Studio consolidation).
+- [ ] Resolve Overlay Manager spec mismatch (dedicated surface vs intentional Scene Studio consolidation).
+- [ ] Audit/implement quick palette access parity in Live Show workflow.
 
 ## Priority P2 (DMX expansion)
 
@@ -37,6 +41,7 @@ Last updated: 2026-04-17
 - [ ] Export/import automation around full show packages and CI smoke validation.
 - [ ] Additional fixture-source enrichment pipeline beyond OFL-first strategy.
 - [ ] Add web/remote command parity for live recording start/stop/status and latest output path.
+- [ ] Add authenticated API relay option for feedback issue submission without storing personal tokens locally.
 
 ## Completion criterion for “full implementation”
 
