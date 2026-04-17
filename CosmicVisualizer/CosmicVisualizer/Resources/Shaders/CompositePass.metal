@@ -48,5 +48,13 @@ fragment float4 compositeFragment(VertexOut in [[stage_in]],
     float dissolve = mix(logoA, logoA * (0.12f + 0.88f * pow(carve, 1.6f)), fusion);
     float3 logoRgb = O.rgb;
     outRgb = mix(outRgb, logoRgb, dissolve);
+
+    float hi = max(max(outRgb.r, outRgb.g), outRgb.b);
+    outRgb += hi * hi * clamp(u.compositeBloomStrength, 0.0f, 1.0f);
+
+    float2 q = uv * 2.0f - 1.0f;
+    float vig = 1.0f - dot(q, q) * clamp(u.compositeVignetteStrength, 0.0f, 1.0f);
+    outRgb *= max(vig, 0.12f);
+
     return float4(outRgb, 1.0f);
 }

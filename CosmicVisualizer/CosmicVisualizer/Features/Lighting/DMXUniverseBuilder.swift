@@ -7,7 +7,8 @@ enum DMXUniverseBuilder {
         model: AppModel,
         patch: DMXPatchDocument,
         cueChannelMap: [Int: UInt8],
-        modulationOffsets: [Int: Float]
+        modulationOffsets: [Int: Float],
+        hazeEmergencyKill: Bool = false
     ) -> [UInt8] {
         var u = [UInt8](repeating: 0, count: 512)
 
@@ -37,7 +38,25 @@ enum DMXUniverseBuilder {
             u[ch - 1] = DMXControlStub.clampChannel(v)
         }
 
+        if hazeEmergencyKill {
+            applyHazeEmergencyKill(to: &u, patch: patch)
+        }
+
         return u
+    }
+
+    /// Final override: hazer output and pump to 0 (fan unchanged).
+    private static func applyHazeEmergencyKill(to u: inout [UInt8], patch: DMXPatchDocument) {
+        for inst in patch.instances {
+            guard inst.universe == 0 else { continue }
+            guard let profile = patch.profile(id: inst.profileID) else { continue }
+            for (idx, def) in profile.channels.enumerated() {
+                guard def.role == .hazeOutput || def.role == .hazePump else { continue }
+                let dmx = inst.startAddress + idx
+                guard dmx >= 1, dmx <= 512 else { continue }
+                u[dmx - 1] = 0
+            }
+        }
     }
 
     private static func applyLegacyVisualizationMapping(to u: inout [UInt8], model: AppModel) {

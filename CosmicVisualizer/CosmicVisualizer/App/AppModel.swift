@@ -9,6 +9,29 @@ import Syphon
 import UniformTypeIdentifiers
 
 final class AppModel: ObservableObject, @unchecked Sendable {
+    struct AudioInputChannelChoice: Hashable, Identifiable {
+        enum Kind: Hashable {
+            case stereoPair(startIndex: Int)
+            case mono(index: Int)
+            case mixAll
+        }
+        let kind: Kind
+        var id: String {
+            switch kind {
+            case let .stereoPair(start): return "st-\(start)"
+            case let .mono(idx): return "m-\(idx)"
+            case .mixAll: return "all"
+            }
+        }
+        var label: String {
+            switch kind {
+            case let .stereoPair(start): return "Stereo \(start + 1)/\(start + 2)"
+            case let .mono(idx): return "Mono \(idx + 1)"
+            case .mixAll: return "Mix all channels"
+            }
+        }
+    }
+
     let sceneManager = SceneManager()
     let audioEngine = AudioEngine()
     let tempoClock = TempoClockService()
@@ -65,11 +88,29 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     @Published private(set) var lightingCueDocument = LightingCueDocument.default()
     @Published private(set) var modulationDocument = ModulationDocument.default()
     @Published private(set) var stageLayoutDocument = StageLayoutDocument()
+    @Published private(set) var backdropCueDocument = BackdropCueDocument.default()
+    @Published private(set) var overlayCardDocument = OverlayCardDocument.default()
+    @Published var showProjectMetadata = ShowProjectDocument()
+    @Published private(set) var currentShowProjectFolder: URL?
+    @Published var aiAssistantLastMessage: String = ""
+
+    private var contextRefreshTask: Task<Void, Never>?
 
     private let lightingDMXLock = NSLock()
     private var lightingCueCrossfade: LightingCueCrossfade?
+    /// Start time for open-loop hazer envelope on the active cue (`nil` when no active cue).
+    private var hazeEnvelopeStartedAt: CFAbsoluteTime?
 
     let lightingCopilotService = LightingCopilotService()
+
+    /// Latched fog/haze emergency off (final override in DMX build).
+    @Published var hazeEmergencyKillActive = false
+    /// Fog/haze learn status line for the Lighting workspace.
+    @Published private(set) var fogHazeLearnPhase: String = ""
+    private var fogHazeLearnTask: Task<Void, Never>?
+    @Published private(set) var fixtureVerificationPhase: String = ""
+    @Published private(set) var fixtureVerificationReport: FixtureVerificationDocument?
+    private var fixtureVerificationTask: Task<Void, Never>?
 
     @Published private(set) var sceneEditStates: [UUID: SceneEditState] = [:]
 
@@ -93,8 +134,68 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     var selectedInputDeviceBinding: Binding<AudioDeviceID?> {
         Binding(
             get: { self.audioEngine.selectedInputDeviceID },
-            set: { self.audioEngine.selectedInputDeviceID = $0 }
+            set: { id in
+                self.audioEngine.selectedInputDeviceID = id
+                var s = self.remoteSettings
+                s.audioInputDeviceUID = id.flatMap { did in
+                    self.audioEngine.availableInputDevices.first(where: { $0.id == did })?.uid
+                } ?? ""
+                self.remoteSettings = s
+            }
         )
+    }
+
+    var selectedInputChannelBinding: Binding<AudioInputChannelChoice> {
+        Binding(
+            get: {
+                switch self.audioEngine.selectedInputChannelSelection {
+                case let .stereoPair(start): return AudioInputChannelChoice(kind: .stereoPair(startIndex: start))
+                case let .mono(index): return AudioInputChannelChoice(kind: .mono(index: index))
+                case .mixAll: return AudioInputChannelChoice(kind: .mixAll)
+                }
+            },
+            set: { choice in
+                switch choice.kind {
+                case let .stereoPair(start):
+                    self.audioEngine.selectedInputChannelSelection = .stereoPair(startIndex: start)
+                case let .mono(index):
+                    self.audioEngine.selectedInputChannelSelection = .mono(index: index)
+                case .mixAll:
+                    self.audioEngine.selectedInputChannelSelection = .mixAll
+                }
+                var s = self.remoteSettings
+                switch choice.kind {
+                case let .stereoPair(start):
+                    s.audioInputChannelMode = "stereo_pair"
+                    s.audioInputChannelStartIndex = start
+                case let .mono(index):
+                    s.audioInputChannelMode = "mono"
+                    s.audioInputChannelStartIndex = index
+                case .mixAll:
+                    s.audioInputChannelMode = "mix_all"
+                    s.audioInputChannelStartIndex = 0
+                }
+                self.remoteSettings = s
+            }
+        )
+    }
+
+    var availableInputChannelChoices: [AudioInputChannelChoice] {
+        let channelCount = audioEngine.selectedInputDeviceID
+            .flatMap { id in audioEngine.availableInputDevices.first(where: { $0.id == id })?.inputChannelCount } ?? 0
+        var out: [AudioInputChannelChoice] = []
+        if channelCount >= 2 {
+            var i = 0
+            while i + 1 < channelCount {
+                out.append(AudioInputChannelChoice(kind: .stereoPair(startIndex: i)))
+                i += 2
+            }
+        }
+        for i in 0 ..< channelCount {
+            out.append(AudioInputChannelChoice(kind: .mono(index: i)))
+        }
+        out.append(AudioInputChannelChoice(kind: .mixAll))
+        return out
     }
 
     init() {
@@ -124,11 +225,18 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         lightingCueDocument = LightingCueStore.loadOrDefault()
         modulationDocument = ModulationStore.loadOrDefault()
         stageLayoutDocument = StageLayoutStore.loadOrDefault()
+        backdropCueDocument = BackdropCueStore.loadOrDefault()
+        overlayCardDocument = OverlayCardStore.loadOrDefault()
 
         wireRendererFrameLoop(metalRenderer)
         webControl.bind(appModel: self)
         refreshAuxiliaryServices()
         refreshScenePreviewPool()
+
+        if let last = LastShowProjectBookmark.load(),
+           FileManager.default.fileExists(atPath: last.path) {
+            try? loadShowProject(from: last)
+        }
 
         sceneManager.objectWillChange
             .receive(on: DispatchQueue.main)
@@ -188,6 +296,8 @@ final class AppModel: ObservableObject, @unchecked Sendable {
                 self?.objectWillChange.send()
             }
             .store(in: &cancellables)
+
+        scheduleAIContextRefresh()
     }
 
     deinit {
@@ -213,6 +323,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         let activeCueName: String? = lcSnap.activeCueIndex.flatMap { i in
             lcSnap.cues.indices.contains(i) ? lcSnap.cues[i].name : nil
         }
+        let lightingCueNames = lcSnap.cues.map(\.name)
         let dto = WebControlStateDTO(
             bpm: tempoClock.effectiveBPM,
             beatPhase: tempoClock.beatPhase,
@@ -246,13 +357,19 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             lightingCueCount: lcSnap.cues.count,
             lightingActiveCueIndex: lcSnap.activeCueIndex,
             lightingActiveCueName: activeCueName,
-            lightingModulatorCount: modSnapCount
+            lightingModulatorCount: modSnapCount,
+            lightingCueNames: lightingCueNames
         )
         return (try? JSONEncoder().encode(dto)) ?? Data()
     }
 
     func makeScenesDocumentData() throws -> Data {
         let doc = SceneLibraryStore.Document(scenes: sceneManager.scenes)
+        return try JSONEncoder().encode(doc)
+    }
+
+    func makeSceneControlsDocumentData() throws -> Data {
+        let doc = SceneControlStore.Document(states: sceneEditStates)
         return try JSONEncoder().encode(doc)
     }
 
@@ -357,6 +474,30 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             if let z = command.fractalAppearance { mutateCurrentEdit { $0.layer.fractalAppearance = z } }
         case "SetOverlayFractalFusion":
             if let z = command.overlayFractalFusion { mutateCurrentEdit { $0.layer.overlayFractalFusion = z } }
+        case "SetFractalExplore":
+            if let z = command.fractalExplore { mutateCurrentEdit { $0.layer.fractalExplore = max(0, min(1, z)) } }
+        case "SetFractalExploreSpeed":
+            if let z = command.fractalExploreSpeed { mutateCurrentEdit { $0.layer.fractalExploreSpeed = max(0.05, min(3, z)) } }
+        case "SetFractalIterBoost":
+            if let z = command.fractalIterBoost { mutateCurrentEdit { $0.layer.fractalIterBoost = max(0.25, min(3, z)) } }
+        case "SetZoomEffectType":
+            if let i = command.index {
+                mutateCurrentEdit { $0.layer.zoomEffectType = Float(max(0, min(2, i))) }
+            }
+        case "SetLiquidReconstituteAmount":
+            if let z = command.liquidReconstituteAmount { mutateCurrentEdit { $0.layer.liquidReconstituteAmount = max(0, min(1, z)) } }
+        case "SetLiquidReconstituteRate":
+            if let z = command.liquidReconstituteRate { mutateCurrentEdit { $0.layer.liquidReconstituteRate = max(0.05, min(3, z)) } }
+        case "SetLiquidReconstituteBPMSync":
+            if let e = command.enabled { mutateCurrentEdit { $0.layer.liquidReconstituteBPMSync = e } }
+        case "SetDyeMix":
+            if let z = command.dyeMix { mutateCurrentEdit { $0.layer.dyeMix = max(0, min(1, z)) } }
+        case "SetFractalSmoothShading":
+            if let z = command.fractalSmoothShading { mutateCurrentEdit { $0.layer.fractalSmoothShading = max(0, min(1, z)) } }
+        case "SetCompositeBloomStrength":
+            if let z = command.compositeBloomStrength { mutateCurrentEdit { $0.layer.compositeBloomStrength = max(0, min(0.85, z)) } }
+        case "SetCompositeVignetteStrength":
+            if let z = command.compositeVignetteStrength { mutateCurrentEdit { $0.layer.compositeVignetteStrength = max(0, min(1, z)) } }
         case "PersistScenes":
             try? persistScenes()
         case "PersistSceneControls":
@@ -682,6 +823,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     }
 
     private func refreshAuxiliaryServices() {
+        applyAudioSettingsFromRemote()
         webControl.applySettings(remoteSettings)
         configureMIDIService()
         midiControl?.start()
@@ -822,6 +964,33 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         }
     }
 
+    private func applyAudioSettingsFromRemote() {
+        audioEngine.refreshDevices()
+        if !remoteSettings.audioInputDeviceUID.isEmpty,
+           let inDevice = audioEngine.availableInputDevices.first(where: { $0.uid == remoteSettings.audioInputDeviceUID }) {
+            audioEngine.selectedInputDeviceID = inDevice.id
+        }
+        if remoteSettings.audioInputChannelMode == "mono" {
+            audioEngine.selectedInputChannelSelection = .mono(index: remoteSettings.audioInputChannelStartIndex)
+        } else if remoteSettings.audioInputChannelMode == "mix_all" {
+            audioEngine.selectedInputChannelSelection = .mixAll
+        } else if remoteSettings.audioInputChannelMode == "stereo_pair" {
+            audioEngine.selectedInputChannelSelection = .stereoPair(startIndex: remoteSettings.audioInputChannelStartIndex)
+        } else if remoteSettings.audioInputChannelIndex >= 0 {
+            // backward compatibility with legacy persisted mono index
+            audioEngine.selectedInputChannelSelection = .mono(index: remoteSettings.audioInputChannelIndex)
+        } else {
+            audioEngine.selectedInputChannelSelection = .stereoPair(startIndex: 0)
+        }
+        audioEngine.obsAudioForwardEnabled = remoteSettings.obsAudioForwardEnabled
+        if !remoteSettings.obsAudioForwardOutputDeviceUID.isEmpty,
+           let outDevice = audioEngine.availableOutputDevices.first(where: { $0.uid == remoteSettings.obsAudioForwardOutputDeviceUID }) {
+            audioEngine.selectedOutputDeviceID = outDevice.id
+        } else if !remoteSettings.obsAudioForwardEnabled {
+            audioEngine.selectedOutputDeviceID = nil
+        }
+    }
+
     func refreshDeviceLabel() {
         if let id = audioEngine.selectedInputDeviceID,
            let match = audioEngine.availableInputDevices.first(where: { $0.id == id }) {
@@ -890,14 +1059,16 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             geometry = 1
         }
         p.fractalGeometryIndex = geometry
-        p.fractalKind = geometry < 2 ? geometry : 0
+        p.fractalSmoothShading = max(0, min(1, edit.layer.fractalSmoothShading))
         p.fractalExplore = edit.layer.fractalExplore
         p.fractalExploreSpeed = edit.layer.fractalExploreSpeed
         p.fractalPan = SIMD2(edit.layer.fractalPanX, edit.layer.fractalPanY)
         p.fractalIterBoost = max(0.25, min(3, edit.layer.fractalIterBoost))
         p.zoomEffectType = max(0, min(2, edit.layer.zoomEffectType))
         p.liquidTilt = SIMD2(edit.layer.liquidTiltX, edit.layer.liquidTiltY)
-        p.dyeMix = scene.liquidLightEnabled ? 1 : 0
+        p.dyeMix = scene.liquidLightEnabled ? max(0, min(1, edit.layer.dyeMix)) : 0
+        p.compositeBloomStrength = max(0, min(0.85, edit.layer.compositeBloomStrength))
+        p.compositeVignetteStrength = max(0, min(1, edit.layer.compositeVignetteStrength))
         p.liquidDissolveHold = max(0, min(1, edit.layer.liquidDissolveHold))
         p.liquidReconstituteAmount = max(0, min(1, edit.layer.liquidReconstituteAmount))
         p.liquidReconstituteRate = max(0.05, min(3, edit.layer.liquidReconstituteRate))
@@ -1339,6 +1510,11 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         dmxService?.extendedDiagnostics() ?? (nil, false, 44.0)
     }
 
+    /// Returns simulated DMX transport details when running in simulation mode.
+    func dmxSimulationSnapshot() -> (mode: String, info: String, universe: [UInt8])? {
+        dmxService?.simulationSnapshot()
+    }
+
     /// DMX channel → value from the active cue and any in-progress crossfade (matches output timing when `time` is `CFAbsoluteTimeGetCurrent()`).
     func resolvedCueChannelMap(at time: TimeInterval) -> [Int: UInt8] {
         lightingDMXLock.lock()
@@ -1354,12 +1530,24 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         let cueDoc = lightingCueDocument
         let modDoc = modulationDocument
         let xf = lightingCueCrossfade
+        let envStart = hazeEnvelopeStartedAt
         let bpm = tempoClock.effectiveBPM
         let beatPhase = tempoClock.beatPhase
         let audio = audioEngine.features
         lightingDMXLock.unlock()
 
-        let cueMap = LightingCueResolver.resolveChannelMap(document: cueDoc, crossfade: xf, now: time)
+        var cueMap = LightingCueResolver.resolveChannelMap(document: cueDoc, crossfade: xf, now: time)
+        let activeCue: LightingCue? = {
+            guard let ai = cueDoc.activeCueIndex, cueDoc.cues.indices.contains(ai) else { return nil }
+            return cueDoc.cues[ai]
+        }()
+        FogHazeCueEnvelope.merge(
+            cueMap: &cueMap,
+            activeCue: activeCue,
+            patch: patch,
+            envelopeStartedAt: envStart,
+            now: time
+        )
         let offsets = ModulationRuntime.offsets(
             document: modDoc,
             time: time,
@@ -1368,7 +1556,13 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             audio: audio,
             lastSmoothed: &lastSmoothed
         )
-        return DMXUniverseBuilder.build(model: self, patch: patch, cueChannelMap: cueMap, modulationOffsets: offsets)
+        return DMXUniverseBuilder.build(
+            model: self,
+            patch: patch,
+            cueChannelMap: cueMap,
+            modulationOffsets: offsets,
+            hazeEmergencyKill: hazeEmergencyKillActive
+        )
     }
 
     func applyDMXPatchDocument(_ doc: DMXPatchDocument) {
@@ -1377,6 +1571,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         lightingDMXLock.unlock()
         try? DMXPatchStore.save(doc)
         objectWillChange.send()
+        scheduleAIContextRefresh()
     }
 
     func applyLightingCueDocument(_ doc: LightingCueDocument) {
@@ -1385,6 +1580,150 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         lightingDMXLock.unlock()
         try? LightingCueStore.save(doc)
         objectWillChange.send()
+        scheduleAIContextRefresh()
+    }
+
+    func setHazeEmergencyKill(_ active: Bool) {
+        hazeEmergencyKillActive = active
+    }
+
+    func startFogHazeLearn(targetCueID: UUID, hazerInstanceID: UUID, webcam: WebcamCaptureService) {
+        fogHazeLearnTask?.cancel()
+        fogHazeLearnPhase = ""
+        fogHazeLearnTask = Task { @MainActor in
+            defer { fogHazeLearnTask = nil }
+            do {
+                try await FogHazeLearnService.run(
+                    app: self,
+                    webcam: webcam,
+                    targetCueID: targetCueID,
+                    hazerInstanceID: hazerInstanceID
+                ) { msg in
+                    self.fogHazeLearnPhase = msg
+                }
+            } catch {
+                if error is CancellationError {
+                    self.fogHazeLearnPhase = "Cancelled."
+                } else {
+                    self.fogHazeLearnPhase = "Error: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
+    func cancelFogHazeLearn() {
+        fogHazeLearnTask?.cancel()
+    }
+
+    func startFixtureVerification(
+        primaryWebcam: WebcamCaptureService,
+        primaryDeviceUniqueID: String?,
+        secondaryWebcam: WebcamCaptureService?,
+        secondaryDeviceUniqueID: String?
+    ) {
+        if !stageLayoutDocument.primaryScanCamera.isEnabled {
+            fixtureVerificationPhase = "Enable and position the primary scan camera on the stage plot, then resume scan."
+            return
+        }
+        fixtureVerificationPhase = "Preparing fixture verification…"
+        fixtureVerificationTask?.cancel()
+        let outputFolder = contextParentFolder()
+        fixtureVerificationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                try await primaryWebcam.startIfAuthorized(preferredDeviceUniqueID: primaryDeviceUniqueID)
+            } catch {
+                fixtureVerificationPhase = "Primary camera error: \(error.localizedDescription)"
+                return
+            }
+            var usingSecondary = false
+            if let secondaryWebcam,
+               stageLayoutDocument.secondaryScanCamera.isEnabled {
+                do {
+                    try await secondaryWebcam.startIfAuthorized(preferredDeviceUniqueID: secondaryDeviceUniqueID)
+                    usingSecondary = true
+                } catch {
+                    fixtureVerificationPhase = "Secondary camera unavailable; continuing with primary only."
+                }
+            }
+            defer {
+                primaryWebcam.stop()
+                if usingSecondary {
+                    secondaryWebcam?.stop()
+                }
+            }
+
+            let originalPatch = dmxPatchDocument
+            defer { applyDMXPatchDocument(originalPatch) }
+            let fixtures = originalPatch.instances
+            var results: [FixtureVerificationFixtureResult] = []
+            for (idx, inst) in fixtures.enumerated() {
+                if Task.isCancelled { return }
+                guard let profile = originalPatch.profile(id: inst.profileID) else { continue }
+                let channelIndex = FixtureVerificationService.bestProbeChannel(profile: profile)
+                let expected = stageLayoutDocument.placements[inst.id.uuidString]
+                let baselinePrimary = await FixtureVerificationService.sampleLuma(webcam: primaryWebcam, seconds: 0.25)
+                let baselineSecondary: Double = if usingSecondary, let secondaryWebcam {
+                    await FixtureVerificationService.sampleLuma(webcam: secondaryWebcam, seconds: 0.25)
+                } else {
+                    baselinePrimary
+                }
+                setFixtureVerificationManual(fixtureID: inst.id, channelIndex: channelIndex, value: 255)
+                let litPrimary = await FixtureVerificationService.sampleLuma(webcam: primaryWebcam, seconds: 0.25)
+                let litSecondary: Double = if usingSecondary, let secondaryWebcam {
+                    await FixtureVerificationService.sampleLuma(webcam: secondaryWebcam, seconds: 0.25)
+                } else {
+                    litPrimary
+                }
+                setFixtureVerificationManual(fixtureID: inst.id, channelIndex: channelIndex, value: 0)
+                let primaryDelta = max(0, litPrimary - baselinePrimary)
+                let secondaryDelta = max(0, litSecondary - baselineSecondary)
+                let delta = max(primaryDelta, secondaryDelta)
+                results.append(
+                    FixtureVerificationFixtureResult(
+                        fixtureID: inst.id,
+                        fixtureName: profile.name,
+                        fixtureIndex: idx + 1,
+                        startAddress: inst.startAddress,
+                        channelSpan: profile.channels.count,
+                        expectedPlacement: expected,
+                        observedLumaDelta: delta,
+                        patching: FixtureVerificationEvaluator.patchingResult(lumaDelta: delta, threshold: 0.03),
+                        quantity: FixtureVerificationEvaluator.quantityResult(expected: fixtures.count, scanned: idx + 1),
+                        layout: FixtureVerificationEvaluator.layoutResult(expectedPlacement: expected),
+                        orientation: FixtureVerificationEvaluator.orientationResult(profile: profile, placement: expected)
+                    )
+                )
+                fixtureVerificationPhase = "Verified fixture \(idx + 1)/\(fixtures.count): \(profile.name)\(usingSecondary ? " (dual camera)" : "")"
+            }
+            let report = FixtureVerificationDocument(
+                fixtureCountExpected: fixtures.count,
+                fixtureCountScanned: results.count,
+                notes: "Assisted fixture verification using DMX one-fixture-at-a-time luma probing\(usingSecondary ? ", primary + secondary angled camera" : ", primary camera only").",
+                fixtures: results
+            )
+            fixtureVerificationReport = report
+            FixtureVerificationService.persist(report: report, outputFolder: outputFolder)
+            exportAIContextNow(targetRoot: outputFolder)
+            fixtureVerificationPhase = "Fixture verification complete (\(results.count)/\(fixtures.count))."
+        }
+    }
+
+    func cancelFixtureVerification() {
+        fixtureVerificationTask?.cancel()
+        fixtureVerificationPhase = "Cancelled."
+    }
+
+    private func setFixtureVerificationManual(fixtureID: UUID, channelIndex: Int, value: UInt8) {
+        var doc = dmxPatchDocument
+        for idx in doc.instances.indices {
+            guard let profile = doc.profile(id: doc.instances[idx].profileID) else { continue }
+            for channel in profile.channels.indices {
+                let level: UInt8 = (doc.instances[idx].id == fixtureID && channel == channelIndex) ? value : 0
+                doc.instances[idx].setManual(channelIndex: channel, value: level)
+            }
+        }
+        applyDMXPatchDocument(doc)
     }
 
     func setActiveLightingCueIndex(_ newIndex: Int?) {
@@ -1393,6 +1732,11 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         let old = doc.activeCueIndex
         doc.activeCueIndex = newIndex
         lightingCueDocument = doc
+        if newIndex != nil {
+            hazeEnvelopeStartedAt = CFAbsoluteTimeGetCurrent()
+        } else {
+            hazeEnvelopeStartedAt = nil
+        }
         let fadeDur: Double = {
             guard let ni = newIndex, doc.cues.indices.contains(ni) else { return 0 }
             return doc.cues[ni].fadeSeconds
@@ -1411,6 +1755,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         lightingDMXLock.unlock()
         try? LightingCueStore.save(lightingCueDocument)
         objectWillChange.send()
+        scheduleAIContextRefresh()
     }
 
     func applyModulationDocument(_ doc: ModulationDocument) {
@@ -1419,6 +1764,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         lightingDMXLock.unlock()
         try? ModulationStore.save(doc)
         objectWillChange.send()
+        scheduleAIContextRefresh()
     }
 
     func applyStageLayoutDocument(_ doc: StageLayoutDocument) {
@@ -1427,5 +1773,274 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         lightingDMXLock.unlock()
         try? StageLayoutStore.save(doc)
         objectWillChange.send()
+        scheduleAIContextRefresh()
+    }
+
+    func applyBackdropCueDocument(_ doc: BackdropCueDocument) {
+        backdropCueDocument = doc
+        try? BackdropCueStore.save(doc)
+        objectWillChange.send()
+        scheduleAIContextRefresh()
+    }
+
+    func setActiveBackdropCueIndex(_ newIndex: Int?) {
+        var doc = backdropCueDocument
+        doc.activeCueIndex = newIndex
+        backdropCueDocument = doc
+        try? BackdropCueStore.save(backdropCueDocument)
+        if let ni = newIndex, doc.cues.indices.contains(ni) {
+            applyStageLayoutDocument(doc.cues[ni].layoutSnapshot)
+        }
+        objectWillChange.send()
+        scheduleAIContextRefresh()
+    }
+
+    func applyBackdropCueIndex(_ index: Int) {
+        setActiveBackdropCueIndex(index)
+    }
+
+    func applyOverlayCardDocument(_ doc: OverlayCardDocument) {
+        overlayCardDocument = doc
+        try? OverlayCardStore.save(doc)
+        objectWillChange.send()
+        scheduleAIContextRefresh()
+    }
+
+    func appendLightingCues(_ extra: [LightingCue]) {
+        lightingDMXLock.lock()
+        var doc = lightingCueDocument
+        doc.cues.append(contentsOf: extra)
+        lightingCueDocument = doc
+        lightingDMXLock.unlock()
+        try? LightingCueStore.save(lightingCueDocument)
+        objectWillChange.send()
+        scheduleAIContextRefresh()
+    }
+
+    // MARK: - Show project + AI context
+
+    func scheduleAIContextRefresh() {
+        contextRefreshTask?.cancel()
+        let task = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            guard let self, !Task.isCancelled else { return }
+            self.exportAIContextNow()
+        }
+        contextRefreshTask = task
+    }
+
+    func exportAIContextNow(targetRoot: URL? = nil) {
+        let parent = targetRoot ?? contextParentFolder()
+        do {
+            let snap = makeContextSnapshot()
+            let (json, md) = try ShowContextGenerator.generate(snap: snap)
+            try ShowContextDiskLayout.write(json: json, markdown: md, into: parent)
+        } catch {
+            aiAssistantLastMessage = "Context export failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func contextParentFolder() -> URL {
+        if let currentShowProjectFolder { return currentShowProjectFolder }
+        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("CosmicVisualizer", isDirectory: true)
+    }
+
+    private func makeContextSnapshot() -> ShowContextSnapshot {
+        lightingDMXLock.lock()
+        let patch = dmxPatchDocument
+        let lc = lightingCueDocument
+        let mod = modulationDocument
+        let stage = stageLayoutDocument
+        let bd = backdropCueDocument
+        lightingDMXLock.unlock()
+        let flags = MachinePerformanceFlags(
+            lightingStripEnabled: remoteSettings.lightingPerformanceStripEnabled,
+            backdropStripEnabled: remoteSettings.backdropPerformanceStripEnabled,
+            hybridAIEnabled: remoteSettings.hybridAIAssistantEnabled
+        )
+        let calURL: URL? = {
+            if let folder = currentShowProjectFolder {
+                let u = folder.appendingPathComponent("context").appendingPathComponent(ShowContextDiskLayout.calibrationFilename)
+                return FileManager.default.fileExists(atPath: u.path) ? u : nil
+            }
+            let u = ShowContextDiskLayout.defaultContextDirectory().appendingPathComponent(ShowContextDiskLayout.calibrationFilename)
+            return FileManager.default.fileExists(atPath: u.path) ? u : nil
+        }()
+        let calRel = calURL != nil ? "context/\(ShowContextDiskLayout.calibrationFilename)" : nil
+        let sceneName: String = {
+            guard sceneManager.scenes.indices.contains(sceneManager.currentIndex) else { return "—" }
+            return sceneManager.scenes[sceneManager.currentIndex].name
+        }()
+        return ShowContextSnapshot(
+            projectMeta: showProjectMetadata,
+            dmxPatch: patch,
+            lightingCues: lc,
+            backdropCues: bd,
+            modulation: mod,
+            stageLayout: stage,
+            sceneIndex: sceneManager.currentIndex,
+            sceneName: sceneName,
+            sceneCount: sceneManager.scenes.count,
+            selectedPaletteID: selectedPaletteID,
+            overlayEnabled: overlayEnabled,
+            overlays: overlays,
+            performanceFlags: flags,
+            calibrationRelativePath: calRel
+        )
+    }
+
+    func saveShowProject(to folder: URL) throws {
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let scenesData = try makeScenesDocumentData()
+        let controlsData = try makeSceneControlsDocumentData()
+        lightingDMXLock.lock()
+        let patchData = try JSONEncoder().encode(dmxPatchDocument)
+        let lcData = try JSONEncoder().encode(lightingCueDocument)
+        let bdData = try JSONEncoder().encode(backdropCueDocument)
+        let modData = try JSONEncoder().encode(modulationDocument)
+        let stageData = try JSONEncoder().encode(stageLayoutDocument)
+        let overlayData = try JSONEncoder().encode(overlayCardDocument)
+        lightingDMXLock.unlock()
+        var meta = showProjectMetadata
+        meta.updatedAt = Date()
+        showProjectMetadata = meta
+        try ShowProjectPackage.save(
+            to: folder,
+            project: meta,
+            scenesData: scenesData,
+            sceneControlsData: controlsData,
+            dmxPatchData: patchData,
+            lightingCuesData: lcData,
+            backdropCuesData: bdData,
+            modulationData: modData,
+            stageLayoutData: stageData,
+            overlayCardsData: overlayData
+        )
+        exportAIContextNow(targetRoot: folder)
+        LastShowProjectBookmark.save(folder)
+        currentShowProjectFolder = folder
+    }
+
+    func loadShowProject(from folder: URL) throws {
+        showProjectMetadata = try ShowProjectPackage.loadProject(from: folder)
+        try applyScenesDocument(try ShowProjectPackage.loadScenes(from: folder))
+        let ctrl = try JSONDecoder().decode(SceneControlStore.Document.self, from: try ShowProjectPackage.loadSceneControls(from: folder))
+        sceneEditStates = ctrl.states
+        try persistSceneControls()
+        let patch = try JSONDecoder().decode(DMXPatchDocument.self, from: try ShowProjectPackage.loadDMXPatch(from: folder))
+        let cues = try JSONDecoder().decode(LightingCueDocument.self, from: try ShowProjectPackage.loadLightingCues(from: folder))
+        let backs = try JSONDecoder().decode(BackdropCueDocument.self, from: try ShowProjectPackage.loadBackdropCues(from: folder))
+        let modu = try JSONDecoder().decode(ModulationDocument.self, from: try ShowProjectPackage.loadModulation(from: folder))
+        let stage = try JSONDecoder().decode(StageLayoutDocument.self, from: try ShowProjectPackage.loadStageLayout(from: folder))
+        let ovl = try JSONDecoder().decode(OverlayCardDocument.self, from: try ShowProjectPackage.loadOverlayCards(from: folder))
+        applyDMXPatchDocument(patch)
+        applyLightingCueDocument(cues)
+        applyBackdropCueDocument(backs)
+        applyModulationDocument(modu)
+        applyStageLayoutDocument(stage)
+        applyOverlayCardDocument(ovl)
+        if let ni = backdropCueDocument.activeCueIndex, backdropCueDocument.cues.indices.contains(ni) {
+            applyStageLayoutDocument(backdropCueDocument.cues[ni].layoutSnapshot)
+        }
+        LastShowProjectBookmark.save(folder)
+        currentShowProjectFolder = folder
+        refreshScenePreviewPool()
+        syncRendererFromScene()
+        exportAIContextNow(targetRoot: folder)
+    }
+
+    func presentSaveShowProjectPanel() {
+        let p = NSSavePanel()
+        p.title = "Save show project"
+        p.canCreateDirectories = true
+        p.showsTagField = false
+        p.nameFieldStringValue = showProjectMetadata.show.title
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+        guard p.runModal() == .OK, let url = p.url else { return }
+        do {
+            try saveShowProject(to: url)
+        } catch {
+            let a = NSAlert()
+            a.messageText = "Could not save project"
+            a.informativeText = error.localizedDescription
+            a.runModal()
+        }
+    }
+
+    func presentOpenShowProjectPanel() {
+        let o = NSOpenPanel()
+        o.canChooseFiles = false
+        o.canChooseDirectories = true
+        o.allowsMultipleSelection = false
+        guard o.runModal() == .OK, let url = o.url else { return }
+        do {
+            try loadShowProject(from: url)
+        } catch {
+            let a = NSAlert()
+            a.messageText = "Could not open project"
+            a.informativeText = error.localizedDescription
+            a.runModal()
+        }
+    }
+
+    func sendHybridAIPrompt(_ prompt: String) async {
+        guard remoteSettings.hybridAIAssistantEnabled else {
+            aiAssistantLastMessage = "Enable hybrid AI in Settings first."
+            return
+        }
+        guard let key = LLMKeychain.loadAPIKey(), !key.isEmpty else {
+            aiAssistantLastMessage = "Add an API key in Settings."
+            return
+        }
+        let client = LLMChatClient()
+        let baseTrim = remoteSettings.llmBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let settings = LLMChatClient.Settings(
+            provider: remoteSettings.llmProvider,
+            model: remoteSettings.llmModel,
+            baseURL: baseTrim.isEmpty ? nil : baseTrim
+        )
+        let parent = currentShowProjectFolder
+            ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("CosmicVisualizer", isDirectory: true)
+        let ctxDir = parent.appendingPathComponent("context", isDirectory: true)
+        var files: [(String, String)] = []
+        if let m = try? String(contentsOf: ctxDir.appendingPathComponent(ShowContextDiskLayout.machineFilename), encoding: .utf8) {
+            files.append(("machine.json", m))
+        }
+        if let md = try? String(contentsOf: ctxDir.appendingPathComponent(ShowContextDiskLayout.markdownFilename), encoding: .utf8) {
+            files.append(("dmx_universe.md", md))
+        }
+        let system = """
+        You control Cosmic Visualizer via JSON tool calls only. Reply with a single JSON object:
+        {"tool_calls":[{"name":"tool_name","arguments":{...}}]}
+        Tools: refresh_context; set_active_lighting_cue_index {index:number|null}; set_active_backdrop_cue_index {index:number|null}; \
+        apply_dmx_patch_document {patch_json:string}; append_lighting_cues_json {cues_json:string}; export_fixture_ofl_stub {ofl_key:string}.
+        Prefer refresh_context after patch changes. Do not include prose outside JSON.
+        """
+        do {
+            let text = try await client.complete(
+                userPrompt: prompt,
+                systemPrompt: system,
+                contextFiles: files,
+                apiKey: key,
+                settings: settings
+            )
+            let calls = try AIToolRegistry.parseToolCalls(from: text)
+            var log: [String] = []
+            for c in calls {
+                let r = try AIToolRegistry.execute(
+                    name: c.name,
+                    argumentsJSON: c.argumentsJSON,
+                    model: self,
+                    copilot: lightingCopilotService
+                )
+                log.append("\(c.name): \(r)")
+            }
+            aiAssistantLastMessage = log.joined(separator: "\n")
+        } catch {
+            aiAssistantLastMessage = error.localizedDescription
+        }
     }
 }

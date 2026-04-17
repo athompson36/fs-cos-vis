@@ -7,6 +7,19 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0892182E123A436694C2B5AF /* WebcamCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08E9E707E7264B51A86E0C98 /* WebcamCaptureService.swift */; };
+		1051BCA1FCE44799A673EA06 /* ShowProjectAndContextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D22C2A397C254440A6FF4CC3 /* ShowProjectAndContextTests.swift */; };
+		197AB3D938814CA39AA8DEB2 /* ProjectStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = D898134F404742C18FDFEE42 /* ProjectStack.swift */; };
+		2141C50046DA44D4B97EE5CB /* OFLFixtureImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61DE29243AFE46DCB15E0CBA /* OFLFixtureImportService.swift */; };
+		45A8DD903113458B91635E31 /* BackdropCueModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAB6FB4DBDA442DD8011FC0F /* BackdropCueModels.swift */; };
+		45A8DD903113458B91635E32 /* FixtureVerificationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAB6FB4DBDA442DD8011FC10 /* FixtureVerificationModels.swift */; };
+		45A8DD903113458B91635E33 /* FixtureVerificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAB6FB4DBDA442DD8011FC11 /* FixtureVerificationService.swift */; };
+		45A8DD903113458B91635E34 /* FixtureVerificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAB6FB4DBDA442DD8011FC12 /* FixtureVerificationTests.swift */; };
+		58F8C0E6F02B4500B98D2D69 /* OverlayCardAuthoringView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01C9B6CF0717456790E2F54B /* OverlayCardAuthoringView.swift */; };
+		8C5B821A008F497B8AEDF9FD /* AIStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6F4F8C598814AA2A2A96523 /* AIStack.swift */; };
+		DF38BDC7D4444B31A84686D8 /* OverlayCardModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 312E669A1FE943158615AE1D /* OverlayCardModels.swift */; };
+		E19358E132E74B808324D249 /* LiveShowCueStripsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5960F1BEB08C4B6691911E69 /* LiveShowCueStripsView.swift */; };
+		FA861E0DABC84C9E83A319F5 /* DMXSweepCalibrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ECBB407281E4B99A258B972 /* DMXSweepCalibrationService.swift */; };
 		0041F7AF4369729C5CC3A22F /* index.html in Resources */ = {isa = PBXBuildFile; fileRef = 00D7DA2B97A120C4308D92BE /* index.html */; };
 		033FB114AC40E21EFDF6A995 /* OverlayImageProcessing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DC42EB044BD47F61B30AA6B /* OverlayImageProcessing.swift */; };
 		061402D1CE67C1F50AD276CD /* OverlayBlendMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0D1A3EEB6D80129511ED5C /* OverlayBlendMode.swift */; };
@@ -32,6 +45,7 @@
 		391B4835761062318FC0C75A /* MIDIMappingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDFC693219DB314019453A01 /* MIDIMappingStore.swift */; };
 		3E077AD257A19A58330E486D /* BPMDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7298E1795F6834290CD996C7 /* BPMDetector.swift */; };
 		417F3766209E550EFAECBF0D /* DMXUniverseBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4042557155BD74A6543C7032 /* DMXUniverseBuilder.swift */; };
+		B1F0E9D8C7B6A59483726151 /* FogHazeLearnService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0E9D8C7B6A59483726150 /* FogHazeLearnService.swift */; };
 		41DD80C7530798CD7078B2DA /* LightingPreview25DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D499172580EF84F23DEE9F1 /* LightingPreview25DView.swift */; };
 		46B1785E6C79703F8E4A1982 /* MIDIMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D3CF9C85F689B6C07C7D33 /* MIDIMappingTests.swift */; };
 		46C9CA4926A4D76DE100D66E /* WebControlStateDTO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15C3DD8BCCD8157633230DA0 /* WebControlStateDTO.swift */; };
@@ -154,8 +168,17 @@
 
 /* Begin PBXFileReference section */
 		00D7DA2B97A120C4308D92BE /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = "<group>"; };
+		01C9B6CF0717456790E2F54B /* OverlayCardAuthoringView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayCardAuthoringView.swift; sourceTree = "<group>"; };
 		0361807F986985F4E38C415A /* TransitionStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransitionStateTests.swift; sourceTree = "<group>"; };
+		08E9E707E7264B51A86E0C98 /* WebcamCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebcamCaptureService.swift; sourceTree = "<group>"; };
 		081D99DEB1D365BDD41273FE /* LightingCueStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightingCueStore.swift; sourceTree = "<group>"; };
+		312E669A1FE943158615AE1D /* OverlayCardModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayCardModels.swift; sourceTree = "<group>"; };
+		5960F1BEB08C4B6691911E69 /* LiveShowCueStripsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveShowCueStripsView.swift; sourceTree = "<group>"; };
+		BAB6FB4DBDA442DD8011FC10 /* FixtureVerificationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixtureVerificationModels.swift; sourceTree = "<group>"; };
+		BAB6FB4DBDA442DD8011FC11 /* FixtureVerificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixtureVerificationService.swift; sourceTree = "<group>"; };
+		BAB6FB4DBDA442DD8011FC12 /* FixtureVerificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixtureVerificationTests.swift; sourceTree = "<group>"; };
+		61DE29243AFE46DCB15E0CBA /* OFLFixtureImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OFLFixtureImportService.swift; sourceTree = "<group>"; };
+		7ECBB407281E4B99A258B972 /* DMXSweepCalibrationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DMXSweepCalibrationService.swift; sourceTree = "<group>"; };
 		0824C4341217DDCEE966F864 /* app.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = app.js; sourceTree = "<group>"; };
 		0BE6810BE2ECB21B755E281F /* RenderParametersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RenderParametersTests.swift; sourceTree = "<group>"; };
 		114058FA42211AA112B4F865 /* PaletteColorConversion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaletteColorConversion.swift; sourceTree = "<group>"; };
@@ -180,6 +203,7 @@
 		3DAF900F6416B7D534DF1844 /* PaletteLibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaletteLibraryStore.swift; sourceTree = "<group>"; };
 		3DC42EB044BD47F61B30AA6B /* OverlayImageProcessing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayImageProcessing.swift; sourceTree = "<group>"; };
 		4042557155BD74A6543C7032 /* DMXUniverseBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DMXUniverseBuilder.swift; sourceTree = "<group>"; };
+		A1F0E9D8C7B6A59483726150 /* FogHazeLearnService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FogHazeLearnService.swift; sourceTree = "<group>"; };
 		4221C6102F018128EA04EA4E /* DyeAccumulate.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = DyeAccumulate.metal; sourceTree = "<group>"; };
 		42D7A9A8371AC415E534C0C0 /* CompositePass.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = CompositePass.metal; sourceTree = "<group>"; };
 		432D788F5762C4DC0EB4C7A2 /* RemoteLightingCommandTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteLightingCommandTests.swift; sourceTree = "<group>"; };
@@ -228,6 +252,10 @@
 		AF3F619E17C4910C9B06A320 /* AudioFeatureExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFeatureExtractor.swift; sourceTree = "<group>"; };
 		B457B95B451C7FB114BE1837 /* AudioFeatureExtractorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFeatureExtractorTests.swift; sourceTree = "<group>"; };
 		B694DD79C6A0E95F9D605748 /* SceneBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneBootstrap.swift; sourceTree = "<group>"; };
+		BAB6FB4DBDA442DD8011FC0F /* BackdropCueModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackdropCueModels.swift; sourceTree = "<group>"; };
+		D22C2A397C254440A6FF4CC3 /* ShowProjectAndContextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowProjectAndContextTests.swift; sourceTree = "<group>"; };
+		D6F4F8C598814AA2A2A96523 /* AIStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIStack.swift; sourceTree = "<group>"; };
+		D898134F404742C18FDFEE42 /* ProjectStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectStack.swift; sourceTree = "<group>"; };
 		C518BC2A853BBCFBDD8B57A8 /* MIDIMapping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIDIMapping.swift; sourceTree = "<group>"; };
 		CC2834590185A9E4DF4DE05D /* OpenDMXUSBWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenDMXUSBWriter.swift; sourceTree = "<group>"; };
 		CC8A105CE5B22CD1BD6BAAF4 /* OverlayBlendModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayBlendModeTests.swift; sourceTree = "<group>"; };
@@ -291,11 +319,15 @@
 			children = (
 				1D4517D8B330212F86F6121D /* CaptureSession.swift */,
 				23B6B7A658D31E80CD789BEF /* ControlBus.swift */,
+				7ECBB407281E4B99A258B972 /* DMXSweepCalibrationService.swift */,
 				596A77E557F9229761D5496F /* DMXOutputService.swift */,
+				BAB6FB4DBDA442DD8011FC10 /* FixtureVerificationModels.swift */,
+				BAB6FB4DBDA442DD8011FC11 /* FixtureVerificationService.swift */,
 				DD35D192C412115E768ED127 /* MIDIControlService.swift */,
 				C518BC2A853BBCFBDD8B57A8 /* MIDIMapping.swift */,
 				FDFC693219DB314019453A01 /* MIDIMappingStore.swift */,
 				CC2834590185A9E4DF4DE05D /* OpenDMXUSBWriter.swift */,
+				08E9E707E7264B51A86E0C98 /* WebcamCaptureService.swift */,
 			);
 			path = Expansion;
 			sourceTree = "<group>";
@@ -371,6 +403,7 @@
 				30CAAB859911090B4FC7C7E5 /* CosmicShellBackground.swift */,
 				DC421EE87154BE8A1C3C3470 /* CosmicVisualizerApp.swift */,
 				1B210BC82572FE24FDF616DE /* LivePreviewWithOverlayInteraction.swift */,
+				5960F1BEB08C4B6691911E69 /* LiveShowCueStripsView.swift */,
 				519456B6D25C34DFCE705B4C /* LiveShowView.swift */,
 				F720E66AE35028033360EB30 /* RootView.swift */,
 				4A228317E0E0E3CBABC630F9 /* SceneCueStripView.swift */,
@@ -401,12 +434,14 @@
 		B9807B6D5979508C7287B5A5 /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				65E7DB14C96A45728020753A /* AI */,
 				016D4DB17ECF1EB95CF2A41C /* Audio */,
 				1BC15A02E29E9E08DEA0BF54 /* Control */,
 				0226C3F327E2230E4B552926 /* Expansion */,
 				D7DE439749A8D458CF873DD1 /* Lighting */,
 				2D1B5FD7D66B089903220756 /* Output */,
 				B9B86E3B7B9A7D592780F3A8 /* Overlays */,
+				2DD96AAA76D2437FBE5FE362 /* Project */,
 				C6806406D639D0233D81E2B7 /* Renderer */,
 				CC0AD491255AE7866DEF677B /* Scenes */,
 				2D9C1D862955FFB53BEEABA0 /* Themes */,
@@ -415,9 +450,27 @@
 			path = Features;
 			sourceTree = "<group>";
 		};
+		65E7DB14C96A45728020753A /* AI */ = {
+			isa = PBXGroup;
+			children = (
+				D6F4F8C598814AA2A2A96523 /* AIStack.swift */,
+			);
+			path = AI;
+			sourceTree = "<group>";
+		};
+		2DD96AAA76D2437FBE5FE362 /* Project */ = {
+			isa = PBXGroup;
+			children = (
+				D898134F404742C18FDFEE42 /* ProjectStack.swift */,
+			);
+			path = Project;
+			sourceTree = "<group>";
+		};
 		B9B86E3B7B9A7D592780F3A8 /* Overlays */ = {
 			isa = PBXGroup;
 			children = (
+				01C9B6CF0717456790E2F54B /* OverlayCardAuthoringView.swift */,
+				312E669A1FE943158615AE1D /* OverlayCardModels.swift */,
 				4E56C6BC574E8F2D1AE340B4 /* OverlayAsset.swift */,
 				9A0D1A3EEB6D80129511ED5C /* OverlayBlendMode.swift */,
 				3DC42EB044BD47F61B30AA6B /* OverlayImageProcessing.swift */,
@@ -486,6 +539,7 @@
 		CF10E153ABC6FEE6B91A6396 /* CosmicVisualizerTests */ = {
 			isa = PBXGroup;
 			children = (
+				D22C2A397C254440A6FF4CC3 /* ShowProjectAndContextTests.swift */,
 				969E9F5A52071FFE27609D7D /* AppModelTests.swift */,
 				5555298E0620E58398D85BD1 /* AudioDeviceEnumeratorTests.swift */,
 				B457B95B451C7FB114BE1837 /* AudioFeatureExtractorTests.swift */,
@@ -497,6 +551,7 @@
 				9A004ECC673111DD61E2B6ED /* DMXOutputServiceTests.swift */,
 				D2EB2F28A5D396BF3553F974 /* DMXUniverseBuilderTests.swift */,
 				36854756015A285856196285 /* ExternalDisplayRouterTests.swift */,
+				BAB6FB4DBDA442DD8011FC12 /* FixtureVerificationTests.swift */,
 				37D3CF9C85F689B6C07C7D33 /* MIDIMappingTests.swift */,
 				87FE7C10F8E93D766B4C275B /* ModelCodableTests.swift */,
 				CC8A105CE5B22CD1BD6BAAF4 /* OverlayBlendModeTests.swift */,
@@ -518,7 +573,9 @@
 				A34D8DD90113711767A4456F /* DMXPatchAudit.swift */,
 				EDE86A9241FA81E61DE0C240 /* DMXPatchStore.swift */,
 				4042557155BD74A6543C7032 /* DMXUniverseBuilder.swift */,
+				A1F0E9D8C7B6A59483726150 /* FogHazeLearnService.swift */,
 				332ED5CC4B71745EB1504468 /* DMXUniverseMonitorView.swift */,
+				BAB6FB4DBDA442DD8011FC0F /* BackdropCueModels.swift */,
 				E870BA0E74F8A6BF0C0C3A4E /* FixtureModels.swift */,
 				F70926A54035A4717C722584 /* LightingCopilotService.swift */,
 				F68C0F66E40B10F139A6B28A /* LightingCueModels.swift */,
@@ -529,6 +586,7 @@
 				F9188491FAC5682FF4E20C1C /* LightingWorkspaceView.swift */,
 				DD1E0A7D09FAE30665EA6B67 /* ModulationModels.swift */,
 				5EE57D1E5516D428BA76CC99 /* ModulationRuntime.swift */,
+				61DE29243AFE46DCB15E0CBA /* OFLFixtureImportService.swift */,
 				9EC65920DFFDF7CFC3B7D4ED /* StageLayoutModels.swift */,
 				347737640C72BDDDA8D1C1B9 /* StagePlanView.swift */,
 			);
@@ -682,6 +740,7 @@
 				2E82D35681B0B83901AD8DF1 /* DMXOutputServiceTests.swift in Sources */,
 				6323229AB67AC8156E64D0BE /* DMXUniverseBuilderTests.swift in Sources */,
 				64696F952BE50222CFA43E87 /* ExternalDisplayRouterTests.swift in Sources */,
+				45A8DD903113458B91635E34 /* FixtureVerificationTests.swift in Sources */,
 				46B1785E6C79703F8E4A1982 /* MIDIMappingTests.swift in Sources */,
 				70E0172B08514A34CA7A09B4 /* ModelCodableTests.swift in Sources */,
 				DBB4A6776E4CFE49D8C09137 /* OverlayBlendModeTests.swift in Sources */,
@@ -690,6 +749,7 @@
 				339CFDD756004007F4ECDD52 /* SceneControlStoreTests.swift in Sources */,
 				D4522AAAEDAD7F2F201B712F /* SceneLibraryStoreTests.swift in Sources */,
 				6A407A743939689A79AF5AC6 /* SceneManagerTests.swift in Sources */,
+				1051BCA1FCE44799A673EA06 /* ShowProjectAndContextTests.swift in Sources */,
 				8FDA344448B6ECD773111C4B /* TempoClockServiceTests.swift in Sources */,
 				1A0C0CC4C0DEA34B676CC6B0 /* ThemePackTests.swift in Sources */,
 				CC335F5D1EF1182D1DBD117A /* TransitionStateTests.swift in Sources */,
@@ -702,6 +762,7 @@
 			files = (
 				CFC0E8E07822CAB9DB5657A9 /* AppModel+LayerBindings.swift in Sources */,
 				E12E58CC88522A74770F6128 /* AppModel.swift in Sources */,
+				8C5B821A008F497B8AEDF9FD /* AIStack.swift in Sources */,
 				A5F4BA53B34A43BCA2D45115 /* AspectFitLivePreviewContainer.swift in Sources */,
 				54FD60E20EC882699F4DE3D2 /* AudioDeviceEnumerator.swift in Sources */,
 				C6475061234C3ED343B935CD /* AudioEngine.swift in Sources */,
@@ -712,15 +773,20 @@
 				5698AE40F6B1D308CD249A8E /* CaptureSession.swift in Sources */,
 				85EBF1AB18D7F5732BA82033 /* CompositePass.metal in Sources */,
 				6770199126EFC74504EC9D4F /* CompositeRenderer.swift in Sources */,
+				45A8DD903113458B91635E31 /* BackdropCueModels.swift in Sources */,
 				54C45E276F7A27D2BEA2E376 /* ControlBus.swift in Sources */,
 				C4A5DB11561C3408C42B553E /* ControlSchema.swift in Sources */,
 				DF69428FC2DA7A79FA542F44 /* ControllerView.swift in Sources */,
 				79AE39520F996D7863018983 /* CosmicShellBackground.swift in Sources */,
 				0A69B9A75B23391570FDBD97 /* CosmicVisualizerApp.swift in Sources */,
+				FA861E0DABC84C9E83A319F5 /* DMXSweepCalibrationService.swift in Sources */,
 				BB503DCB036A7FE2BA608400 /* DMXOutputService.swift in Sources */,
+				45A8DD903113458B91635E32 /* FixtureVerificationModels.swift in Sources */,
+				45A8DD903113458B91635E33 /* FixtureVerificationService.swift in Sources */,
 				568FE567CC2997C9970A0E6E /* DMXPatchAudit.swift in Sources */,
 				37493DA5BBC694039FD061CA /* DMXPatchStore.swift in Sources */,
 				417F3766209E550EFAECBF0D /* DMXUniverseBuilder.swift in Sources */,
+				B1F0E9D8C7B6A59483726151 /* FogHazeLearnService.swift in Sources */,
 				53FB188F146AE6839A10708A /* DMXUniverseMonitorView.swift in Sources */,
 				286C893D54F5B50C93388C16 /* DyeAccumulate.metal in Sources */,
 				5D79EBFC1675354910B088BC /* ExternalDisplayRouter.swift in Sources */,
@@ -740,14 +806,18 @@
 				93F2B69A01C9DABCD8E3A20F /* LiquidLightRenderer.swift in Sources */,
 				731AB941660A656E9DCD9755 /* LiquidPaletteLibraryStore.swift in Sources */,
 				FE19173EACFDD5BF567A7F7E /* LivePreviewWithOverlayInteraction.swift in Sources */,
+				E19358E132E74B808324D249 /* LiveShowCueStripsView.swift in Sources */,
 				B2964E5EA89D0E01486CDDE2 /* LiveShowView.swift in Sources */,
 				0CEA6F2901B6D8C34EAC9446 /* MIDIControlService.swift in Sources */,
 				E52C10A617B0ECAF08E6913A /* MIDIMapping.swift in Sources */,
 				391B4835761062318FC0C75A /* MIDIMappingStore.swift in Sources */,
 				9A2864C83AB785F35D4FA80B /* ModulationModels.swift in Sources */,
 				EF8FD95A7F1418D794213831 /* ModulationRuntime.swift in Sources */,
+				2141C50046DA44D4B97EE5CB /* OFLFixtureImportService.swift in Sources */,
 				9A1142E280E831C1EDA8F537 /* OpenDMXUSBWriter.swift in Sources */,
 				E8903A10BD146343F792A56F /* OverlayAsset.swift in Sources */,
+				58F8C0E6F02B4500B98D2D69 /* OverlayCardAuthoringView.swift in Sources */,
+				DF38BDC7D4444B31A84686D8 /* OverlayCardModels.swift in Sources */,
 				061402D1CE67C1F50AD276CD /* OverlayBlendMode.swift in Sources */,
 				033FB114AC40E21EFDF6A995 /* OverlayImageProcessing.swift in Sources */,
 				E8527169F6A3D0BD7058ED00 /* OverlayLibraryStore.swift in Sources */,
@@ -756,6 +826,7 @@
 				14D013405043EBC55CE3B918 /* RemoteControlCommand.swift in Sources */,
 				E553F92AABDB99B271B2CD06 /* RemoteControlSettings.swift in Sources */,
 				CC2164A3EAC4EF4DE5C56AA8 /* RenderParameters.swift in Sources */,
+				197AB3D938814CA39AA8DEB2 /* ProjectStack.swift in Sources */,
 				2AF69A1199E9B83CB04C2050 /* RootView.swift in Sources */,
 				FD5FB090559CAA7C941E6405 /* SceneBootstrap.swift in Sources */,
 				1E20AC74006D449082E23184 /* SceneControlStore.swift in Sources */,
@@ -775,6 +846,7 @@
 				D49B93EEB147B992B8CE6E53 /* VisualizationMetalView.swift in Sources */,
 				9708F1253360E50DD5B4C981 /* VisualizationScene.swift in Sources */,
 				B2A06E0FEC17DAE0F13C331A /* WebAPIRequestBodies.swift in Sources */,
+				0892182E123A436694C2B5AF /* WebcamCaptureService.swift in Sources */,
 				0DD8CAA82D749D96EEA31735 /* WebControlServer.swift in Sources */,
 				46C9CA4926A4D76DE100D66E /* WebControlStateDTO.swift in Sources */,
 			);
@@ -806,6 +878,7 @@
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Cosmic Visualizer can expose an optional LAN control server when you enable it in settings.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Cosmic Visualizer analyzes live audio to drive visuals.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Cosmic Visualizer can use the webcam for optional DMX calibration sweeps.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -890,6 +963,7 @@
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Cosmic Visualizer can expose an optional LAN control server when you enable it in settings.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Cosmic Visualizer analyzes live audio to drive visuals.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Cosmic Visualizer can use the webcam for optional DMX calibration sweeps.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

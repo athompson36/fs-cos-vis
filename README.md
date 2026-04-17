@@ -17,6 +17,23 @@ This starter is designed to help Cursor understand:
 - starter Swift/Metal project structure
 - scene, theme, BPM, overlay, and rendering guidance
 
+## Current implementation status
+
+Cosmic Visualizer has progressed beyond starter scaffolding into a substantial implementation:
+
+- core scene/render/audio workflow is in place
+- performance/live control surfaces are implemented
+- lighting stack includes patch/cues/modulation/stage/2.5D preview
+- fog/haze learn and fixture verification workflows are implemented
+- OFL fixture import and curated catalog sync are integrated
+- stage plot supports fixture placement, gear objects, and scan-camera overlays
+
+For full details, see:
+
+- `docs/project-audit-and-feature-status.md`
+- `docs/lighting-roadmap.md`
+- `docs/todo-full-implementation.md`
+
 ## Recommended stack
 
 - SwiftUI for app UI

@@ -19,6 +19,10 @@ static float2 csquare(float2 z) {
     return float2(z.x * z.x - z.y * z.y, 2.0f * z.x * z.y);
 }
 
+static float2 cmult(float2 a, float2 b) {
+    return float2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
+}
+
 fragment float4 fractalFragment(VertexOut in [[stage_in]],
                                 constant CosmicUniforms& u [[buffer(0)]]) {
     float2 uv = in.uv;
@@ -49,7 +53,7 @@ fragment float4 fractalFragment(VertexOut in [[stage_in]],
     maxIter = min(maxIter, 256);
 
     int geo = int(u.fractalGeometryIndex + 0.25f);
-    geo = clamp(geo, 0, 3);
+    geo = clamp(geo, 0, 4);
 
     int i = 0;
     float2 z;
@@ -78,7 +82,7 @@ fragment float4 fractalFragment(VertexOut in [[stage_in]],
             float ny = 2.0f * abs(z.x * z.y) + c.y;
             z = float2(nx, ny);
         }
-    } else {
+    } else if (geo == 3) {
         c = p + float2(0.08f * cos(u.time * 0.1f), 0.0f);
         z = float2(0.0f, 0.0f);
         for (; i < maxIter; i++) {
@@ -86,9 +90,30 @@ fragment float4 fractalFragment(VertexOut in [[stage_in]],
             float2 w = float2(z.x, -z.y);
             z = csquare(w) + c;
         }
+    } else {
+        c = p + float2(0.1f * sin(u.time * 0.07f), 0.0f);
+        z = float2(0.0f, 0.0f);
+        for (; i < maxIter; i++) {
+            if (dot(z, z) > 4.0f) { break; }
+            float2 z2 = cmult(z, z);
+            z = cmult(z2, z) + c;
+        }
     }
 
-    float t = float(i) / float(max(maxIter, 1));
+    float zn2 = dot(z, z);
+    float m = sqrt(max(zn2, 1e-8f));
+    float tSmooth;
+    if (i >= maxIter) {
+        tSmooth = 1.0f;
+    } else {
+        float nu = log2(log2(max(m, 2.0f)));
+        float smoothCount = float(i) + 1.0f - nu;
+        tSmooth = clamp(smoothCount / float(max(maxIter, 1)), 0.0f, 1.0f);
+    }
+    float tBanded = float(i) / float(max(maxIter, 1));
+    float sm = clamp(u.fractalSmoothShading, 0.0f, 1.0f);
+    float t = mix(tBanded, tSmooth, sm);
+
     float hue = t + u.time * 0.05f * clamp(u.fractalZoom, 0.2f, 4.0f) + u.bpm * 0.001f;
 
     float3 col;

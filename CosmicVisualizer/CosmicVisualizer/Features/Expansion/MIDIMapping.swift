@@ -47,6 +47,8 @@ struct MIDIMapping: Codable, Equatable, Sendable {
                 CCMap(channel: 0, controller: 21, commandType: "PreviousScene"),
                 CCMap(channel: 0, controller: 22, commandType: "RandomScene"),
                 CCMap(channel: 0, controller: 23, commandType: "TapTempo"),
+                CCMap(channel: 0, controller: 24, commandType: "NextLightingCue"),
+                CCMap(channel: 0, controller: 25, commandType: "PreviousLightingCue"),
             ],
             continuousCC: defaultContinuousPresets()
         )
@@ -57,6 +59,20 @@ struct MIDIMapping: Codable, Equatable, Sendable {
         [
             ContinuousCCMap(parameterID: LayerControlParameter.fractalZoom.rawValue, channel: 0, controller: 1),
             ContinuousCCMap(parameterID: LayerControlParameter.liquidTurbulence.rawValue, channel: 0, controller: 2),
+            ContinuousCCMap(parameterID: LayerControlParameter.compositeBlend.rawValue, channel: 0, controller: 3),
+            ContinuousCCMap(parameterID: LayerControlParameter.fractalExplore.rawValue, channel: 0, controller: 4),
+            ContinuousCCMap(parameterID: LayerControlParameter.fractalExploreSpeed.rawValue, channel: 0, controller: 5),
+            ContinuousCCMap(parameterID: LayerControlParameter.fractalIterBoost.rawValue, channel: 0, controller: 6),
+            ContinuousCCMap(parameterID: LayerControlParameter.zoomEffectType.rawValue, channel: 0, controller: 7),
+            ContinuousCCMap(parameterID: LayerControlParameter.liquidReconstituteAmount.rawValue, channel: 0, controller: 8),
+            ContinuousCCMap(parameterID: LayerControlParameter.liquidReconstituteRate.rawValue, channel: 0, controller: 9),
+            ContinuousCCMap(parameterID: LayerControlParameter.dyeMix.rawValue, channel: 0, controller: 10),
+            ContinuousCCMap(parameterID: LayerControlParameter.fractalSmoothShading.rawValue, channel: 0, controller: 11),
+            ContinuousCCMap(parameterID: LayerControlParameter.compositeBloomStrength.rawValue, channel: 0, controller: 12),
+            ContinuousCCMap(parameterID: LayerControlParameter.compositeVignetteStrength.rawValue, channel: 0, controller: 13),
+            ContinuousCCMap(parameterID: LayerControlParameter.liquidFocus.rawValue, channel: 0, controller: 14),
+            ContinuousCCMap(parameterID: LayerControlParameter.fractalAppearance.rawValue, channel: 0, controller: 15),
+            ContinuousCCMap(parameterID: LayerControlParameter.overlayFractalFusion.rawValue, channel: 0, controller: 16),
         ]
     }
 

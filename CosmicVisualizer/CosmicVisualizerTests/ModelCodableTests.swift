@@ -62,4 +62,36 @@ final class ModelCodableTests: XCTestCase {
         let decoded = try JSONDecoder().decode(OverlayAsset.self, from: data)
         XCTAssertEqual(decoded, original)
     }
+
+    func testLightingCue_hazePresetRoundTrip() throws {
+        let hid = UUID(uuidString: "00000000-0000-0000-0000-0000000000EE")!
+        let preset = HazeLearnPreset(
+            steadyHazeDMX: 140,
+            riseTimeSeconds: 4.2,
+            dissipationHalfLifeSeconds: 12.5,
+            learnedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            cameraBaselineLuma: 0.22,
+            cameraPeakLuma: 0.41,
+            targetInstanceID: hid
+        )
+        let original = LightingCue(
+            name: "Haze wash",
+            fadeSeconds: 2,
+            channelValues: [ChannelValue(channel: 5, value: 10)],
+            hazeLearnPreset: preset,
+            autoApplyHazeEnvelope: true
+        )
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(LightingCue.self, from: data)
+        XCTAssertEqual(decoded, original)
+    }
+
+    func testLightingCue_decodeLegacyWithoutHazeKeys() throws {
+        let json = """
+        {"id":"00000000-0000-0000-0000-000000000001","name":"Legacy","fadeSeconds":1,"channelValues":[]}
+        """.data(using: .utf8)!
+        let cue = try JSONDecoder().decode(LightingCue.self, from: json)
+        XCTAssertNil(cue.hazeLearnPreset)
+        XCTAssertFalse(cue.autoApplyHazeEnvelope)
+    }
 }

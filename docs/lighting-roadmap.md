@@ -1,20 +1,54 @@
 # Lighting roadmap (implementation notes)
 
-This document captures scope boundaries for the DMX lighting stack. It complements the product roadmap; it is not a feature checklist.
+This document captures current implementation status, boundaries, and next work for the DMX lighting stack.
 
-## Phases (summary)
+## Status (2026-04-17)
 
-1. **Fixture model & USB universe** — Profiles, instances, patch document, `DMXUniverseBuilder`, legacy CH 1–5 migration toggle, Application Support JSON.
-2. **Cues** — `LightingCueDocument`, active cue, linear crossfade between cues using target fade time.
-3. **Modulation** — `ModulationRuntime` routes LFO, tempo pulse, and per-band audio to channel offsets; summed per channel then applied once.
-4. **2D stage** — Normalized placements, optional backdrop import under Application Support `Stage/`.
-5. **2.5D preview** — Stylized beams and floor pools from fixture color channels (not photometric / IES truth).
-6. **Copilot** — `LightingCopilotService` with validated `LightingPatchOperation` and heuristic helpers; structured LLM output can replace heuristics later.
+## Completed
 
-## Non-goals (v1)
+1. **Fixture model and USB universe**
+   - Profiles/instances, patch document, conflict auditing, migration compatibility
+   - `DMXUniverseBuilder` integration of patch + cues + modulation
+2. **Cues**
+   - `LightingCueDocument`, active cue management, linear crossfade via target cue fade time
+   - Cue editing/import/export and live-strip operations
+3. **Modulation**
+   - `ModulationRuntime` routes LFO/tempo/audio-band offsets and applies merged per-channel output
+4. **Stage and preview**
+   - 2D stage placement editor with backdrop import and persisted layout
+   - 2.5D preview driven from the same built DMX universe
+5. **Fog/haze**
+   - Camera-assisted learn presets, cue envelope support, emergency kill/resume handling
+6. **Verification and planning**
+   - Assisted fixture verification runs with persisted JSON report
+   - Stage-plot scan camera overlays (primary + optional secondary angled camera)
+7. **Fixture source and import**
+   - OFL import service and curated catalog sync with fog/haze-focused indexing
 
-- GrandMA2 / full console compatibility, incoming DMX, or multi-universe over Art-Net/sACN (USB OpenDMX remains one outbound universe).
-- Full trigger / envelope graph UI (runtime supports audio bands; advanced routing can build on the same document types).
+## In progress
+
+- Verification fidelity improvements:
+  - stronger confidence/diagnostic outputs
+  - deeper camera calibration guidance
+- Stage plot workflow polish for scan setup and correction loops
+
+## Next milestones
+
+1. **Transport expansion**
+   - Art-Net/sACN multi-universe output
+   - inbound DMX and RDM discovery roadmap
+2. **Verification depth**
+   - richer CV/geometric fixture localization beyond luma-only checks
+   - orientation/layout validation confidence metrics
+3. **Console-scale workflow**
+   - advanced chaser/sequence graphs
+   - higher-density fixture/scene authoring ergonomics
+
+## Non-goals (current shipping scope)
+
+- GrandMA2/full-console parity
+- Full trigger/envelope graph editor UI
+- Production-grade incoming DMX + RDM stack (deferred to transport milestones)
 
 ## Persistence paths (Application Support `CosmicVisualizer/`)
 
@@ -23,5 +57,7 @@ This document captures scope boundaries for the DMX lighting stack. It complemen
 | `dmx_patch.json` | Profiles + instances + legacy toggle |
 | `lighting_cues.json` | Cues + active index |
 | `modulation.json` | Modulator definitions |
-| `stage_layout.json` | Placements + backdrop path |
+| `stage_layout.json` | Placements, backdrop, dimensions, stage objects, scan-camera overlays |
+| `context/calibration.json` | Calibration sweep artifact |
+| `context/fixture_verification.json` | Fixture verification report |
 | `Stage/*.png` (etc.) | Imported stage backdrop copies |

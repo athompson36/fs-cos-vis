@@ -1,8 +1,14 @@
 import AppKit
+import AVFoundation
 import SwiftUI
 
 struct LightingWorkspaceView: View {
     @EnvironmentObject private var appModel: AppModel
+    @StateObject private var fogLearnWebcam = WebcamCaptureService()
+    @StateObject private var fixtureVerifyWebcam = WebcamCaptureService()
+    @StateObject private var fixtureVerifySecondaryWebcam = WebcamCaptureService()
+    @State private var fogLearnCueID: UUID?
+    @State private var fogLearnHazerID: UUID?
     @State private var copilotSections = 4
     @State private var copilotStatus = ""
     @State private var selectedCueID: UUID?
@@ -13,21 +19,218 @@ struct LightingWorkspaceView: View {
     @State private var patchTransportJSON = ""
     @State private var stageTransportJSON = ""
     @State private var lightingBundleJSON = ""
+    @State private var oflManufacturer = "cameo"
+    @State private var oflFixtureSlug = "root-par"
+    @State private var oflStatus = ""
+    @State private var oflCatalog: [OFLFixtureImportService.CatalogEntry] = []
+    @State private var selectedCatalogFixtureID: String?
+    @State private var fixtureVerifyAvailableCameras: [AVCaptureDevice] = []
+    @State private var fixtureVerifyPrimaryCameraID: String?
+    @State private var fixtureVerifyUseSecondaryCamera = false
+    @State private var fixtureVerifySecondaryCameraID: String?
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                patchSection
-                cueSection
-                modulationSection
-                jsonTransportSection
-                StagePlanView()
-                LightingPreview25DView()
-                copilotSection
+        TabView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    patchSection
+                    oflImportSection
+                    cueSection
+                    backdropCueSection
+                    StagePlanView()
+                    LightingPreview25DView()
+                }
+                .padding()
             }
-            .padding()
+            .tabItem { Text("Patch & stage") }
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    modulationSection
+                    jsonTransportSection
+                    copilotSection
+                }
+                .padding()
+            }
+            .tabItem { Text("Modulation & tools") }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var oflImportSection: some View {
+        GroupBox("Open Fixture Library (download)") {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    TextField("Manufacturer", text: $oflManufacturer)
+                        .textFieldStyle(.roundedBorder)
+                    TextField("Fixture slug", text: $oflFixtureSlug)
+                        .textFieldStyle(.roundedBorder)
+                    Button("Fetch & add profile") {
+                        Task { await importOFLProfile() }
+                    }
+                }
+                Text(oflStatus)
+                    .font(.caption)
+                    .foregroundStyle(oflStatus.contains("fail") || oflStatus.contains("error") ? .red : .secondary)
+                Divider()
+                HStack {
+                    Button("Sync curated OFL catalog") {
+                        Task { await syncCuratedOFLCatalog() }
+                    }
+                    .controlSize(.small)
+                    if !oflCatalog.isEmpty {
+                        Text("\(oflCatalog.count) curated fixtures cached")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                if !oflCatalog.isEmpty {
+                    Picker("Curated fixtures", selection: $selectedCatalogFixtureID) {
+                        Text("Select…").tag(Optional<String>.none)
+                        ForEach(oflCatalog, id: \.id) { entry in
+                            Text("\(entry.manufacturerName) · \(entry.fixtureName)\(entry.isFogRelated ? " · Fog/Haze" : "")")
+                                .tag(Optional(entry.id))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    HStack {
+                        Button("Import selected curated fixture") {
+                            Task { await importSelectedCuratedFixture() }
+                        }
+                        .disabled(selectedCatalogFixtureID == nil)
+                    }
+                    .controlSize(.small)
+                }
+            }
+        }
+        .onAppear {
+            if oflCatalog.isEmpty, let cached = OFLFixtureImportService.loadCuratedCatalog() {
+                oflCatalog = cached.entries
+            }
+        }
+    }
+
+    private var backdropCueSection: some View {
+        GroupBox("Backdrop cues") {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Snapshots of the current stage layout (and backdrop path) for Live Show.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                HStack {
+                    Button("Save current layout as backdrop cue") {
+                        var d = appModel.backdropCueDocument
+                        let name = "Backdrop \(d.cues.count + 1)"
+                        let cue = BackdropCue(
+                            name: name,
+                            layoutSnapshot: appModel.stageLayoutDocument,
+                            backdropImagePath: appModel.stageLayoutDocument.backdropAssetPath
+                        )
+                        d.cues.append(cue)
+                        appModel.applyBackdropCueDocument(d)
+                    }
+                    Button("Clear active backdrop cue") {
+                        appModel.setActiveBackdropCueIndex(nil)
+                    }
+                }
+                if appModel.backdropCueDocument.cues.isEmpty {
+                    Text("No backdrop cues yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(Array(appModel.backdropCueDocument.cues.enumerated()), id: \.element.id) { pair in
+                        HStack {
+                            Text(pair.element.name)
+                            Toggle(
+                                "★",
+                                isOn: Binding(
+                                    get: { appModel.backdropCueDocument.bookmarkedCueIds.contains(pair.element.id) },
+                                    set: { on in
+                                        var d = appModel.backdropCueDocument
+                                        if on {
+                                            if !d.bookmarkedCueIds.contains(pair.element.id) {
+                                                d.bookmarkedCueIds.append(pair.element.id)
+                                            }
+                                        } else {
+                                            d.bookmarkedCueIds.removeAll { $0 == pair.element.id }
+                                        }
+                                        appModel.applyBackdropCueDocument(d)
+                                    }
+                                )
+                            )
+                            .toggleStyle(.button)
+                            .controlSize(.mini)
+                            Spacer()
+                            Button("Recall") {
+                                appModel.applyBackdropCueIndex(pair.offset)
+                            }
+                            .controlSize(.small)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func importOFLProfile() async {
+        let man = oflManufacturer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let slug = oflFixtureSlug.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !man.isEmpty, !slug.isEmpty else {
+            await MainActor.run { oflStatus = "Enter manufacturer and fixture slug." }
+            return
+        }
+        do {
+            let data = try await OFLFixtureImportService.fetchRawFixture(manufacturer: man, fixture: slug)
+            let profile = try OFLFixtureImportService.buildProfile(manufacturer: man, fixture: slug, data: data)
+            await MainActor.run {
+                var d = appModel.dmxPatchDocument
+                d.profiles.append(profile)
+                appModel.applyDMXPatchDocument(d)
+                oflStatus = "Added profile: \(profile.name)"
+            }
+        } catch {
+            await MainActor.run {
+                oflStatus = "Import failed: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    private func syncCuratedOFLCatalog() async {
+        do {
+            let cache = try await OFLFixtureImportService.syncCuratedCatalog()
+            await MainActor.run {
+                oflCatalog = cache.entries
+                oflStatus = "Synced curated OFL catalog (\(cache.entries.count) fixtures)."
+            }
+        } catch {
+            await MainActor.run {
+                oflStatus = "Catalog sync failed: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    private func importSelectedCuratedFixture() async {
+        guard let id = selectedCatalogFixtureID,
+              let entry = oflCatalog.first(where: { $0.id == id }) else { return }
+        do {
+            let data = try await OFLFixtureImportService.fetchRawFixture(
+                manufacturer: entry.manufacturerSlug,
+                fixture: entry.fixtureSlug
+            )
+            let profile = try OFLFixtureImportService.buildProfile(
+                manufacturer: entry.manufacturerSlug,
+                fixture: entry.fixtureSlug,
+                data: data
+            )
+            await MainActor.run {
+                var d = appModel.dmxPatchDocument
+                d.profiles.append(profile)
+                appModel.applyDMXPatchDocument(d)
+                oflStatus = "Imported curated fixture: \(profile.name)"
+            }
+        } catch {
+            await MainActor.run {
+                oflStatus = "Curated import failed: \(error.localizedDescription)"
+            }
+        }
     }
 
     private var patchSection: some View {
@@ -49,6 +252,9 @@ struct LightingWorkspaceView: View {
                     .foregroundStyle(.secondary)
 
                 patchHealthAndDMXStatusRow
+
+                fogHazeLearnSection
+                fixtureVerificationSection
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Universe 0 · channels 1–32 (live)")
@@ -191,11 +397,42 @@ struct LightingWorkspaceView: View {
                     GroupBox {
                         VStack(alignment: .leading, spacing: 8) {
                             TextField("Cue name", text: cueNameBinding(cueID: cue.id))
+                            Toggle(
+                                "Bookmark for Live Show",
+                                isOn: Binding(
+                                    get: { appModel.lightingCueDocument.bookmarkedCueIds.contains(cue.id) },
+                                    set: { on in
+                                        var d = appModel.lightingCueDocument
+                                        if on {
+                                            if !d.bookmarkedCueIds.contains(cue.id) {
+                                                d.bookmarkedCueIds.append(cue.id)
+                                            }
+                                        } else {
+                                            d.bookmarkedCueIds.removeAll { $0 == cue.id }
+                                        }
+                                        appModel.applyLightingCueDocument(d)
+                                    }
+                                )
+                            )
+                            .controlSize(.small)
                             HStack {
                                 Text("Fade: \(String(format: "%.2fs", cue.fadeSeconds))")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 Slider(value: cueFadeBinding(cueID: cue.id), in: 0 ... 12)
+                            }
+                            Toggle(
+                                "Auto hazer envelope (rise + hold from preset)",
+                                isOn: cueAutoEnvelopeBinding(cueID: cue.id)
+                            )
+                            .disabled(cue.hazeLearnPreset == nil)
+                            .controlSize(.small)
+                            if let p = cue.hazeLearnPreset {
+                                Text(
+                                    "Preset: steady DMX \(p.steadyHazeDMX), rise \(String(format: "%.1f", p.riseTimeSeconds))s, decay τ ~\(String(format: "%.1f", p.dissipationHalfLifeSeconds))s"
+                                )
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
                             }
                             Text("Channel values")
                                 .font(.caption)
@@ -469,6 +706,185 @@ struct LightingWorkspaceView: View {
                 }
             }
         }
+    }
+
+    private var hazerInstances: [FixtureInstance] {
+        appModel.dmxPatchDocument.instances.filter { inst in
+            guard let p = appModel.dmxPatchDocument.profile(id: inst.profileID) else { return false }
+            return p.channels.contains { $0.role == .hazeOutput }
+        }
+    }
+
+    private var fogHazeLearnSection: some View {
+        GroupBox("Fog / haze learn (camera luma)") {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Brightens non-hazer channels, ramps the hazer while sampling camera luma, measures dissipation, brief strobe confirm, restores the patch, and writes a preset on the cue you pick. Grant camera access when prompted.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Picker("Target cue", selection: $fogLearnCueID) {
+                    Text("Select…").tag(Optional<UUID>.none)
+                    ForEach(appModel.lightingCueDocument.cues) { c in
+                        Text(c.name).tag(Optional(c.id))
+                    }
+                }
+                Picker("Hazer fixture", selection: $fogLearnHazerID) {
+                    Text("Select…").tag(Optional<UUID>.none)
+                    ForEach(hazerInstances, id: \.id) { inst in
+                        Text(fogLearnHazerMenuLabel(inst)).tag(Optional(inst.id))
+                    }
+                }
+                if hazerInstances.isEmpty {
+                    Text("Patch a fixture whose profile includes “hazeOutput” (e.g. built-in Fog / haze).")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
+                if !appModel.fogHazeLearnPhase.isEmpty {
+                    Text(appModel.fogHazeLearnPhase)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                HStack {
+                    Button("Start learn") {
+                        guard let cid = fogLearnCueID, let hid = fogLearnHazerID else { return }
+                        appModel.startFogHazeLearn(targetCueID: cid, hazerInstanceID: hid, webcam: fogLearnWebcam)
+                    }
+                    .disabled(fogLearnCueID == nil || fogLearnHazerID == nil)
+                    Button("Cancel learn") {
+                        appModel.cancelFogHazeLearn()
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func fogLearnHazerMenuLabel(_ inst: FixtureInstance) -> String {
+        guard let idx = appModel.dmxPatchDocument.instances.firstIndex(where: { $0.id == inst.id }) else {
+            return "Hazer"
+        }
+        let name = appModel.dmxPatchDocument.profile(id: inst.profileID)?.name ?? "Profile"
+        return "\(name) #\(idx + 1)"
+    }
+
+    private var fixtureVerificationSection: some View {
+        GroupBox("Fixture verification (assisted)") {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Scans each assigned fixture independently with DMX test bursts and camera luma sampling to validate patching, quantity, venue-map layout, and orientation metadata. Optional secondary wireless iOS Continuity Camera can be angled near stage depth.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if !fixtureVerifyAvailableCameras.isEmpty {
+                    Picker("Primary scan camera", selection: $fixtureVerifyPrimaryCameraID) {
+                        Text("System default").tag(Optional<String>.none)
+                        ForEach(fixtureVerifyAvailableCameras, id: \.uniqueID) { device in
+                            Text(cameraLabel(device)).tag(Optional(device.uniqueID))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+                Toggle("Use secondary angled camera (Continuity/iOS recommended)", isOn: $fixtureVerifyUseSecondaryCamera)
+                    .controlSize(.small)
+                if fixtureVerifyUseSecondaryCamera, !fixtureVerifyAvailableCameras.isEmpty {
+                    Picker("Secondary scan camera", selection: $fixtureVerifySecondaryCameraID) {
+                        Text("Select secondary camera…").tag(Optional<String>.none)
+                        ForEach(fixtureVerifyAvailableCameras.filter { $0.uniqueID != fixtureVerifyPrimaryCameraID }, id: \.uniqueID) { device in
+                            Text(cameraLabel(device)).tag(Optional(device.uniqueID))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    Text("Place this camera close to stage edge at an angle to better resolve depth/location. Stage plot shows required scan wedges.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                HStack {
+                    Button("Start fixture verification") {
+                        appModel.startFixtureVerification(
+                            primaryWebcam: fixtureVerifyWebcam,
+                            primaryDeviceUniqueID: fixtureVerifyPrimaryCameraID,
+                            secondaryWebcam: fixtureVerifyUseSecondaryCamera ? fixtureVerifySecondaryWebcam : nil,
+                            secondaryDeviceUniqueID: fixtureVerifySecondaryCameraID
+                        )
+                    }
+                    Button("Cancel verification") {
+                        appModel.cancelFixtureVerification()
+                    }
+                }
+                if !appModel.fixtureVerificationPhase.isEmpty {
+                    Text(appModel.fixtureVerificationPhase)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if let report = appModel.fixtureVerificationReport {
+                    HStack(spacing: 10) {
+                        categoryBadge("Patching", status: aggregateStatus(report.fixtures.map(\.patching.status)))
+                        categoryBadge("Quantity", status: aggregateStatus(report.fixtures.map(\.quantity.status)))
+                        categoryBadge("Layout", status: aggregateStatus(report.fixtures.map(\.layout.status)))
+                        categoryBadge("Orientation", status: aggregateStatus(report.fixtures.map(\.orientation.status)))
+                    }
+                    .font(.caption2)
+                    ForEach(report.fixtures) { fixture in
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("#\(fixture.fixtureIndex) \(fixture.fixtureName) @ \(fixture.startAddress)")
+                                .font(.caption.weight(.semibold))
+                            Text("Patch \(fixture.patching.status.rawValue): \(fixture.patching.note)")
+                                .font(.caption2)
+                            Text("Layout \(fixture.layout.status.rawValue): \(fixture.layout.note)")
+                                .font(.caption2)
+                            Text("Orientation \(fixture.orientation.status.rawValue): \(fixture.orientation.note)")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .onAppear {
+            if fixtureVerifyAvailableCameras.isEmpty {
+                fixtureVerifyAvailableCameras = WebcamCaptureService.availableVideoDevices()
+            }
+        }
+    }
+
+    private func cameraLabel(_ device: AVCaptureDevice) -> String {
+        if device.deviceType == .continuityCamera {
+            return "\(device.localizedName) (Continuity)"
+        }
+        return device.localizedName
+    }
+
+    private func aggregateStatus(_ statuses: [FixtureVerificationStatus]) -> FixtureVerificationStatus {
+        if statuses.contains(.fail) { return .fail }
+        if statuses.contains(.warn) { return .warn }
+        return .pass
+    }
+
+    private func categoryBadge(_ title: String, status: FixtureVerificationStatus) -> some View {
+        let color: Color
+        switch status {
+        case .pass: color = .green
+        case .fail: color = .red
+        case .warn: color = .orange
+        }
+        return Text("\(title): \(status.rawValue.uppercased())")
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(color.opacity(0.2))
+            .foregroundStyle(color)
+            .clipShape(Capsule())
+    }
+
+    private func cueAutoEnvelopeBinding(cueID: UUID) -> Binding<Bool> {
+        Binding(
+            get: {
+                appModel.lightingCueDocument.cues.first { $0.id == cueID }?.autoApplyHazeEnvelope ?? false
+            },
+            set: { v in
+                var d = appModel.lightingCueDocument
+                guard let i = d.cues.firstIndex(where: { $0.id == cueID }) else { return }
+                d.cues[i].autoApplyHazeEnvelope = v
+                appModel.applyLightingCueDocument(d)
+            }
+        )
     }
 
     private var copilotSection: some View {
@@ -948,7 +1364,10 @@ struct LightingWorkspaceView: View {
         let copy = LightingCue(
             name: "\(src.name) Copy",
             fadeSeconds: src.fadeSeconds,
-            channelValues: src.channelValues
+            channelValues: src.channelValues,
+            previewThumbnailPath: src.previewThumbnailPath,
+            hazeLearnPreset: src.hazeLearnPreset,
+            autoApplyHazeEnvelope: src.autoApplyHazeEnvelope
         )
         doc.cues.insert(copy, at: idx + 1)
         selectedCueID = copy.id
@@ -1333,7 +1752,10 @@ struct LightingWorkspaceView: View {
                 id: UUID(),
                 name: newName,
                 fadeSeconds: decoded.fadeSeconds,
-                channelValues: decoded.channelValues
+                channelValues: decoded.channelValues,
+                previewThumbnailPath: decoded.previewThumbnailPath,
+                hazeLearnPreset: decoded.hazeLearnPreset,
+                autoApplyHazeEnvelope: decoded.autoApplyHazeEnvelope
             )
             var doc = appModel.lightingCueDocument
             doc.cues.append(cue)
@@ -1526,7 +1948,10 @@ struct LightingWorkspaceView: View {
                     id: UUID(),
                     name: name,
                     fadeSeconds: cue.fadeSeconds,
-                    channelValues: cue.channelValues
+                    channelValues: cue.channelValues,
+                    previewThumbnailPath: cue.previewThumbnailPath,
+                    hazeLearnPreset: cue.hazeLearnPreset,
+                    autoApplyHazeEnvelope: cue.autoApplyHazeEnvelope
                 )
                 current.cues.append(copy)
                 added += 1

@@ -8,6 +8,17 @@ enum LayerControlParameter: String, CaseIterable, Identifiable, Sendable {
     case liquidFocus
     case fractalAppearance
     case overlayFractalFusion
+    case fractalExplore
+    case fractalExploreSpeed
+    case fractalIterBoost
+    case zoomEffectType
+    case liquidReconstituteAmount
+    case liquidReconstituteRate
+    case liquidReconstituteBPMSync
+    case dyeMix
+    case fractalSmoothShading
+    case compositeBloomStrength
+    case compositeVignetteStrength
 
     var id: String { rawValue }
 
@@ -19,6 +30,17 @@ enum LayerControlParameter: String, CaseIterable, Identifiable, Sendable {
         case .liquidFocus: "Liquid focus"
         case .fractalAppearance: "Fractal look"
         case .overlayFractalFusion: "Logo ↔ fractal fusion"
+        case .fractalExplore: "Fractal explore"
+        case .fractalExploreSpeed: "Explore speed"
+        case .fractalIterBoost: "Iteration boost"
+        case .zoomEffectType: "Zoom motion"
+        case .liquidReconstituteAmount: "Liquid reconstitute"
+        case .liquidReconstituteRate: "Reconstitute rate"
+        case .liquidReconstituteBPMSync: "Reconstitute BPM sync"
+        case .dyeMix: "Dye mix"
+        case .fractalSmoothShading: "Smooth shading"
+        case .compositeBloomStrength: "Bloom"
+        case .compositeVignetteStrength: "Vignette"
         }
     }
 
@@ -31,6 +53,17 @@ enum LayerControlParameter: String, CaseIterable, Identifiable, Sendable {
         case .liquidFocus: 0 ... 1
         case .fractalAppearance: 0 ... 1
         case .overlayFractalFusion: 0 ... 1
+        case .fractalExplore: 0 ... 1
+        case .fractalExploreSpeed: 0.05 ... 1.2
+        case .fractalIterBoost: 0.25 ... 3
+        case .zoomEffectType: 0 ... 2
+        case .liquidReconstituteAmount: 0 ... 1
+        case .liquidReconstituteRate: 0.05 ... 3
+        case .liquidReconstituteBPMSync: 0 ... 1
+        case .dyeMix: 0 ... 1
+        case .fractalSmoothShading: 0 ... 1
+        case .compositeBloomStrength: 0 ... 0.5
+        case .compositeVignetteStrength: 0 ... 0.85
         }
     }
 
@@ -55,6 +88,28 @@ enum LayerControlParameter: String, CaseIterable, Identifiable, Sendable {
             RemoteControlCommand(type: "SetFractalAppearance", fractalAppearance: value)
         case .overlayFractalFusion:
             RemoteControlCommand(type: "SetOverlayFractalFusion", overlayFractalFusion: value)
+        case .fractalExplore:
+            RemoteControlCommand(type: "SetFractalExplore", fractalExplore: value)
+        case .fractalExploreSpeed:
+            RemoteControlCommand(type: "SetFractalExploreSpeed", fractalExploreSpeed: value)
+        case .fractalIterBoost:
+            RemoteControlCommand(type: "SetFractalIterBoost", fractalIterBoost: value)
+        case .zoomEffectType:
+            RemoteControlCommand(type: "SetZoomEffectType", index: Int(round(value)))
+        case .liquidReconstituteAmount:
+            RemoteControlCommand(type: "SetLiquidReconstituteAmount", liquidReconstituteAmount: value)
+        case .liquidReconstituteRate:
+            RemoteControlCommand(type: "SetLiquidReconstituteRate", liquidReconstituteRate: value)
+        case .liquidReconstituteBPMSync:
+            RemoteControlCommand(type: "SetLiquidReconstituteBPMSync", enabled: value >= 0.5)
+        case .dyeMix:
+            RemoteControlCommand(type: "SetDyeMix", dyeMix: value)
+        case .fractalSmoothShading:
+            RemoteControlCommand(type: "SetFractalSmoothShading", fractalSmoothShading: value)
+        case .compositeBloomStrength:
+            RemoteControlCommand(type: "SetCompositeBloomStrength", compositeBloomStrength: value)
+        case .compositeVignetteStrength:
+            RemoteControlCommand(type: "SetCompositeVignetteStrength", compositeVignetteStrength: value)
         }
     }
 

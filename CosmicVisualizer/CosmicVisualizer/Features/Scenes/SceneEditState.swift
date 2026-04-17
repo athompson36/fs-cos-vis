@@ -53,8 +53,10 @@ struct SceneEditState: Codable, Equatable, Hashable {
         var overlayRectWidth: Float = 1
         var overlayRectHeight: Float = 1
 
-        /// 0 = Julia, 1 = Mandelbrot, 2 = Burning Ship, 3 = Tricorn.
+        /// 0 = Julia, 1 = Mandelbrot, 2 = Burning Ship, 3 = Tricorn, 4 = Multibrot (cubic).
         var fractalGeometryIndex: Float = 0
+        /// 0 = banded iteration, 1 = smooth escape-time coloring.
+        var fractalSmoothShading: Float = 0.85
         /// Animated fractal exploration (0 = off, 1 = full).
         var fractalExplore: Float = 0
         var fractalExploreSpeed: Float = 0.35
@@ -75,6 +77,12 @@ struct SceneEditState: Codable, Equatable, Hashable {
         var liquidReconstituteRate: Float = 0.55
         /// When enabled, reconstitute oscillation follows BPM.
         var liquidReconstituteBPMSync: Bool = false
+        /// Dye strength in the liquid pass when liquid light is enabled.
+        var dyeMix: Float = 1
+        /// Composite pass: additive highlight from bright fractal/liquid.
+        var compositeBloomStrength: Float = 0.12
+        /// Composite pass: edge darkening.
+        var compositeVignetteStrength: Float = 0.15
         var liquidDropperLayers: [LiquidDropperLayer] = LayerControls.defaultDropperLayers
         var activeDropperLayerIndex: Int = 0
 
@@ -91,6 +99,7 @@ struct SceneEditState: Codable, Equatable, Hashable {
             case overlayRectWidth
             case overlayRectHeight
             case fractalGeometryIndex
+            case fractalSmoothShading
             case fractalExplore
             case fractalExploreSpeed
             case fractalPanX
@@ -103,6 +112,9 @@ struct SceneEditState: Codable, Equatable, Hashable {
             case liquidReconstituteAmount
             case liquidReconstituteRate
             case liquidReconstituteBPMSync
+            case dyeMix
+            case compositeBloomStrength
+            case compositeVignetteStrength
             case liquidDropperLayers
             case activeDropperLayerIndex
             // v1 legacy keys
@@ -125,6 +137,7 @@ struct SceneEditState: Codable, Equatable, Hashable {
             overlayRectWidth: Float = 1,
             overlayRectHeight: Float = 1,
             fractalGeometryIndex: Float = 0,
+            fractalSmoothShading: Float = 0.85,
             fractalExplore: Float = 0,
             fractalExploreSpeed: Float = 0.35,
             fractalPanX: Float = 0,
@@ -137,6 +150,9 @@ struct SceneEditState: Codable, Equatable, Hashable {
             liquidReconstituteAmount: Float = 0,
             liquidReconstituteRate: Float = 0.55,
             liquidReconstituteBPMSync: Bool = false,
+            dyeMix: Float = 1,
+            compositeBloomStrength: Float = 0.12,
+            compositeVignetteStrength: Float = 0.15,
             liquidDropperLayers: [LiquidDropperLayer] = LayerControls.defaultDropperLayers,
             activeDropperLayerIndex: Int = 0
         ) {
@@ -152,6 +168,7 @@ struct SceneEditState: Codable, Equatable, Hashable {
             self.overlayRectWidth = overlayRectWidth
             self.overlayRectHeight = overlayRectHeight
             self.fractalGeometryIndex = fractalGeometryIndex
+            self.fractalSmoothShading = fractalSmoothShading
             self.fractalExplore = fractalExplore
             self.fractalExploreSpeed = fractalExploreSpeed
             self.fractalPanX = fractalPanX
@@ -164,6 +181,9 @@ struct SceneEditState: Codable, Equatable, Hashable {
             self.liquidReconstituteAmount = liquidReconstituteAmount
             self.liquidReconstituteRate = liquidReconstituteRate
             self.liquidReconstituteBPMSync = liquidReconstituteBPMSync
+            self.dyeMix = dyeMix
+            self.compositeBloomStrength = compositeBloomStrength
+            self.compositeVignetteStrength = compositeVignetteStrength
             self.liquidDropperLayers = Array(liquidDropperLayers.prefix(Self.maxDropperLayers))
             self.activeDropperLayerIndex = max(0, min(self.liquidDropperLayers.count - 1, activeDropperLayerIndex))
         }
@@ -182,6 +202,7 @@ struct SceneEditState: Codable, Equatable, Hashable {
             overlayRectWidth = try c.decodeIfPresent(Float.self, forKey: .overlayRectWidth) ?? 1
             overlayRectHeight = try c.decodeIfPresent(Float.self, forKey: .overlayRectHeight) ?? 1
             fractalGeometryIndex = try c.decodeIfPresent(Float.self, forKey: .fractalGeometryIndex) ?? 0
+            fractalSmoothShading = try c.decodeIfPresent(Float.self, forKey: .fractalSmoothShading) ?? 0.85
             fractalExplore = try c.decodeIfPresent(Float.self, forKey: .fractalExplore) ?? 0
             fractalExploreSpeed = try c.decodeIfPresent(Float.self, forKey: .fractalExploreSpeed) ?? 0.35
             fractalPanX = try c.decodeIfPresent(Float.self, forKey: .fractalPanX) ?? 0
@@ -194,6 +215,9 @@ struct SceneEditState: Codable, Equatable, Hashable {
             liquidReconstituteAmount = try c.decodeIfPresent(Float.self, forKey: .liquidReconstituteAmount) ?? 0
             liquidReconstituteRate = try c.decodeIfPresent(Float.self, forKey: .liquidReconstituteRate) ?? 0.55
             liquidReconstituteBPMSync = try c.decodeIfPresent(Bool.self, forKey: .liquidReconstituteBPMSync) ?? false
+            dyeMix = try c.decodeIfPresent(Float.self, forKey: .dyeMix) ?? 1
+            compositeBloomStrength = try c.decodeIfPresent(Float.self, forKey: .compositeBloomStrength) ?? 0.12
+            compositeVignetteStrength = try c.decodeIfPresent(Float.self, forKey: .compositeVignetteStrength) ?? 0.15
             let decodedLayers = try c.decodeIfPresent([LiquidDropperLayer].self, forKey: .liquidDropperLayers) ?? []
             if decodedLayers.isEmpty {
                 let legacyR = try c.decodeIfPresent(Float.self, forKey: .dropperColorR) ?? 0.2
@@ -235,6 +259,7 @@ struct SceneEditState: Codable, Equatable, Hashable {
             try c.encode(overlayRectWidth, forKey: .overlayRectWidth)
             try c.encode(overlayRectHeight, forKey: .overlayRectHeight)
             try c.encode(fractalGeometryIndex, forKey: .fractalGeometryIndex)
+            try c.encode(fractalSmoothShading, forKey: .fractalSmoothShading)
             try c.encode(fractalExplore, forKey: .fractalExplore)
             try c.encode(fractalExploreSpeed, forKey: .fractalExploreSpeed)
             try c.encode(fractalPanX, forKey: .fractalPanX)
@@ -247,6 +272,9 @@ struct SceneEditState: Codable, Equatable, Hashable {
             try c.encode(liquidReconstituteAmount, forKey: .liquidReconstituteAmount)
             try c.encode(liquidReconstituteRate, forKey: .liquidReconstituteRate)
             try c.encode(liquidReconstituteBPMSync, forKey: .liquidReconstituteBPMSync)
+            try c.encode(dyeMix, forKey: .dyeMix)
+            try c.encode(compositeBloomStrength, forKey: .compositeBloomStrength)
+            try c.encode(compositeVignetteStrength, forKey: .compositeVignetteStrength)
             try c.encode(liquidDropperLayers, forKey: .liquidDropperLayers)
             try c.encode(activeDropperLayerIndex, forKey: .activeDropperLayerIndex)
         }

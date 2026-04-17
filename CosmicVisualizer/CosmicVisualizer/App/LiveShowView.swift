@@ -4,6 +4,9 @@ import SwiftUI
 
 struct LiveShowView: View {
     @EnvironmentObject private var appModel: AppModel
+    @State private var previewScale: CGFloat = 1
+    @State private var sceneCueScale: CGFloat = 1
+    @State private var showCueScale: CGFloat = 1
 
     var body: some View {
         ScrollView(.vertical) {
@@ -34,15 +37,29 @@ struct LiveShowView: View {
 
                 devicePicker
 
+                fogHazeEmergencyRow
+
                 if let renderer = appModel.metalRenderer {
-                    AspectFitLivePreviewContainer(renderer: renderer, minHeight: 280)
+                    scalablePanel(scale: $previewScale) {
+                        AspectFitLivePreviewContainer(renderer: renderer, minHeight: 280 * previewScale)
+                    }
 
                     if !appModel.performanceMode {
-                        SceneCueStripView()
-                            .onAppear {
-                                appModel.refreshScenePreviewPool()
-                            }
+                        scalablePanel(scale: $sceneCueScale) {
+                            SceneCueStripView(cardScale: sceneCueScale)
+                                .onAppear {
+                                    appModel.refreshScenePreviewPool()
+                                }
+                        }
+                        scalablePanel(scale: $showCueScale) {
+                            LiveShowCueStripsView(chipScale: showCueScale)
+                        }
                         tempoStatusRow
+                    } else if appModel.remoteSettings.lightingPerformanceStripEnabled
+                        || appModel.remoteSettings.backdropPerformanceStripEnabled {
+                        scalablePanel(scale: $showCueScale) {
+                            LiveShowCueStripsView(chipScale: showCueScale)
+                        }
                     }
                 } else {
                     Text("Metal could not be initialized on this Mac.")
@@ -62,6 +79,14 @@ struct LiveShowView: View {
         }
     }
 
+    private func scalablePanel<Content: View>(scale: Binding<CGFloat>, @ViewBuilder content: () -> Content) -> some View {
+        content()
+            .overlay(alignment: .topTrailing) {
+                HoverScaleButtons(scale: scale, range: 0.7 ... 1.8, step: 0.1)
+                    .padding(6)
+            }
+    }
+
     private var devicePicker: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Audio input")
@@ -74,6 +99,50 @@ struct LiveShowView: View {
                 }
             }
             .labelsHidden()
+            Picker("Channel", selection: appModel.selectedInputChannelBinding) {
+                ForEach(appModel.availableInputChannelChoices) { choice in
+                    Text(choice.label).tag(choice)
+                }
+            }
+            .pickerStyle(.menu)
+        }
+    }
+
+    private var fogHazeEmergencyRow: some View {
+        GroupBox {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: "cloud.fog.fill")
+                    .foregroundStyle(appModel.hazeEmergencyKillActive ? Color.orange : Color.secondary)
+                if appModel.hazeEmergencyKillActive {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Fog / haze emergency OFF")
+                            .font(.headline)
+                        Text("Hazer output and pump are forced to 0 until you resume. Fan follows the cue/patch.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 8)
+                    Button("Resume hazer from cue") {
+                        appModel.setHazeEmergencyKill(false)
+                    }
+                    .buttonStyle(.borderedProminent)
+                } else {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Fog / haze")
+                            .font(.headline)
+                        Text("Latch kills hazer output and pump on the next DMX frames.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 8)
+                    Button("Fog / haze OFF") {
+                        appModel.setHazeEmergencyKill(true)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -177,6 +246,49 @@ struct LiveShowView: View {
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
             Spacer()
+        }
+    }
+}
+
+private struct HoverScaleButtons: View {
+    @Binding var scale: CGFloat
+    let range: ClosedRange<CGFloat>
+    let step: CGFloat
+    @State private var hoveringContainer = false
+    @State private var hoveringButton: Int?
+
+    var body: some View {
+        HStack(spacing: 4) {
+            button(icon: "minus", tag: 0) {
+                scale = max(range.lowerBound, scale - step)
+            }
+            button(icon: "plus", tag: 1) {
+                scale = min(range.upperBound, scale + step)
+            }
+        }
+        .padding(4)
+        .background(.ultraThinMaterial, in: Capsule())
+        .opacity(hoveringContainer ? 1 : 0.2)
+        .onHover { inside in
+            withAnimation(.easeInOut(duration: 0.12)) {
+                hoveringContainer = inside
+            }
+        }
+    }
+
+    private func button(icon: String, tag: Int, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .bold))
+                .frame(width: 18, height: 18)
+                .background(
+                    (hoveringButton == tag ? Color.accentColor.opacity(0.35) : Color.clear),
+                    in: Circle()
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { inside in
+            hoveringButton = inside ? tag : nil
         }
     }
 }

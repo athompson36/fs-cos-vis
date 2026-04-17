@@ -4,11 +4,35 @@ import UniformTypeIdentifiers
 
 /// Normalized 0…1 stage coordinates with drag repositioning.
 struct StagePlanView: View {
+    private struct StageObjectTemplate: Identifiable {
+        var id: String
+        var name: String
+        var footprintWidthMeters: Double
+        var footprintDepthMeters: Double
+    }
+
+    private static let stageObjectTemplates: [StageObjectTemplate] = [
+        StageObjectTemplate(id: "drum_kit", name: "Drum kit", footprintWidthMeters: 2.2, footprintDepthMeters: 1.8),
+        StageObjectTemplate(id: "keyboard_rig", name: "Keyboard rig", footprintWidthMeters: 1.8, footprintDepthMeters: 1.1),
+        StageObjectTemplate(id: "guitar_amp", name: "Guitar amp", footprintWidthMeters: 0.8, footprintDepthMeters: 0.6),
+        StageObjectTemplate(id: "bass_amp", name: "Bass amp", footprintWidthMeters: 0.9, footprintDepthMeters: 0.7),
+        StageObjectTemplate(id: "vocal_mic", name: "Vocal mic stand", footprintWidthMeters: 0.6, footprintDepthMeters: 0.6),
+        StageObjectTemplate(id: "dj_booth", name: "DJ booth", footprintWidthMeters: 2.0, footprintDepthMeters: 1.0),
+        StageObjectTemplate(id: "monitor_wedge", name: "Monitor wedge", footprintWidthMeters: 0.6, footprintDepthMeters: 0.5),
+        StageObjectTemplate(id: "fogger_cart", name: "Fogger/hazer cart", footprintWidthMeters: 0.8, footprintDepthMeters: 0.8),
+    ]
+
     @EnvironmentObject private var appModel: AppModel
     @State private var dragKey: String?
     @State private var dragStart: StagePlacement?
     @State private var selectedFixtureKey: String?
+    @State private var selectedPlotObjectID: UUID?
+    @State private var plotObjectDragStart: StagePlotObject?
+    @State private var cameraDragKey: String?
+    @State private var cameraDragStart: StageScanCameraPlacement?
+    @State private var backdropDragStart: StageBackdropPlacement?
     @State private var backdropImportError: String?
+    @State private var selectedTemplateID = stageObjectTemplates.first?.id ?? ""
 
     var body: some View {
         GroupBox("Stage layout (2D)") {
@@ -25,7 +49,14 @@ struct StagePlanView: View {
                     if selectedFixtureKey != nil {
                         Button("Clear selection") { selectedFixtureKey = nil }
                     }
+                    if selectedPlotObjectID != nil {
+                        Button("Clear object selection") { selectedPlotObjectID = nil }
+                    }
                 }
+                stageDimensionsControls
+                stageObjectControls
+                scanCameraControls
+                backdropEditorControls
                 if let backdropImportError {
                     Text(backdropImportError)
                         .font(.caption2)
@@ -49,6 +80,15 @@ struct StagePlanView: View {
                             )
                             .onTapGesture { selectedFixtureKey = key }
                         }
+                        ForEach(appModel.stageLayoutDocument.plotObjects) { object in
+                            stageObjectView(object: object, canvasSize: geo.size, isSelected: selectedPlotObjectID == object.id)
+                                .onTapGesture {
+                                    selectedPlotObjectID = object.id
+                                    selectedFixtureKey = nil
+                                }
+                        }
+                        scanCameraView(kind: "primary", camera: appModel.stageLayoutDocument.primaryScanCamera, canvasSize: geo.size)
+                        scanCameraView(kind: "secondary", camera: appModel.stageLayoutDocument.secondaryScanCamera, canvasSize: geo.size)
                     }
                     .background(Color.black.opacity(0.25))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -71,8 +111,73 @@ struct StagePlanView: View {
                             .frame(width: 40, alignment: .trailing)
                     }
                 }
+                if let selectedPlotObjectID,
+                   let object = appModel.stageLayoutDocument.plotObjects.first(where: { $0.id == selectedPlotObjectID }) {
+                    Text(object.templateID.replacingOccurrences(of: "_", with: " ").capitalized)
+                        .font(.caption.weight(.semibold))
+                    TextField(
+                        "Object label",
+                        text: Binding(
+                            get: { object.label },
+                            set: { newValue in
+                                var s = appModel.stageLayoutDocument
+                                guard let idx = s.plotObjects.firstIndex(where: { $0.id == selectedPlotObjectID }) else { return }
+                                s.plotObjects[idx].label = newValue
+                                appModel.applyStageLayoutDocument(s)
+                            }
+                        )
+                    )
+                    HStack {
+                        Text("Scale")
+                            .font(.caption2)
+                        Slider(
+                            value: Binding(
+                                get: { object.scale },
+                                set: { newValue in
+                                    var s = appModel.stageLayoutDocument
+                                    guard let idx = s.plotObjects.firstIndex(where: { $0.id == selectedPlotObjectID }) else { return }
+                                    s.plotObjects[idx].scale = max(0.3, min(3.0, newValue))
+                                    appModel.applyStageLayoutDocument(s)
+                                }
+                            ),
+                            in: 0.3 ... 3.0
+                        )
+                        Text(String(format: "%.2fx", object.scale))
+                            .font(.caption2.monospacedDigit())
+                            .frame(width: 44, alignment: .trailing)
+                    }
+                    HStack {
+                        Text("Rotation")
+                            .font(.caption2)
+                        Slider(
+                            value: Binding(
+                                get: { object.rotation },
+                                set: { newValue in
+                                    var s = appModel.stageLayoutDocument
+                                    guard let idx = s.plotObjects.firstIndex(where: { $0.id == selectedPlotObjectID }) else { return }
+                                    s.plotObjects[idx].rotation = newValue
+                                    appModel.applyStageLayoutDocument(s)
+                                }
+                            ),
+                            in: -180 ... 180
+                        )
+                        Text("\(Int(object.rotation))°")
+                            .font(.caption2.monospacedDigit())
+                            .frame(width: 40, alignment: .trailing)
+                    }
+                    Button("Remove selected object", role: .destructive) {
+                        var s = appModel.stageLayoutDocument
+                        s.plotObjects.removeAll { $0.id == selectedPlotObjectID }
+                        appModel.applyStageLayoutDocument(s)
+                        self.selectedPlotObjectID = nil
+                    }
+                    .controlSize(.small)
+                }
                 Text("Tap a fixture to edit rotation; drag to move. Positions persist to Application Support.")
                     .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Scan wedges show required camera angles for fixture-learning passes. Position cameras, then resume scan from Fixture verification.")
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -98,12 +203,204 @@ struct StagePlanView: View {
     private func backdropLayer(size: CGSize) -> some View {
         if let path = appModel.stageLayoutDocument.backdropAssetPath,
            let img = NSImage(contentsOfFile: path) {
-            Image(nsImage: img)
-                .resizable()
-                .scaledToFill()
-                .frame(width: size.width, height: size.height)
-                .clipped()
+            let bp = appModel.stageLayoutDocument.backdropPlacement
+            if bp.isVisible {
+                let width = size.width * CGFloat(max(0.2, bp.scale))
+                let height = size.height * CGFloat(max(0.2, bp.scale))
+                Image(nsImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: width, height: height)
+                    .rotationEffect(.degrees(bp.rotation))
+                    .position(
+                        x: CGFloat(bp.centerX) * size.width,
+                        y: CGFloat(1 - bp.centerY) * size.height
+                    )
+                    .clipped()
+                    .gesture(
+                        DragGesture()
+                            .onChanged { gesture in
+                                if backdropDragStart == nil {
+                                    backdropDragStart = bp
+                                }
+                                guard let start = backdropDragStart else { return }
+                                var next = appModel.stageLayoutDocument
+                                let nx = start.centerX + Double(gesture.translation.width / max(size.width, 1))
+                                let ny = start.centerY - Double(gesture.translation.height / max(size.height, 1))
+                                next.backdropPlacement.centerX = min(max(nx, 0), 1)
+                                next.backdropPlacement.centerY = min(max(ny, 0), 1)
+                                appModel.applyStageLayoutDocument(next)
+                            }
+                            .onEnded { _ in
+                                backdropDragStart = nil
+                            }
+                    )
+            }
         }
+    }
+
+    private var backdropEditorControls: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            let hasBackdrop = appModel.stageLayoutDocument.backdropAssetPath != nil
+            Toggle(
+                "Backdrop visible in stage + 2.5D preview",
+                isOn: Binding(
+                    get: { appModel.stageLayoutDocument.backdropPlacement.isVisible },
+                    set: { visible in
+                        var s = appModel.stageLayoutDocument
+                        s.backdropPlacement.isVisible = visible
+                        appModel.applyStageLayoutDocument(s)
+                    }
+                )
+            )
+            .disabled(!hasBackdrop)
+
+            HStack {
+                Text("Backdrop scale")
+                    .font(.caption2)
+                Slider(
+                    value: Binding(
+                        get: { appModel.stageLayoutDocument.backdropPlacement.scale },
+                        set: { value in
+                            var s = appModel.stageLayoutDocument
+                            s.backdropPlacement.scale = max(0.2, min(3.0, value))
+                            appModel.applyStageLayoutDocument(s)
+                        }
+                    ),
+                    in: 0.2 ... 3.0
+                )
+                Text(String(format: "%.2fx", appModel.stageLayoutDocument.backdropPlacement.scale))
+                    .font(.caption2.monospacedDigit())
+                    .frame(width: 44, alignment: .trailing)
+                Button("-") { nudgeBackdropScale(by: -0.1) }
+                    .controlSize(.small)
+                Button("+") { nudgeBackdropScale(by: 0.1) }
+                    .controlSize(.small)
+            }
+            .disabled(!hasBackdrop)
+
+            Text("Drag the backdrop image in the stage map to reposition it.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var stageDimensionsControls: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Stage dimensions (meters)")
+                .font(.caption.weight(.semibold))
+            HStack {
+                Text("Width")
+                    .font(.caption2)
+                Slider(
+                    value: Binding(
+                        get: { appModel.stageLayoutDocument.dimensions.widthMeters },
+                        set: { v in
+                            var s = appModel.stageLayoutDocument
+                            s.dimensions.widthMeters = max(1, min(100, v))
+                            appModel.applyStageLayoutDocument(s)
+                        }
+                    ),
+                    in: 1 ... 100
+                )
+                Text(String(format: "%.1fm", appModel.stageLayoutDocument.dimensions.widthMeters))
+                    .font(.caption2.monospacedDigit())
+                    .frame(width: 56, alignment: .trailing)
+            }
+            HStack {
+                Text("Depth")
+                    .font(.caption2)
+                Slider(
+                    value: Binding(
+                        get: { appModel.stageLayoutDocument.dimensions.depthMeters },
+                        set: { v in
+                            var s = appModel.stageLayoutDocument
+                            s.dimensions.depthMeters = max(1, min(100, v))
+                            appModel.applyStageLayoutDocument(s)
+                        }
+                    ),
+                    in: 1 ... 100
+                )
+                Text(String(format: "%.1fm", appModel.stageLayoutDocument.dimensions.depthMeters))
+                    .font(.caption2.monospacedDigit())
+                    .frame(width: 56, alignment: .trailing)
+            }
+        }
+    }
+
+    private var stageObjectControls: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Common instruments and gear")
+                .font(.caption.weight(.semibold))
+            HStack {
+                Picker("Object", selection: $selectedTemplateID) {
+                    ForEach(Self.stageObjectTemplates) { template in
+                        Text(template.name).tag(template.id)
+                    }
+                }
+                .pickerStyle(.menu)
+                Button("Add object") { addStageObject() }
+                    .controlSize(.small)
+            }
+            Text("Objects auto-scale to stage dimensions using real footprint size and can be dragged/scaled/rotated with labels.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var scanCameraControls: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Fixture scan cameras")
+                .font(.caption.weight(.semibold))
+            Toggle(
+                "Enable primary scan camera overlay",
+                isOn: Binding(
+                    get: { appModel.stageLayoutDocument.primaryScanCamera.isEnabled },
+                    set: { on in
+                        var s = appModel.stageLayoutDocument
+                        s.primaryScanCamera.isEnabled = on
+                        appModel.applyStageLayoutDocument(s)
+                    }
+                )
+            )
+            Toggle(
+                "Enable secondary iOS continuity camera overlay",
+                isOn: Binding(
+                    get: { appModel.stageLayoutDocument.secondaryScanCamera.isEnabled },
+                    set: { on in
+                        var s = appModel.stageLayoutDocument
+                        s.secondaryScanCamera.isEnabled = on
+                        appModel.applyStageLayoutDocument(s)
+                    }
+                )
+            )
+            .controlSize(.small)
+            HStack {
+                Text("Secondary angle")
+                    .font(.caption2)
+                Slider(
+                    value: Binding(
+                        get: { appModel.stageLayoutDocument.secondaryScanCamera.angleDeg },
+                        set: { angle in
+                            var s = appModel.stageLayoutDocument
+                            s.secondaryScanCamera.angleDeg = angle
+                            appModel.applyStageLayoutDocument(s)
+                        }
+                    ),
+                    in: -180 ... 180
+                )
+                Text("\(Int(appModel.stageLayoutDocument.secondaryScanCamera.angleDeg))°")
+                    .font(.caption2.monospacedDigit())
+                    .frame(width: 44, alignment: .trailing)
+            }
+            .disabled(!appModel.stageLayoutDocument.secondaryScanCamera.isEnabled)
+        }
+    }
+
+    private func nudgeBackdropScale(by delta: Double) {
+        var s = appModel.stageLayoutDocument
+        s.backdropPlacement.scale = max(0.2, min(3.0, s.backdropPlacement.scale + delta))
+        appModel.applyStageLayoutDocument(s)
     }
 
     private func fixtureOrb(
@@ -166,6 +463,147 @@ struct StagePlanView: View {
                     }
                 }
         )
+    }
+
+    private func stageObjectView(object: StagePlotObject, canvasSize: CGSize, isSelected: Bool) -> some View {
+        let widthMeters = max(0.2, object.footprintWidthMeters * object.scale)
+        let depthMeters = max(0.2, object.footprintDepthMeters * object.scale)
+        let stageWidth = max(1, appModel.stageLayoutDocument.dimensions.widthMeters)
+        let stageDepth = max(1, appModel.stageLayoutDocument.dimensions.depthMeters)
+        let width = max(16, CGFloat(widthMeters / stageWidth) * canvasSize.width)
+        let height = max(12, CGFloat(depthMeters / stageDepth) * canvasSize.height)
+        let centerX = CGFloat(object.centerX) * canvasSize.width
+        let centerY = CGFloat(1 - object.centerY) * canvasSize.height
+
+        return ZStack {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.orange.opacity(0.35))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(isSelected ? Color.white : Color.orange.opacity(0.8), lineWidth: isSelected ? 2 : 1)
+                )
+            Text(object.label)
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .padding(.horizontal, 4)
+        }
+        .frame(width: width, height: height)
+        .position(x: centerX, y: centerY)
+        .rotationEffect(.degrees(object.rotation))
+        .gesture(
+            DragGesture()
+                .onChanged { g in
+                    if plotObjectDragStart == nil || plotObjectDragStart?.id != object.id {
+                        plotObjectDragStart = object
+                    }
+                    guard let start = plotObjectDragStart else { return }
+                    let nx = start.centerX + Double(g.translation.width / max(canvasSize.width, 1))
+                    let ny = start.centerY - Double(g.translation.height / max(canvasSize.height, 1))
+                    var s = appModel.stageLayoutDocument
+                    guard let idx = s.plotObjects.firstIndex(where: { $0.id == object.id }) else { return }
+                    s.plotObjects[idx].centerX = min(max(nx, 0), 1)
+                    s.plotObjects[idx].centerY = min(max(ny, 0), 1)
+                    appModel.applyStageLayoutDocument(s)
+                }
+                .onEnded { _ in
+                    plotObjectDragStart = nil
+                }
+        )
+    }
+
+    @ViewBuilder
+    private func scanCameraView(kind: String, camera: StageScanCameraPlacement, canvasSize: CGSize) -> some View {
+        if camera.isEnabled {
+            let cx = CGFloat(camera.x) * canvasSize.width
+            let cy = CGFloat(1 - camera.y) * canvasSize.height
+            let radius = min(canvasSize.width, canvasSize.height) * 0.34
+            let toRadians = Double.pi / 180.0
+            let left = CGFloat((camera.angleDeg - camera.fovDeg * 0.5) * toRadians)
+            let right = CGFloat((camera.angleDeg + camera.fovDeg * 0.5) * toRadians)
+            let base = CGFloat(-90.0 * toRadians)
+            let start = base + left
+            let end = base + right
+            let p1 = CGPoint(x: cx + cos(start) * radius, y: cy + sin(start) * radius)
+            let p2 = CGPoint(x: cx + cos(end) * radius, y: cy + sin(end) * radius)
+            let tint: Color = kind == "primary" ? .cyan : .mint
+
+            ZStack {
+                Path { path in
+                    path.move(to: CGPoint(x: cx, y: cy))
+                    path.addLine(to: p1)
+                    path.addArc(
+                        center: CGPoint(x: cx, y: cy),
+                        radius: radius,
+                        startAngle: .radians(Double(start)),
+                        endAngle: .radians(Double(end)),
+                        clockwise: false
+                    )
+                    path.closeSubpath()
+                }
+                .fill(tint.opacity(0.16))
+                .overlay(
+                    Path { path in
+                        path.move(to: CGPoint(x: cx, y: cy))
+                        path.addLine(to: p1)
+                        path.move(to: CGPoint(x: cx, y: cy))
+                        path.addLine(to: p2)
+                    }
+                    .stroke(tint.opacity(0.8), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                )
+
+                Circle()
+                    .fill(tint.opacity(0.9))
+                    .frame(width: 12, height: 12)
+                    .position(x: cx, y: cy)
+                Text(camera.label)
+                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                    .foregroundStyle(tint)
+                    .position(x: cx + 40, y: cy - 10)
+            }
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture()
+                    .onChanged { g in
+                        if cameraDragKey != kind {
+                            cameraDragKey = kind
+                            cameraDragStart = camera
+                        }
+                        guard let startState = cameraDragStart else { return }
+                        let nx = startState.x + Double(g.translation.width / max(canvasSize.width, 1))
+                        let ny = startState.y - Double(g.translation.height / max(canvasSize.height, 1))
+                        var s = appModel.stageLayoutDocument
+                        if kind == "primary" {
+                            s.primaryScanCamera.x = min(max(nx, 0), 1)
+                            s.primaryScanCamera.y = min(max(ny, 0), 1)
+                        } else {
+                            s.secondaryScanCamera.x = min(max(nx, 0), 1)
+                            s.secondaryScanCamera.y = min(max(ny, 0), 1)
+                        }
+                        appModel.applyStageLayoutDocument(s)
+                    }
+                    .onEnded { _ in
+                        cameraDragKey = nil
+                        cameraDragStart = nil
+                    }
+            )
+        }
+    }
+
+    private func addStageObject() {
+        guard let template = Self.stageObjectTemplates.first(where: { $0.id == selectedTemplateID }) else { return }
+        var s = appModel.stageLayoutDocument
+        s.plotObjects.append(
+            StagePlotObject(
+                templateID: template.id,
+                label: template.name,
+                footprintWidthMeters: template.footprintWidthMeters,
+                footprintDepthMeters: template.footprintDepthMeters
+            )
+        )
+        appModel.applyStageLayoutDocument(s)
+        selectedPlotObjectID = s.plotObjects.last?.id
     }
 
     private func importBackdrop() {

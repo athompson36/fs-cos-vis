@@ -5,13 +5,17 @@ import Foundation
 /// Pure analysis helpers used by `AudioEngine` and unit tests.
 enum AudioFeatureExtractor {
     /// Mixes non-interleaved PCM to mono `Float` samples in [-1, 1].
-    static func monoFloatSamples(from buffer: AVAudioPCMBuffer) -> [Float]? {
+    static func monoFloatSamples(from buffer: AVAudioPCMBuffer, preferredChannelIndex: Int = -1) -> [Float]? {
         guard let floatChannelData = buffer.floatChannelData else { return nil }
         let frameCount = Int(buffer.frameLength)
         guard frameCount > 0 else { return [] }
 
         let channelCount = Int(buffer.format.channelCount)
         guard channelCount > 0 else { return [] }
+
+        if preferredChannelIndex >= 0, preferredChannelIndex < channelCount {
+            return Array(UnsafeBufferPointer(start: floatChannelData[preferredChannelIndex], count: frameCount))
+        }
 
         if channelCount == 1 {
             return Array(UnsafeBufferPointer(start: floatChannelData[0], count: frameCount))
@@ -23,6 +27,22 @@ enum AudioFeatureExtractor {
             let channelPtr = floatChannelData[channel]
             vDSP_vsma(channelPtr, 1, &scale, mono, 1, &mono, 1, vDSP_Length(frameCount))
         }
+        return mono
+    }
+
+    /// Mixes one stereo pair to mono (L+R)/2. `pairStartIndex` is 0-based (0 => channels 1/2).
+    static func stereoPairMonoSamples(from buffer: AVAudioPCMBuffer, pairStartIndex: Int) -> [Float]? {
+        guard let floatChannelData = buffer.floatChannelData else { return nil }
+        let frameCount = Int(buffer.frameLength)
+        guard frameCount > 0 else { return [] }
+        let channelCount = Int(buffer.format.channelCount)
+        guard pairStartIndex >= 0, pairStartIndex + 1 < channelCount else { return nil }
+        let left = floatChannelData[pairStartIndex]
+        let right = floatChannelData[pairStartIndex + 1]
+        var mono = [Float](repeating: 0, count: frameCount)
+        var half: Float = 0.5
+        vDSP_vadd(left, 1, right, 1, &mono, 1, vDSP_Length(frameCount))
+        vDSP_vsmul(mono, 1, &half, &mono, 1, vDSP_Length(frameCount))
         return mono
     }
 

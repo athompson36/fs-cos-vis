@@ -1,4 +1,5 @@
 import XCTest
+import AVFoundation
 @testable import CosmicVisualizer
 
 final class AudioFeatureExtractorTests: XCTestCase {
@@ -29,5 +30,20 @@ final class AudioFeatureExtractorTests: XCTestCase {
         let mags = try XCTUnwrap(AudioFeatureExtractor.fftMagnitudes(samples: dc, window: window))
         XCTAssertFalse(mags.isEmpty)
         XCTAssertGreaterThan(mags[0], 0)
+    }
+
+    func testStereoPairMonoSamples_averagesPair() throws {
+        let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 2)!
+        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 4)!
+        buffer.frameLength = 4
+        let l = buffer.floatChannelData![0]
+        let r = buffer.floatChannelData![1]
+        l[0] = 1; l[1] = 0; l[2] = -1; l[3] = 0.5
+        r[0] = 0; r[1] = 1; r[2] = 1; r[3] = 0.5
+        let mono = try XCTUnwrap(AudioFeatureExtractor.stereoPairMonoSamples(from: buffer, pairStartIndex: 0))
+        XCTAssertEqual(mono[0], 0.5, accuracy: 0.0001)
+        XCTAssertEqual(mono[1], 0.5, accuracy: 0.0001)
+        XCTAssertEqual(mono[2], 0.0, accuracy: 0.0001)
+        XCTAssertEqual(mono[3], 0.5, accuracy: 0.0001)
     }
 }

@@ -85,6 +85,24 @@ final class WebControlServer: @unchecked Sendable {
             return HTTPResponse(statusCode: .ok, headers: [.contentType: "application/json"], body: data)
         }
 
+        // DMX virtual endpoint scaffold: exposes simulated transport universe for external tooling.
+        await server.appendRoute("GET /api/dmx/sim") { req in
+            guard authorized(req) else { return HTTPResponse(statusCode: .unauthorized) }
+            let data = await MainActor.run { () -> Data in
+                struct SimPayload: Codable {
+                    var mode: String
+                    var info: String
+                    var universe: [UInt8]
+                }
+                guard let snap = appModel.dmxSimulationSnapshot() else {
+                    return Data("{\"mode\":\"disabled\",\"info\":\"not_simulated\",\"universe\":[]}".utf8)
+                }
+                return (try? JSONEncoder().encode(SimPayload(mode: snap.mode, info: snap.info, universe: snap.universe)))
+                    ?? Data("{\"mode\":\"error\",\"info\":\"encode_failed\",\"universe\":[]}".utf8)
+            }
+            return HTTPResponse(statusCode: .ok, headers: [.contentType: "application/json"], body: data)
+        }
+
         await server.appendRoute("POST /api/command") { req in
             guard authorized(req) else { return HTTPResponse(statusCode: .unauthorized) }
             do {

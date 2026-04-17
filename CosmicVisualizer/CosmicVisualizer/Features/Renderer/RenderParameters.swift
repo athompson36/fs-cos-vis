@@ -1,6 +1,8 @@
 import Foundation
 import simd
 
+// Visualization stack is native Metal (escape-time fractal + procedural liquid + composite). Third-party MilkDrop/projectM-style preset VMs are out of scope unless integrated as a separate renderer pass.
+
 /// GPU uniform block — must match `CosmicUniforms` in `ShaderTypes.h` / `.metal`.
 struct CosmicUniforms {
     var resolution: SIMD2<Float>
@@ -10,7 +12,6 @@ struct CosmicUniforms {
     var beatPulse: Float
     var liquidMix: Float
     var fractalMix: Float
-    var fractalKind: Float
     var fractalZoom: Float
     var liquidTurbulence: Float
     var compositeBlend: Float
@@ -39,6 +40,9 @@ struct CosmicUniforms {
     var liquidReconstituteAmount: Float
     var liquidReconstituteRate: Float
     var liquidReconstituteBPMSync: Float
+    var compositeBloomStrength: Float
+    var compositeVignetteStrength: Float
+    var fractalSmoothShading: Float
 }
 
 /// Authoring-time render controls from scenes and audio (Swift-only).
@@ -52,8 +56,6 @@ struct RenderParameters {
     var liquidMix: Float = 1
     var fractalMix: Float = 1
     var liquidLightEnabled: Bool = true
-    /// 0 = Julia, 1 = Mandelbrot (maps to GPU `fractalKind`).
-    var fractalKind: Float = 0
     var fractalZoom: Float = 1
     var liquidTurbulence: Float = 1
     var compositeBlend: Float = 0.65
@@ -66,8 +68,10 @@ struct RenderParameters {
     var overlayOpacity: Float = 1
     /// Bottom-left origin, y up; default full frame.
     var overlayRectNorm: SIMD4<Float> = SIMD4(0, 0, 1, 1)
-    /// 0 = Julia, 1 = Mandelbrot, 2 = Burning Ship, 3 = Tricorn.
+    /// 0 = Julia, 1 = Mandelbrot, 2 = Burning Ship, 3 = Tricorn, 4 = Multibrot (cubic).
     var fractalGeometryIndex: Float = 0
+    /// 0 = banded iteration colors, 1 = smooth iteration (escape-time).
+    var fractalSmoothShading: Float = 0.85
     /// Animated zoom/pan exploration amount (0 = off).
     var fractalExplore: Float = 0
     var fractalExploreSpeed: Float = 0.35
@@ -82,6 +86,10 @@ struct RenderParameters {
     var liquidReconstituteAmount: Float = 0
     var liquidReconstituteRate: Float = 0.55
     var liquidReconstituteBPMSync: Bool = false
+    /// Additive glow on composite (highlights).
+    var compositeBloomStrength: Float = 0.12
+    /// Edge darkening in composite pass.
+    var compositeVignetteStrength: Float = 0.15
     var palettePrimary: SIMD4<Float> = SIMD4(0.04, 0.01, 0.09, 0)
     var paletteSecondary: SIMD4<Float> = SIMD4(0.1, 0.04, 0.2, 0)
     var paletteAccent: SIMD4<Float> = SIMD4(0, 0.9, 1, 0)
@@ -96,7 +104,6 @@ struct RenderParameters {
             beatPulse: beatPulse,
             liquidMix: liquidLightEnabled ? liquidMix : 0,
             fractalMix: fractalMix,
-            fractalKind: fractalKind,
             fractalZoom: fractalZoom,
             liquidTurbulence: liquidTurbulence,
             compositeBlend: compositeBlend,
@@ -124,7 +131,10 @@ struct RenderParameters {
             dyeMix: dyeMix,
             liquidReconstituteAmount: liquidReconstituteAmount,
             liquidReconstituteRate: liquidReconstituteRate,
-            liquidReconstituteBPMSync: liquidReconstituteBPMSync ? 1 : 0
+            liquidReconstituteBPMSync: liquidReconstituteBPMSync ? 1 : 0,
+            compositeBloomStrength: compositeBloomStrength,
+            compositeVignetteStrength: compositeVignetteStrength,
+            fractalSmoothShading: fractalSmoothShading
         )
     }
 }

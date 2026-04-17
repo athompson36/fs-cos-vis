@@ -1,0 +1,8 @@
+---
+description: Lighting workspace — DMX, OFL, backdrop cues, stage
+globs: "**/LightingWorkspace*.swift,**/OFL*.swift,**/BackdropCue*.swift"
+---
+
+- DMX changes should go through `AppModel.applyDMXPatchDocument` / cue APIs so stores and AI context stay in sync.
+- OFL import adds profiles via `OFLFixtureImportService`; preserve `channelCapabilities` for AI context.
+- Backdrop cues snapshot `StageLayoutDocument`; recalling applies layout via `setActiveBackdropCueIndex`.

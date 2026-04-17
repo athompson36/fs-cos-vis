@@ -110,6 +110,21 @@ label {
   color: var(--muted);
 }
 
+label.cue-jump {
+  margin-top: 10px;
+}
+
+label.cue-jump select {
+  margin-left: 8px;
+  max-width: min(100%, 360px);
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--fg);
+  font-size: 0.88rem;
+}
+
 input[type="range"] {
   width: 100%;
   margin-top: 6px;

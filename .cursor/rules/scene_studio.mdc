@@ -1,0 +1,7 @@
+---
+description: Scene Studio — authoring density, overlay cards
+globs: "**/SceneStudio*.swift,**/OverlayCard*.swift"
+---
+
+- Scene Studio is an authoring surface: split preview vs controls is intentional.
+- Overlay card authoring (`OverlayCardAuthoringView`) persists via `OverlayCardStore` / show project; GPU composite integration is optional.

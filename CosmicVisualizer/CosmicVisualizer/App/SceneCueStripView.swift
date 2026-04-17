@@ -3,6 +3,7 @@ import SwiftUI
 /// Horizontal cue cards with live Metal previews — main window only (not used on external projection).
 struct SceneCueStripView: View {
     @EnvironmentObject private var appModel: AppModel
+    var cardScale: CGFloat = 1
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -17,10 +18,11 @@ struct SceneCueStripView: View {
                             SceneCueCard(
                                 scene: scene,
                                 isLive: isLive,
-                                renderer: renderer
+                                renderer: renderer,
+                                cardScale: cardScale
                             )
                         } else {
-                            SceneCueCardPlaceholder(scene: scene, isLive: isLive)
+                            SceneCueCardPlaceholder(scene: scene, isLive: isLive, cardScale: cardScale)
                         }
                     }
                 }
@@ -34,14 +36,17 @@ private struct SceneCueCard: View {
     let scene: VisualizationScene
     let isLive: Bool
     @ObservedObject var renderer: CompositeRenderer
+    let cardScale: CGFloat
 
     var body: some View {
+        let w = 156 * cardScale
+        let h = 88 * cardScale
         Button {
             appModel.applyRemoteCommand(RemoteControlCommand(type: "JumpToScene", sceneID: scene.id))
         } label: {
             VStack(alignment: .leading, spacing: 4) {
                 VisualizationMetalView(renderer: renderer, preferredFramesPerSecond: 30)
-                    .frame(width: 156, height: 88)
+                    .frame(width: w, height: h)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -52,7 +57,7 @@ private struct SceneCueCard: View {
                     .foregroundStyle(.primary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
-                    .frame(width: 156, alignment: .leading)
+                    .frame(width: w, alignment: .leading)
             }
         }
         .buttonStyle(.plain)
@@ -63,15 +68,18 @@ private struct SceneCueCard: View {
 private struct SceneCueCardPlaceholder: View {
     let scene: VisualizationScene
     let isLive: Bool
+    let cardScale: CGFloat
 
     var body: some View {
+        let w = 156 * cardScale
+        let h = 88 * cardScale
         VStack(alignment: .leading, spacing: 4) {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color.white.opacity(0.06))
-                .frame(width: 156, height: 88)
+                .frame(width: w, height: h)
                 .overlay {
                     ProgressView()
-                        .scaleEffect(0.7)
+                        .scaleEffect(0.7 * cardScale)
                 }
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -81,7 +89,7 @@ private struct SceneCueCardPlaceholder: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
-                .frame(width: 156, alignment: .leading)
+                .frame(width: w, alignment: .leading)
         }
     }
 }

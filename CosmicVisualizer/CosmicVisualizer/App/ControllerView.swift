@@ -5,43 +5,48 @@ struct ControllerView: View {
     private let sliderHeight: CGFloat = 190
 
     var body: some View {
-        ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Controller")
-                    .font(.title2.bold())
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Controller")
+                .font(.title2.bold())
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+            TabView {
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        statusStrip
+                        tempoBlock
+                        Divider()
+                        mappingLearnSection
+                        Divider()
+                        dmxOutputLegend
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(20)
+                }
+                .tabItem { Text("Overview") }
 
-                statusStrip
-
-                tempoBlock
-
-                Divider()
-
-                mappingLearnSection
-
-                Divider()
-
-                Text("Active controls")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: 18) {
-                        sceneControlGroup
-                        ForEach(dmxControlGroups, id: \.id) { group in
-                            dmxControlGroup(group)
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Active controls")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(alignment: .top, spacing: 18) {
+                                sceneControlGroup
+                                ForEach(dmxControlGroups, id: \.id) { group in
+                                    dmxControlGroup(group)
+                                }
+                            }
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(20)
                 }
-
-                Divider()
-
-                dmxOutputLegend
+                .tabItem { Text("Faders") }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(20)
     }
 
     private var statusStrip: some View {

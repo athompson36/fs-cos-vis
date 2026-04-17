@@ -11,7 +11,6 @@ typedef struct {
     float beatPulse;
     float liquidMix;
     float fractalMix;
-    float fractalKind; // 0 = Julia, 1 = Mandelbrot
     float fractalZoom;
     float liquidTurbulence;
     float compositeBlend;
@@ -27,7 +26,7 @@ typedef struct {
     float overlayRectMinY;
     float overlayRectW;
     float overlayRectH;               // normalized quad, bottom-left origin, y up
-    // Fractal universe (0=Julia,1=Mandelbrot,2=BurningShip,3=Tricorn)
+    // Fractal universe (0=Julia,1=Mandelbrot,2=BurningShip,3=Tricorn,4=Multibrot cubic)
     float fractalGeometryIndex;
     float fractalExplore;             // 0…1 explore strength
     float fractalExploreSpeed;
@@ -41,6 +40,9 @@ typedef struct {
     float liquidReconstituteAmount;   // 0..1 dissolve-reform bubbly motion
     float liquidReconstituteRate;     // free-running rate when bpm sync off
     float liquidReconstituteBPMSync;  // 0/1
+    float compositeBloomStrength;     // additive highlight in composite pass
+    float compositeVignetteStrength;  // edge darkening 0…1
+    float fractalSmoothShading;       // 0 = discrete bands, 1 = smooth iteration
 } CosmicUniforms;
 
 #endif

@@ -1,35 +1,43 @@
 # Roadmap
 
-## Phase 1 - Vertical Slice
-- audio device picker
-- live meter and FFT
-- BPM estimation
-- one fractal shader
-- one liquid-light shader
-- simple hybrid compositor
-- previous/next scene switching
-- palette selector
-- fullscreen output
+## Status snapshot (2026-04-17)
 
-## Phase 2 - Performance Core
-- scene browser
-- scene save/load
-- image overlays
-- blend modes
-- smoother transitions
-- better beat detection
+This roadmap now tracks implementation status, not just concept phases.
 
-## Phase 3 - Visual Depth
-- multiple fractal families
-- advanced liquid-light controls
-- particles / fog / bloom passes
-- theme packs
-- external display routing
+## Completed foundation
 
-## Phase 4 - Expansion
-- MIDI mapping
-- OSC control
-- DMX sync concepts
-- capture/export
-- possible Windows planning
+- Audio input picker, live analysis metrics, FFT/BPM feeds
+- Fractal + liquid render stack with compositing and palette controls
+- Live and studio control surfaces with external display routing
+- Scene persistence, overlays, transitions, and performance workflow refinements
+- MIDI mapping baseline and remote/web control API foundation
+- DMX/lighting vertical slice:
+  - fixture library and patching
+  - cues and crossfades
+  - modulation runtime
+  - stage layout + 2.5D preview
+  - fog/haze learn and safety controls
+  - OFL fixture import and curated catalog
+  - fixture verification (assisted camera workflow)
+
+## In progress
+
+- Fixture verification quality pass:
+  - stronger confidence scoring
+  - richer dual-camera guidance and validation feedback
+- Stage plot UX:
+  - camera overlay guidance, object editing polish, scan-setup flow
+
+## Next up (backlog)
+
+- Network DMX expansion (Art-Net/sACN multi-universe)
+- Inbound DMX and RDM discovery path
+- OSC control surface parity with existing web/MIDI paths
+- Capture/export pipeline hardening and automation
+- Cross-platform feasibility spikes (Windows path)
+
+## Notes
+
+- DMX stack remains intentionally USB/OpenDMX + simulation first while transport abstractions mature.
+- Full “console parity” workflows are deferred until multi-universe/network transport is production-stable.
 

@@ -2,6 +2,13 @@ import XCTest
 @testable import CosmicVisualizer
 
 final class DMXUniverseBuilderTests: XCTestCase {
+    func testDefaultPatch_includesExtendedFixtureProfiles() {
+        let p = DMXPatchDocument.default()
+        XCTAssertGreaterThanOrEqual(p.profiles.count, 4)
+        XCTAssertTrue(p.profiles.contains { $0.name.contains("Fog") || $0.name.contains("haze") })
+        XCTAssertTrue(p.profiles.contains { $0.name.contains("RGBW") })
+    }
+
     func testLegacySlotsFillFirstFiveChannels() {
         let model = AppModel()
         model.sceneManager.currentIndex = 2
@@ -22,6 +29,40 @@ final class DMXUniverseBuilderTests: XCTestCase {
         var smooth: [UUID: Float] = [:]
         let u = model.buildDMXUniverse(time: 0, lastSmoothed: &smooth)
         XCTAssertEqual(u[9], 128)
+    }
+
+    func testHazeEmergencyKill_forcesHazeOutputAndPumpToZero() {
+        let model = AppModel()
+        var patch = DMXPatchDocument.default()
+        guard let fogProfile = patch.profiles.first(where: { $0.channels.contains { $0.role == .hazeOutput } }) else {
+            XCTFail("Expected fog profile in default patch")
+            return
+        }
+        let inst = FixtureInstance(profileID: fogProfile.id, universe: 0, startAddress: 10, manualValues: [
+            "0": 200, "1": 90, "2": 180,
+        ])
+        patch.instances = [inst]
+        model.applyDMXPatchDocument(patch)
+        var doc = LightingCueDocument.default()
+        doc.cues = [
+            LightingCue(
+                name: "Foggy",
+                channelValues: [
+                    ChannelValue(channel: 10, value: 250),
+                    ChannelValue(channel: 11, value: 88),
+                    ChannelValue(channel: 12, value: 222),
+                ]
+            ),
+        ]
+        doc.activeCueIndex = 0
+        model.applyLightingCueDocument(doc)
+        model.setHazeEmergencyKill(true)
+        var smooth: [UUID: Float] = [:]
+        let u = model.buildDMXUniverse(time: CFAbsoluteTimeGetCurrent(), lastSmoothed: &smooth)
+        XCTAssertEqual(u[9], 0, "hazeOutput DMX 10")
+        XCTAssertEqual(u[11], 0, "hazePump DMX 12")
+        XCTAssertEqual(u[10], 88, "hazeFan DMX 11 unchanged from cue")
+        model.setHazeEmergencyKill(false)
     }
 
     func testResolvedCueChannelMap_matchesActiveCue() {

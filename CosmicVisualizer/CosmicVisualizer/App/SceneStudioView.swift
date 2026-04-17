@@ -14,6 +14,7 @@ struct SceneStudioView: View {
     @State private var liquidSectionExpanded = true
     @State private var editingDropperLayerID: UUID?
     @State private var liquidPaletteDraftName = "Liquid palette"
+    @State private var previewScale: CGFloat = 1.0
     private let wideLayoutMinWidth: CGFloat = 1080
 
     var body: some View {
@@ -56,6 +57,14 @@ struct SceneStudioView: View {
         .padding(10)
         .onChange(of: appModel.selectedPaletteID) { _, _ in
             appModel.syncRendererFromScene()
+        }
+        .onAppear {
+            previewScale = CGFloat(max(0.7, min(1.8, appModel.remoteSettings.sceneStudioPreviewScale)))
+        }
+        .onChange(of: previewScale) { _, v in
+            var s = appModel.remoteSettings
+            s.sceneStudioPreviewScale = Double(v)
+            appModel.remoteSettings = s
         }
         .sheet(isPresented: $newPalettePresented) {
             NavigationStack {
@@ -105,8 +114,12 @@ struct SceneStudioView: View {
                     .multilineTextAlignment(.trailing)
             }
             if let renderer = appModel.metalRenderer {
-                AspectFitLivePreviewContainer(renderer: renderer, minHeight: 320)
+                AspectFitLivePreviewContainer(renderer: renderer, minHeight: 320 * previewScale)
                     .layoutPriority(1)
+                    .overlay(alignment: .topTrailing) {
+                        SceneStudioScaleButtons(scale: $previewScale, range: 0.7 ... 1.8, step: 0.1)
+                            .padding(6)
+                    }
             } else {
                 ContentUnavailableView(
                     "No GPU preview",
@@ -159,6 +172,7 @@ struct SceneStudioView: View {
             }
             overlayAuthoringCompact
                 .simultaneousGesture(TapGesture().onEnded { appModel.disarmLiquidDropper() })
+            OverlayCardAuthoringView()
             Toggle("Liquid light (current scene)", isOn: Binding(
                 get: {
                     guard appModel.sceneManager.scenes.indices.contains(appModel.sceneManager.currentIndex) else { return false }
@@ -249,6 +263,7 @@ struct SceneStudioView: View {
                 Text("Mandelbrot").tag(1)
                 Text("Burning Ship").tag(2)
                 Text("Tricorn").tag(3)
+                Text("Multibrot (cubic)").tag(4)
             }
             .controlSize(.small)
             studioCaptionSlider(title: "Zoom", value: appModel.layerFloatBinding(for: .fractalZoom), in: LayerControlParameter.fractalZoom.floatRange)
@@ -269,6 +284,12 @@ struct SceneStudioView: View {
                 Text("Breathe").tag(2)
             }
             .pickerStyle(.segmented)
+            studioCaptionSlider(title: "Smooth shading", value: appModel.layerFloatBinding(for: .fractalSmoothShading), in: 0 ... 1)
+            HStack(alignment: .top, spacing: 10) {
+                studioCaptionSlider(title: "Bloom", value: appModel.layerFloatBinding(for: .compositeBloomStrength), in: 0 ... 0.5)
+                studioCaptionSlider(title: "Vignette", value: appModel.layerFloatBinding(for: .compositeVignetteStrength), in: 0 ... 0.85)
+            }
+            studioCaptionSlider(title: "Dye mix", value: appModel.layerFloatBinding(for: .dyeMix), in: 0 ... 1)
         }
         .controlSize(.small)
     }
@@ -280,7 +301,7 @@ struct SceneStudioView: View {
                 return Int(appModel.sceneEditStates[id]?.layer.fractalGeometryIndex ?? 0)
             },
             set: { v in
-                appModel.applyCurrentLayerEdit { $0.fractalGeometryIndex = Float(max(0, min(3, v))) }
+                appModel.applyCurrentLayerEdit { $0.fractalGeometryIndex = Float(max(0, min(4, v))) }
             }
         )
     }
@@ -796,6 +817,38 @@ struct SceneStudioView: View {
         var s = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         if !s.hasPrefix("#") { s = "#" + s }
         return s
+    }
+}
+
+private struct SceneStudioScaleButtons: View {
+    @Binding var scale: CGFloat
+    let range: ClosedRange<CGFloat>
+    let step: CGFloat
+    @State private var hoveringContainer = false
+    @State private var hoveringButton: Int?
+
+    var body: some View {
+        HStack(spacing: 4) {
+            button(icon: "minus", tag: 0) { scale = max(range.lowerBound, scale - step) }
+            button(icon: "plus", tag: 1) { scale = min(range.upperBound, scale + step) }
+        }
+        .padding(4)
+        .background(.ultraThinMaterial, in: Capsule())
+        .opacity(hoveringContainer ? 1 : 0.2)
+        .onHover { inside in
+            withAnimation(.easeInOut(duration: 0.12)) { hoveringContainer = inside }
+        }
+    }
+
+    private func button(icon: String, tag: Int, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .bold))
+                .frame(width: 18, height: 18)
+                .background((hoveringButton == tag ? Color.accentColor.opacity(0.35) : Color.clear), in: Circle())
+        }
+        .buttonStyle(.plain)
+        .onHover { inside in hoveringButton = inside ? tag : nil }
     }
 }
 

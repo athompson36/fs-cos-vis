@@ -6,8 +6,16 @@ enum FixtureChannelRole: String, Codable, CaseIterable, Sendable {
     case red
     case green
     case blue
+    case white
+    case amber
+    case uv
+    case strobe
     case pan
     case tilt
+    /// Fog / haze volume output (typ. channel 1 on hazers).
+    case hazeOutput
+    case hazeFan
+    case hazePump
     case generic
 }
 
@@ -20,11 +28,26 @@ struct FixtureProfile: Codable, Equatable, Identifiable, Hashable, Sendable {
     var id: UUID
     var name: String
     var channels: [FixtureChannelDef]
+    /// Open Fixture Library path key, e.g. `cameo/hydrabeam-400`.
+    var oflFixtureKey: String?
+    var oflModeName: String?
+    /// Parallel to `channels` when imported from OFL (capability / fine channel labels).
+    var channelCapabilities: [String]?
 
-    init(id: UUID = UUID(), name: String, channels: [FixtureChannelDef]) {
+    init(
+        id: UUID = UUID(),
+        name: String,
+        channels: [FixtureChannelDef],
+        oflFixtureKey: String? = nil,
+        oflModeName: String? = nil,
+        channelCapabilities: [String]? = nil
+    ) {
         self.id = id
         self.name = name
         self.channels = channels
+        self.oflFixtureKey = oflFixtureKey
+        self.oflModeName = oflModeName
+        self.channelCapabilities = channelCapabilities
     }
 
     static func builtInLegacyVisualization() -> FixtureProfile {
@@ -48,6 +71,35 @@ struct FixtureProfile: Codable, Equatable, Identifiable, Hashable, Sendable {
                 FixtureChannelDef(label: "Red", role: .red),
                 FixtureChannelDef(label: "Green", role: .green),
                 FixtureChannelDef(label: "Blue", role: .blue),
+            ]
+        )
+    }
+
+    /// RGBW + amber + UV + strobe (common LED wash).
+    static func builtInRGBWAStrobe() -> FixtureProfile {
+        FixtureProfile(
+            name: "RGBW + amber + UV + strobe",
+            channels: [
+                FixtureChannelDef(label: "Dimmer", role: .intensity),
+                FixtureChannelDef(label: "Red", role: .red),
+                FixtureChannelDef(label: "Green", role: .green),
+                FixtureChannelDef(label: "Blue", role: .blue),
+                FixtureChannelDef(label: "White", role: .white),
+                FixtureChannelDef(label: "Amber", role: .amber),
+                FixtureChannelDef(label: "UV", role: .uv),
+                FixtureChannelDef(label: "Strobe", role: .strobe),
+            ]
+        )
+    }
+
+    /// Typical compact hazer / fog machine (output + fan + pump).
+    static func builtInFogMachine() -> FixtureProfile {
+        FixtureProfile(
+            name: "Fog / haze (3 ch)",
+            channels: [
+                FixtureChannelDef(label: "Haze / fog output", role: .hazeOutput),
+                FixtureChannelDef(label: "Fan speed", role: .hazeFan),
+                FixtureChannelDef(label: "Pump / fluid", role: .hazePump),
             ]
         )
     }
@@ -111,9 +163,11 @@ struct DMXPatchDocument: Codable, Equatable, Sendable {
     static func `default`() -> DMXPatchDocument {
         let legacy = FixtureProfile.builtInLegacyVisualization()
         let rgb = FixtureProfile.builtInRGBPar()
+        let rgbwa = FixtureProfile.builtInRGBWAStrobe()
+        let fog = FixtureProfile.builtInFogMachine()
         return DMXPatchDocument(
             useLegacyVisualizationSlots: true,
-            profiles: [legacy, rgb],
+            profiles: [legacy, rgb, rgbwa, fog],
             instances: []
         )
     }
@@ -121,4 +175,15 @@ struct DMXPatchDocument: Codable, Equatable, Sendable {
     func profile(id: UUID) -> FixtureProfile? {
         profiles.first { $0.id == id }
     }
+}
+
+// MARK: - Roadmap (QLC / OLA-class features)
+
+/// Placeholder for phased DMX work (Art-Net, sACN, RDM, chasers, matrix). USB OpenDMX universe 0 remains the shipping output path.
+enum DMXFeatureRoadmap: String, Sendable {
+    case artNetSacnMultiUniverse
+    case rdmDiscovery
+    case chaserSequences
+    case ledMatrixPixelMap
+    case incomingDmxInput
 }

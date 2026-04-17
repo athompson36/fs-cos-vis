@@ -20,11 +20,15 @@ final class RenderParametersTests: XCTestCase {
         XCTAssertEqual(u.fractalMix, 0.75)
     }
 
-    func testUniforms_fractalKind_passedThrough() {
+    func testUniforms_compositePostAndSmooth_passedThrough() {
         var p = RenderParameters()
-        p.fractalKind = 1
+        p.compositeBloomStrength = 0.2
+        p.compositeVignetteStrength = 0.3
+        p.fractalSmoothShading = 0.5
         let u = p.uniforms(drawableSize: CGSize(width: 64, height: 64))
-        XCTAssertEqual(u.fractalKind, 1)
+        XCTAssertEqual(u.compositeBloomStrength, 0.2, accuracy: 0.001)
+        XCTAssertEqual(u.compositeVignetteStrength, 0.3, accuracy: 0.001)
+        XCTAssertEqual(u.fractalSmoothShading, 0.5, accuracy: 0.001)
     }
 
     func testUniforms_extendedKnobs_passedThrough() {

@@ -53,4 +53,6 @@ struct WebControlStateDTO: Codable, Equatable, Sendable {
     /// Name of the active cue, if any.
     var lightingActiveCueName: String?
     var lightingModulatorCount: Int
+    /// Cue library names in list order (index matches `SetActiveLightingCueIndex`).
+    var lightingCueNames: [String]
 }

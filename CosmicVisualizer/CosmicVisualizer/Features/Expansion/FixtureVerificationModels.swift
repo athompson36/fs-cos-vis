@@ -1,0 +1,123 @@
+import Foundation
+
+enum FixtureVerificationStatus: String, Codable, CaseIterable, Sendable {
+    case pass
+    case fail
+    case warn
+}
+
+struct FixtureVerificationCategoryResult: Codable, Equatable, Sendable {
+    var status: FixtureVerificationStatus
+    var note: String
+}
+
+struct FixtureVerificationFixtureResult: Codable, Equatable, Identifiable, Sendable {
+    var id: UUID
+    var fixtureID: UUID
+    var fixtureName: String
+    var fixtureIndex: Int
+    var startAddress: Int
+    var channelSpan: Int
+    var expectedPlacement: StagePlacement?
+    var observedLumaDelta: Double
+    var patching: FixtureVerificationCategoryResult
+    var quantity: FixtureVerificationCategoryResult
+    var layout: FixtureVerificationCategoryResult
+    var orientation: FixtureVerificationCategoryResult
+
+    init(
+        id: UUID = UUID(),
+        fixtureID: UUID,
+        fixtureName: String,
+        fixtureIndex: Int,
+        startAddress: Int,
+        channelSpan: Int,
+        expectedPlacement: StagePlacement?,
+        observedLumaDelta: Double,
+        patching: FixtureVerificationCategoryResult,
+        quantity: FixtureVerificationCategoryResult,
+        layout: FixtureVerificationCategoryResult,
+        orientation: FixtureVerificationCategoryResult
+    ) {
+        self.id = id
+        self.fixtureID = fixtureID
+        self.fixtureName = fixtureName
+        self.fixtureIndex = fixtureIndex
+        self.startAddress = startAddress
+        self.channelSpan = channelSpan
+        self.expectedPlacement = expectedPlacement
+        self.observedLumaDelta = observedLumaDelta
+        self.patching = patching
+        self.quantity = quantity
+        self.layout = layout
+        self.orientation = orientation
+    }
+}
+
+struct FixtureVerificationDocument: Codable, Equatable, Sendable {
+    static let currentVersion = 1
+
+    var version: Int
+    var updatedAt: Date
+    var fixtureCountExpected: Int
+    var fixtureCountScanned: Int
+    var notes: String
+    var fixtures: [FixtureVerificationFixtureResult]
+
+    init(
+        version: Int = currentVersion,
+        updatedAt: Date = Date(),
+        fixtureCountExpected: Int,
+        fixtureCountScanned: Int,
+        notes: String = "",
+        fixtures: [FixtureVerificationFixtureResult]
+    ) {
+        self.version = version
+        self.updatedAt = updatedAt
+        self.fixtureCountExpected = fixtureCountExpected
+        self.fixtureCountScanned = fixtureCountScanned
+        self.notes = notes
+        self.fixtures = fixtures
+    }
+}
+
+enum FixtureVerificationEvaluator {
+    static func patchingResult(lumaDelta: Double, threshold: Double) -> FixtureVerificationCategoryResult {
+        if lumaDelta >= threshold {
+            return FixtureVerificationCategoryResult(status: .pass, note: "Observed DMX response (\(String(format: "%.3f", lumaDelta))).")
+        }
+        return FixtureVerificationCategoryResult(status: .fail, note: "No clear response (\(String(format: "%.3f", lumaDelta))).")
+    }
+
+    static func quantityResult(expected: Int, scanned: Int) -> FixtureVerificationCategoryResult {
+        if expected == scanned {
+            return FixtureVerificationCategoryResult(status: .pass, note: "Scanned \(scanned)/\(expected) fixtures.")
+        }
+        if scanned == 0 {
+            return FixtureVerificationCategoryResult(status: .fail, note: "No fixtures scanned.")
+        }
+        return FixtureVerificationCategoryResult(status: .warn, note: "Scanned \(scanned)/\(expected) fixtures.")
+    }
+
+    static func layoutResult(expectedPlacement: StagePlacement?) -> FixtureVerificationCategoryResult {
+        guard let expectedPlacement else {
+            return FixtureVerificationCategoryResult(status: .warn, note: "No venue-map placement; set position in Stage Layout.")
+        }
+        let inRange = (0 ... 1).contains(expectedPlacement.x) && (0 ... 1).contains(expectedPlacement.y)
+        if inRange {
+            return FixtureVerificationCategoryResult(status: .pass, note: "Mapped to venue layout (\(String(format: "%.2f", expectedPlacement.x)), \(String(format: "%.2f", expectedPlacement.y))).")
+        }
+        return FixtureVerificationCategoryResult(status: .fail, note: "Placement out of normalized bounds.")
+    }
+
+    static func orientationResult(profile: FixtureProfile, placement: StagePlacement?) -> FixtureVerificationCategoryResult {
+        guard let placement else {
+            return FixtureVerificationCategoryResult(status: .warn, note: "No orientation target in venue map.")
+        }
+        let hasAimChannels = profile.channels.contains { $0.role == .pan || $0.role == .tilt }
+        if hasAimChannels {
+            return FixtureVerificationCategoryResult(status: .pass, note: "Orientation target set to \(Int(placement.rotation))°.")
+        }
+        return FixtureVerificationCategoryResult(status: .warn, note: "Fixture has no pan/tilt channels; orientation is static.")
+    }
+}

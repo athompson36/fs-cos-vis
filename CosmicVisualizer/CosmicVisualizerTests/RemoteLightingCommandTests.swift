@@ -36,4 +36,17 @@ final class RemoteLightingCommandTests: XCTestCase {
         model.applyRemoteCommand(RemoteControlCommand(type: "NextLightingCue"))
         XCTAssertEqual(model.lightingCueDocument.activeCueIndex, 0)
     }
+
+    func testPreviousLightingCue_wraps() {
+        let model = AppModel()
+        var doc = LightingCueDocument(version: 1, cues: [], activeCueIndex: nil)
+        doc.cues = [
+            LightingCue(name: "A", channelValues: []),
+            LightingCue(name: "B", channelValues: []),
+        ]
+        doc.activeCueIndex = 0
+        model.applyLightingCueDocument(doc)
+        model.applyRemoteCommand(RemoteControlCommand(type: "PreviousLightingCue"))
+        XCTAssertEqual(model.lightingCueDocument.activeCueIndex, 1)
+    }
 }

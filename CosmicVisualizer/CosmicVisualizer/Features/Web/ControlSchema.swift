@@ -52,6 +52,16 @@ struct ControlSchema: Codable, Equatable, Sendable {
                     Field(id: "liquidFocus", label: "Liquid focus (fuzzy → sharp blobs)", kind: "float", min: 0, max: 1, commandType: "SetLiquidFocus"),
                     Field(id: "fractalAppearance", label: "Fractal look (palette gradient → dark neon wire)", kind: "float", min: 0, max: 1, commandType: "SetFractalAppearance"),
                     Field(id: "overlayFractalFusion", label: "Logo ↔ fractal fusion", kind: "float", min: 0, max: 1, commandType: "SetOverlayFractalFusion"),
+                    Field(id: "fractalExplore", label: "Fractal explore", kind: "float", min: 0, max: 1, commandType: "SetFractalExplore"),
+                    Field(id: "fractalExploreSpeed", label: "Explore speed", kind: "float", min: 0.05, max: 1.2, commandType: "SetFractalExploreSpeed"),
+                    Field(id: "fractalIterBoost", label: "Iteration boost", kind: "float", min: 0.25, max: 3, commandType: "SetFractalIterBoost"),
+                    Field(id: "zoomEffectType", label: "Zoom motion (0 drift,1 pulse,2 breathe)", kind: "float", min: 0, max: 2, commandType: "SetZoomEffectType"),
+                    Field(id: "liquidReconstituteAmount", label: "Liquid reconstitute", kind: "float", min: 0, max: 1, commandType: "SetLiquidReconstituteAmount"),
+                    Field(id: "liquidReconstituteRate", label: "Reconstitute rate", kind: "float", min: 0.05, max: 3, commandType: "SetLiquidReconstituteRate"),
+                    Field(id: "dyeMix", label: "Dye mix", kind: "float", min: 0, max: 1, commandType: "SetDyeMix"),
+                    Field(id: "fractalSmoothShading", label: "Smooth fractal shading", kind: "float", min: 0, max: 1, commandType: "SetFractalSmoothShading"),
+                    Field(id: "compositeBloomStrength", label: "Bloom", kind: "float", min: 0, max: 0.5, commandType: "SetCompositeBloomStrength"),
+                    Field(id: "compositeVignetteStrength", label: "Vignette", kind: "float", min: 0, max: 0.85, commandType: "SetCompositeVignetteStrength"),
                 ]
             ),
             Section(
