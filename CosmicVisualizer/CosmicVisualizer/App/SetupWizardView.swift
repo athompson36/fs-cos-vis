@@ -164,9 +164,13 @@ struct SetupWizardView: View {
                 )) {
                     Text("Hardware").tag("hardware")
                     Text("Simulated").tag("simulated")
-                    Text("Art-Net (scaffold)").tag("artnet")
-                    Text("sACN E1.31 (scaffold)").tag("sacn")
+                    Text("Art-Net (LAN / Wi‑Fi)").tag("artnet")
+                    Text("sACN E1.31 (LAN / Wi‑Fi)").tag("sacn")
                 }
+                Text("Art-Net and sACN send DMX over UDP on your network — use the same Wi‑Fi or Ethernet LAN as your console or interface.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         default:
             VStack(alignment: .leading, spacing: 8) {

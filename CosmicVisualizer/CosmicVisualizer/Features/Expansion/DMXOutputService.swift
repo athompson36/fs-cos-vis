@@ -1,5 +1,31 @@
 import Foundation
 
+/// E1.31 multicast group `239.255.(universe>>8).(universe&0xFF)` for inbound sACN (IGMP join on Wi‑Fi/LAN).
+enum SACNMulticastAddress {
+    static func multicastString(forWireUniverse u: Int) -> String {
+        let n = max(0, min(63999, u))
+        let hi = (n >> 8) & 0xFF
+        let lo = n & 0xFF
+        return "239.255.\(hi).\(lo)"
+    }
+
+    static func membershipRequest(forWireUniverse u: Int) -> ip_mreq {
+        var mreq = ip_mreq()
+        let s = multicastString(forWireUniverse: u)
+        s.withCString { ptr in
+            _ = inet_pton(AF_INET, ptr, &mreq.imr_multiaddr)
+        }
+        mreq.imr_interface.s_addr = 0 // INADDR_ANY — default interface (Wi‑Fi or Ethernet)
+        return mreq
+    }
+}
+
+private enum SACNIPMulticastOption {
+    /// `netinet/in.h` — `IP_ADD_MEMBERSHIP` / `IP_DROP_MEMBERSHIP`
+    static let addMembership: Int32 = 12
+    static let dropMembership: Int32 = 13
+}
+
 enum DMXOutputError: LocalizedError {
     case socketOpenFailed
     case invalidHost(String)
@@ -23,23 +49,117 @@ struct DMXPerformanceSnapshot: Equatable, Sendable {
     var avgBuildMS: Double
     var avgSendMS: Double
     var avgTotalMS: Double
+    var maxBuildMS: Double
+    var maxSendMS: Double
     var maxTotalMS: Double
+    /// Counts of **total** frame time (ms) into fixed buckets; array length matches ``DMXPerformanceProfiler.totalMSHistogramBinCount``.
+    var totalMSHistogramBinCounts: [UInt64]
+    /// Last tick: patched fixture instances (for large-rig context).
+    var rigFixtureInstanceCount: Int
+    /// Last tick: modulation definitions count.
+    var rigModulatorCount: Int
+    /// Last tick: logical universes in the built output map (1 for USB/sim single-universe path).
+    var outputLogicalUniverseCount: Int
+    /// Approximate median **total** frame time (ms) from histogram bins (uniform within each bin); `nil` when `frameCount == 0`.
+    var approxMedianTotalMS: Double?
+    /// Approximate 95th percentile of **total** frame time (ms); `nil` when `frameCount == 0`.
+    var approxP95TotalMS: Double?
+
+    /// Labels for ``totalMSHistogramBinCounts`` buckets (ms, half-open except last).
+    static let totalMSHistogramBinLabels: [String] = [
+        "0–2", "2–4", "4–6", "6–8", "8–12", "12–16", "16–24", "24–40", "40+"
+    ]
+
+    /// Compact distribution line for Settings (e.g. `0–2:12 · 2–4:3 · …`).
+    var totalMSHistogramSummary: String {
+        guard totalMSHistogramBinCounts.count == Self.totalMSHistogramBinLabels.count else { return "" }
+        return zip(Self.totalMSHistogramBinLabels, totalMSHistogramBinCounts).map { "\($0.0):\($0.1)" }.joined(separator: " · ")
+    }
 }
 
 struct DMXPerformanceProfiler: Sendable {
+    /// Buckets for **total** frame duration (ms): `[0,2), [2,4), …, [40, ∞)`.
+    static let totalMSHistogramBinCount = 9
+
     private(set) var frameCount: UInt64 = 0
     private(set) var overBudgetFrameCount: UInt64 = 0
     private(set) var totalBuildMS: Double = 0
     private(set) var totalSendMS: Double = 0
     private(set) var totalFrameMS: Double = 0
+    private(set) var maxBuildMS: Double = 0
+    private(set) var maxSendMS: Double = 0
     private(set) var maxFrameMS: Double = 0
+    private var totalMSHistogram: [UInt64] = [UInt64](repeating: 0, count: DMXPerformanceProfiler.totalMSHistogramBinCount)
+    private(set) var lastRigFixtureInstanceCount: Int = 0
+    private(set) var lastRigModulatorCount: Int = 0
+    private(set) var lastOutputLogicalUniverseCount: Int = 0
 
-    mutating func recordFrame(buildMS: Double, sendMS: Double, totalMS: Double, budgetMS: Double) {
+    private static func totalMSHistogramBinIndex(totalMS: Double) -> Int {
+        let t = max(0, totalMS)
+        switch t {
+        case ..<2: return 0
+        case ..<4: return 1
+        case ..<6: return 2
+        case ..<8: return 3
+        case ..<12: return 4
+        case ..<16: return 5
+        case ..<24: return 6
+        case ..<40: return 7
+        default: return 8
+        }
+    }
+
+    /// Lower bounds (ms) for each histogram bin; must stay aligned with ``totalMSHistogramBinIndex``.
+    private static let totalMSHistogramBinLowerMs: [Double] = [0, 2, 4, 6, 8, 12, 16, 24, 40]
+
+    /// Linear interpolation on the empirical histogram CDF: `quantile` in (0,1), `t = quantile * n` sample-ranks.
+    static func approximateTotalMSQuantile(
+        bins: [UInt64],
+        frameCount: UInt64,
+        quantile: Double,
+        maxObservedTotalMS: Double
+    ) -> Double? {
+        guard frameCount > 0, quantile > 0, quantile < 1, bins.count == totalMSHistogramBinCount else { return nil }
+        let n = Double(frameCount)
+        let t = quantile * n
+        var cum: UInt64 = 0
+        let lowers = totalMSHistogramBinLowerMs
+        for i in 0 ..< totalMSHistogramBinCount {
+            let c = bins[i]
+            if c == 0 { continue }
+            let before = cum
+            cum += c
+            if Double(cum) >= t {
+                let lo = lowers[i]
+                let hi: Double = i < 8 ? lowers[i + 1] : max(40.000_001, maxObservedTotalMS)
+                let offset = t - Double(before)
+                return lo + (offset / Double(c)) * (hi - lo)
+            }
+        }
+        return nil
+    }
+
+    mutating func recordFrame(
+        buildMS: Double,
+        sendMS: Double,
+        totalMS: Double,
+        budgetMS: Double,
+        rigFixtureInstanceCount: Int,
+        rigModulatorCount: Int,
+        outputLogicalUniverseCount: Int
+    ) {
         frameCount &+= 1
         totalBuildMS += buildMS
         totalSendMS += sendMS
         totalFrameMS += totalMS
+        maxBuildMS = max(maxBuildMS, buildMS)
+        maxSendMS = max(maxSendMS, sendMS)
         maxFrameMS = max(maxFrameMS, totalMS)
+        let bi = Self.totalMSHistogramBinIndex(totalMS: totalMS)
+        totalMSHistogram[bi] &+= 1
+        lastRigFixtureInstanceCount = rigFixtureInstanceCount
+        lastRigModulatorCount = rigModulatorCount
+        lastOutputLogicalUniverseCount = outputLogicalUniverseCount
         if totalMS > budgetMS {
             overBudgetFrameCount &+= 1
         }
@@ -47,13 +167,33 @@ struct DMXPerformanceProfiler: Sendable {
 
     func snapshot() -> DMXPerformanceSnapshot {
         let divisor = max(1.0, Double(frameCount))
+        let med = Self.approximateTotalMSQuantile(
+            bins: totalMSHistogram,
+            frameCount: frameCount,
+            quantile: 0.5,
+            maxObservedTotalMS: maxFrameMS
+        )
+        let p95 = Self.approximateTotalMSQuantile(
+            bins: totalMSHistogram,
+            frameCount: frameCount,
+            quantile: 0.95,
+            maxObservedTotalMS: maxFrameMS
+        )
         return DMXPerformanceSnapshot(
             frameCount: frameCount,
             overBudgetFrameCount: overBudgetFrameCount,
             avgBuildMS: totalBuildMS / divisor,
             avgSendMS: totalSendMS / divisor,
             avgTotalMS: totalFrameMS / divisor,
-            maxTotalMS: maxFrameMS
+            maxBuildMS: maxBuildMS,
+            maxSendMS: maxSendMS,
+            maxTotalMS: maxFrameMS,
+            totalMSHistogramBinCounts: totalMSHistogram,
+            rigFixtureInstanceCount: lastRigFixtureInstanceCount,
+            rigModulatorCount: lastRigModulatorCount,
+            outputLogicalUniverseCount: lastOutputLogicalUniverseCount,
+            approxMedianTotalMS: med,
+            approxP95TotalMS: p95
         )
     }
 }
@@ -75,25 +215,123 @@ enum DMXNetworkPacketBuilder {
         return packet
     }
 
-    static func makeSACNPacket(universe: Int, frame: [UInt8]) -> [UInt8] {
+    /// ANSI E1.31 (sACN) **Data** packet — 638 bytes with 512-channel payload (start code 0x00).
+    /// Layout aligned with common open implementations (Root + Framing + DMP layers).
+    static func makeSACNPacket(universe: Int, frame: [UInt8], sequence: UInt8) -> [UInt8] {
         let normalized = max(0, min(63999, universe))
-        // Lightweight scaffold payload for future full E1.31 framing.
-        var packet = Array("ASC-E1.31".utf8)
-        packet += [UInt8((normalized >> 8) & 0xFF), UInt8(normalized & 0xFF)]
-        packet += frame
-        return packet
+        var channels = [UInt8](repeating: 0, count: 512)
+        for i in 0 ..< min(512, frame.count) {
+            channels[i] = frame[i]
+        }
+        let totalLength = 638
+
+        var p: [UInt8] = []
+        p.reserveCapacity(totalLength)
+        // Root: preamble + ACN packet identifier `ASC-E1.17` + padding (per ESTA E1.31)
+        p.append(contentsOf: [
+            0x00, 0x10, 0x00, 0x00,
+            0x41, 0x53, 0x43, 0x2d, 0x45, 0x31, 0x2e, 0x31, 0x37, 0x00, 0x00, 0x00
+        ])
+        p.append(contentsOf: Self.acnFlagsAndLength12(totalLength - 16))
+        p.append(contentsOf: [0x00, 0x00, 0x00, 0x04]) // VECTOR_ROOT_E131_DATA
+        p.append(contentsOf: Self.sacnSenderCID)
+        // Framing layer
+        p.append(contentsOf: Self.acnFlagsAndLength12(totalLength - 38))
+        p.append(contentsOf: [0x00, 0x00, 0x00, 0x02]) // VECTOR_E131_DATA_PACKET
+        let sourceLabel = Array("Cosmic Visualizer".utf8)
+        for i in 0 ..< 64 {
+            p.append(i < sourceLabel.count ? sourceLabel[i] : 0)
+        }
+        p.append(100) // priority (default)
+        p.append(0x00)
+        p.append(0x00) // sync address
+        p.append(sequence)
+        p.append(0x00) // options
+        p.append(UInt8((normalized >> 8) & 0xFF))
+        p.append(UInt8(normalized & 0xFF))
+        // DMP layer
+        p.append(contentsOf: Self.acnFlagsAndLength12(totalLength - 115))
+        p.append(0x02) // VECTOR_DMP_SET_PROPERTY
+        p.append(contentsOf: [0xa1, 0x00, 0x00, 0x00, 0x01])
+        let propCount = 513 // start code + 512 slots
+        p.append(UInt8((propCount >> 8) & 0xFF))
+        p.append(UInt8(propCount & 0xFF))
+        p.append(0x00) // DMX start code
+        p.append(contentsOf: channels)
+        precondition(p.count == totalLength)
+        return p
+    }
+
+    /// 16-byte Component Identifier (unique per sender; stable for this app build).
+    private static let sacnSenderCID: [UInt8] = {
+        var b = [UInt8](repeating: 0, count: 16)
+        let label = Array("Cosmic Visualizer".utf8)
+        for i in 0 ..< min(16, label.count) {
+            b[i] = label[i]
+        }
+        return b
+    }()
+
+    private static func acnFlagsAndLength12(_ length: Int) -> [UInt8] {
+        let len = min(length, 0x0FFF)
+        let hi = UInt8(0x70 | UInt8((len & 0x0F00) >> 8))
+        let lo = UInt8(len & 0xFF)
+        return [hi, lo]
     }
 }
 
+/// Non-DMX E1.31 root **extended** PDUs (same UDP port as data). We do not apply sync/discovery semantics yet; counting aids field diagnostics.
+enum SACNE131InboundNonData: Equatable {
+    case synchronization
+    case universeDiscovery
+}
+
+/// Classifies E1.31 **extended** packets (root vector `0x08`) by framing-layer vector. Returns `nil` for data packets, non-ACN, or unknown layouts.
+enum SACNE131InboundClassifier {
+    private static let rootVectorExtended: [UInt8] = [0x00, 0x00, 0x00, 0x08]
+    /// Framing: `VECTOR_E131_EXTENDED_SYNCHRONIZATION`
+    private static let framingVectorSync: [UInt8] = [0x00, 0x00, 0x00, 0x01]
+    /// Framing: `VECTOR_E131_EXTENDED_DISCOVERY`
+    private static let framingVectorDiscovery: [UInt8] = [0x00, 0x00, 0x00, 0x02]
+
+    /// Preamble + ACN packet identifier `ASC-E1.17` (ESTA E1.31 root layer).
+    private static func matchesE131RootPreamble(_ packet: [UInt8]) -> Bool {
+        guard packet.count >= 16 else { return false }
+        if packet[0] != 0x00 || packet[1] != 0x10 || packet[2] != 0x00 || packet[3] != 0x00 { return false }
+        let label: [UInt8] = [0x41, 0x53, 0x43, 0x2d, 0x45, 0x31, 0x2e, 0x31, 0x37, 0x00, 0x00, 0x00]
+        return Array(packet[4 ..< 16]) == label
+    }
+
+    static func extendedNonDataKind(packet: [UInt8]) -> SACNE131InboundNonData? {
+        guard packet.count >= 44 else { return nil }
+        guard matchesE131RootPreamble(packet) else { return nil }
+        let rootVec = Array(packet[18 ..< 22])
+        guard rootVec == rootVectorExtended else { return nil }
+        let framingVec = Array(packet[40 ..< 44])
+        if framingVec == framingVectorSync { return .synchronization }
+        if framingVec == framingVectorDiscovery { return .universeDiscovery }
+        return nil
+    }
+}
+
+/// Inbound DMX decode result. `priority` follows **E1.31** (0–200; higher wins); Art-Net and legacy sACN scaffold use ``defaultPriority``.
+struct DMXInboundDecoded {
+    var universe: Int
+    var frame: [UInt8]
+    var priority: UInt8
+    /// Wire default when priority is not defined (E1.31 default; used for Art-Net and legacy scaffold).
+    static let defaultPriority: UInt8 = 100
+}
+
 enum DMXInboundPacketDecoder {
-    static func decode(packet: [UInt8], mode: String) -> (universe: Int, frame: [UInt8])? {
+    static func decode(packet: [UInt8], mode: String) -> DMXInboundDecoded? {
         if mode == "sacn" {
             return decodeSACN(packet: packet)
         }
         return decodeArtNet(packet: packet)
     }
 
-    private static func decodeArtNet(packet: [UInt8]) -> (universe: Int, frame: [UInt8])? {
+    private static func decodeArtNet(packet: [UInt8]) -> DMXInboundDecoded? {
         guard packet.count >= 18 else { return nil }
         guard String(decoding: packet.prefix(8), as: UTF8.self) == "Art-Net\u{0}" else { return nil }
         guard packet[8] == 0x00, packet[9] == 0x50 else { return nil }
@@ -103,16 +341,33 @@ enum DMXInboundPacketDecoder {
         guard packet.count >= payloadStart + declaredLength else { return nil }
         let frame = Array(packet[payloadStart ..< payloadStart + min(512, declaredLength)])
         guard frame.count == 512 else { return nil }
-        return (universe, frame)
+        return DMXInboundDecoded(universe: universe, frame: frame, priority: DMXInboundDecoded.defaultPriority)
     }
 
-    private static func decodeSACN(packet: [UInt8]) -> (universe: Int, frame: [UInt8])? {
+    private static func decodeSACN(packet: [UInt8]) -> DMXInboundDecoded? {
+        if packet.count >= 638,
+           packet[18] == 0, packet[19] == 0, packet[20] == 0, packet[21] == 0x04,
+           packet[40] == 0, packet[41] == 0, packet[42] == 0, packet[43] == 0x02,
+           packet[117] == 0x02 {
+            let universe = (Int(packet[113]) << 8) | Int(packet[114])
+            guard packet[125] == 0x00 else { return nil }
+            // Framing layer priority (E1.31): higher value wins when merging sources.
+            let priority = packet[108]
+            let frame = Array(packet[126 ..< 638])
+            guard frame.count == 512 else { return nil }
+            return DMXInboundDecoded(universe: universe, frame: frame, priority: priority)
+        }
+        return decodeSACNLegacyScaffold(packet: packet)
+    }
+
+    /// Legacy 523-byte scaffold (`ASC-E1.31` + universe + 512 channels) kept for tests / old senders.
+    private static func decodeSACNLegacyScaffold(packet: [UInt8]) -> DMXInboundDecoded? {
         guard packet.count >= 11 else { return nil }
         guard String(decoding: packet.prefix(9), as: UTF8.self) == "ASC-E1.31" else { return nil }
         let universe = (Int(packet[9]) << 8) | Int(packet[10])
         let frame = Array(packet.dropFirst(11).prefix(512))
         guard frame.count == 512 else { return nil }
-        return (universe, frame)
+        return DMXInboundDecoded(universe: universe, frame: frame, priority: DMXInboundDecoded.defaultPriority)
     }
 }
 
@@ -181,18 +436,25 @@ final class DMXInputService {
     private var readSource: DispatchSourceRead?
     private(set) var isRunning = false
     private var mode: String = "artnet"
-    private var universe: Int = 0
-    private var onFrame: ((Int, [UInt8]) -> Void)?
+    private var universeStart: Int = 0
+    private var universeCount: Int = 1
+    private var onFrame: ((Int, [UInt8], UInt8) -> Void)?
     private var lastError: String?
     private var receivedFrameCount: UInt64 = 0
+    private var sacnSyncPacketCount: UInt64 = 0
+    private var sacnDiscoveryPacketCount: UInt64 = 0
+    /// Wire universes for which `IP_ADD_MEMBERSHIP` succeeded (sACN only); dropped in `stop()`.
+    private var sacnJoinedUniverses: [Int] = []
 
     func configure(
         mode: String,
-        universe: Int,
-        onFrame: @escaping (Int, [UInt8]) -> Void
+        universeStart: Int,
+        universeCount: Int,
+        onFrame: @escaping (Int, [UInt8], UInt8) -> Void
     ) {
         self.mode = mode
-        self.universe = max(0, universe)
+        self.universeStart = max(0, universeStart)
+        self.universeCount = max(1, min(64, universeCount))
         self.onFrame = onFrame
     }
 
@@ -229,6 +491,13 @@ final class DMXInputService {
             return
         }
 
+        sacnJoinedUniverses.removeAll()
+        if mode == "sacn" {
+            lastError = joinSACNMulticastGroups(socketFD: socketFD)
+        } else {
+            lastError = nil
+        }
+
         let queue = DispatchQueue(label: "com.cosmicvisualizer.dmx.input", qos: .userInitiated)
         let source = DispatchSource.makeReadSource(fileDescriptor: socketFD, queue: queue)
         source.setEventHandler { [weak self] in
@@ -244,10 +513,10 @@ final class DMXInputService {
         readSource = source
         source.resume()
         isRunning = true
-        lastError = nil
     }
 
     func stop() {
+        leaveSACNMulticastGroupsIfNeeded()
         readSource?.cancel()
         readSource = nil
         if socketFD >= 0 {
@@ -257,8 +526,47 @@ final class DMXInputService {
         isRunning = false
     }
 
-    func diagnostics() -> (lastError: String?, running: Bool, frames: UInt64) {
-        (lastError: lastError, running: isRunning, frames: receivedFrameCount)
+    private func joinSACNMulticastGroups(socketFD: Int32) -> String? {
+        var failed: [String] = []
+        for u in universeStart ..< (universeStart + universeCount) {
+            var mreq = SACNMulticastAddress.membershipRequest(forWireUniverse: u)
+            let code = setsockopt(
+                socketFD,
+                IPPROTO_IP,
+                SACNIPMulticastOption.addMembership,
+                &mreq,
+                socklen_t(MemoryLayout<ip_mreq>.size)
+            )
+            if code == 0 {
+                sacnJoinedUniverses.append(u)
+            } else {
+                failed.append("\(u)")
+            }
+        }
+        guard !failed.isEmpty else { return nil }
+        return "sACN multicast join failed for universe(s): \(failed.joined(separator: ", ")). Check IGMP / Wi‑Fi AP; unicast to this Mac may still work."
+    }
+
+    private func leaveSACNMulticastGroupsIfNeeded() {
+        guard socketFD >= 0, !sacnJoinedUniverses.isEmpty else {
+            sacnJoinedUniverses.removeAll()
+            return
+        }
+        for u in sacnJoinedUniverses {
+            var mreq = SACNMulticastAddress.membershipRequest(forWireUniverse: u)
+            _ = setsockopt(
+                socketFD,
+                IPPROTO_IP,
+                SACNIPMulticastOption.dropMembership,
+                &mreq,
+                socklen_t(MemoryLayout<ip_mreq>.size)
+            )
+        }
+        sacnJoinedUniverses.removeAll()
+    }
+
+    func diagnostics() -> (lastError: String?, running: Bool, frames: UInt64, sacnSyncPackets: UInt64, sacnDiscoveryPackets: UInt64) {
+        (lastError: lastError, running: isRunning, frames: receivedFrameCount, sacnSyncPackets: sacnSyncPacketCount, sacnDiscoveryPackets: sacnDiscoveryPacketCount)
     }
 
     private func handleSocketReadable() {
@@ -273,10 +581,20 @@ final class DMXInputService {
         }
         guard readBytes > 0 else { return }
         let packet = Array(buffer.prefix(readBytes))
+        if mode == "sacn", let kind = SACNE131InboundClassifier.extendedNonDataKind(packet: packet) {
+            switch kind {
+            case .synchronization:
+                sacnSyncPacketCount &+= 1
+            case .universeDiscovery:
+                sacnDiscoveryPacketCount &+= 1
+            }
+            return
+        }
         guard let decoded = DMXInboundPacketDecoder.decode(packet: packet, mode: mode) else { return }
-        guard decoded.universe == universe else { return }
+        let u = decoded.universe
+        guard u >= universeStart, u < universeStart + universeCount else { return }
         receivedFrameCount &+= 1
-        onFrame?(decoded.universe, decoded.frame)
+        onFrame?(u, decoded.frame, decoded.priority)
     }
 }
 
@@ -420,6 +738,7 @@ private final class SACNTransport: DMXTransport {
     private(set) var frameCount: UInt64 = 0
     private(set) var host = "239.255.0.1"
     private(set) var packetsLastSend = 0
+    private var sacnSequence: UInt8 = 0
     private let client = UDPDMXClient()
 
     func prepare(with model: AppModel) throws {
@@ -432,7 +751,8 @@ private final class SACNTransport: DMXTransport {
         packetsLastSend = 0
         for (logical, data) in map.sorted(by: { $0.key < $1.key }) {
             let netU = max(0, min(63999, logical + networkOffset))
-            let payload = DMXNetworkPacketBuilder.makeSACNPacket(universe: netU, frame: data)
+            let payload = DMXNetworkPacketBuilder.makeSACNPacket(universe: netU, frame: data, sequence: sacnSequence)
+            sacnSequence &+= 1
             try client.send(payload: payload)
             frameCount &+= 1
             packetsLastSend += 1
@@ -523,7 +843,16 @@ final class DMXOutputService: ControlBus {
             }
             let sendMS = max(0, (CFAbsoluteTimeGetCurrent() - sendStart) * 1000)
             let totalMS = max(0, (CFAbsoluteTimeGetCurrent() - tickStart) * 1000)
-            performanceProfiler.recordFrame(buildMS: buildMS, sendMS: sendMS, totalMS: totalMS, budgetMS: 1000.0 / 44.0)
+            let rig = model.dmxRigMetricsForProfiling(outputLogicalUniverseCount: map.count)
+            performanceProfiler.recordFrame(
+                buildMS: buildMS,
+                sendMS: sendMS,
+                totalMS: totalMS,
+                budgetMS: 1000.0 / 44.0,
+                rigFixtureInstanceCount: rig.fixtureInstances,
+                rigModulatorCount: rig.modulators,
+                outputLogicalUniverseCount: rig.outputLogicalUniverses
+            )
             return
         }
 
@@ -544,7 +873,16 @@ final class DMXOutputService: ControlBus {
         }
         let sendMS = max(0, (CFAbsoluteTimeGetCurrent() - sendStart) * 1000)
         let totalMS = max(0, (CFAbsoluteTimeGetCurrent() - tickStart) * 1000)
-        performanceProfiler.recordFrame(buildMS: buildMS, sendMS: sendMS, totalMS: totalMS, budgetMS: 1000.0 / 44.0)
+        let rig = model.dmxRigMetricsForProfiling(outputLogicalUniverseCount: 1)
+        performanceProfiler.recordFrame(
+            buildMS: buildMS,
+            sendMS: sendMS,
+            totalMS: totalMS,
+            budgetMS: 1000.0 / 44.0,
+            rigFixtureInstanceCount: rig.fixtureInstances,
+            rigModulatorCount: rig.modulators,
+            outputLogicalUniverseCount: rig.outputLogicalUniverses
+        )
     }
 
     private func resolveTransport(model: AppModel) throws -> DMXTransport {

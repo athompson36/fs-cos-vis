@@ -146,8 +146,10 @@ struct RemoteControlSettings: Equatable {
     var dmxInboundEnabled: Bool = false
     /// `artnet` or `sacn`.
     var dmxInboundMode: String = "artnet"
-    /// Universe index expected from inbound stream.
+    /// First universe index accepted from inbound packets (contiguous range).
     var dmxInboundUniverse: Int = 0
+    /// Number of consecutive universes to accept (1…64). USB merge uses `dmxInboundUniverse` only; network merge applies per logical universe.
+    var dmxInboundUniverseCount: Int = 1
     /// Merge policy: `htp` (max) or `lpt` (latest takes precedence).
     var dmxInboundMergeMode: String = "htp"
     /// Enables RDM discovery/probing scaffold controls.
@@ -191,7 +193,12 @@ struct RemoteControlSettings: Equatable {
     var setupWizardStepCompletedCounts: [String: Int] = [:]
     var setupWizardStepSkippedCounts: [String: Int] = [:]
     var githubFeedbackRepository: String = "athompson36/fs-cos-vis"
+    /// Personal access token for **direct** GitHub API issue creation (avoid when a relay URL is available).
     var githubFeedbackToken: String = ""
+    /// Optional HTTPS endpoint for relay submission (`title`, `body`, `repository`, `appVersion` JSON); server holds GitHub credentials.
+    var githubFeedbackRelayURL: String = ""
+    /// Optional opaque bearer for the relay only (not a GitHub token).
+    var githubFeedbackRelayToken: String = ""
 }
 
 extension RemoteControlSettings: Codable {
@@ -221,6 +228,7 @@ extension RemoteControlSettings: Codable {
         case dmxInboundEnabled
         case dmxInboundMode
         case dmxInboundUniverse
+        case dmxInboundUniverseCount
         case dmxInboundMergeMode
         case rdmDiscoveryEnabled
         case rdmDiscoveryTransportMode
@@ -245,6 +253,8 @@ extension RemoteControlSettings: Codable {
         case setupWizardStepSkippedCounts
         case githubFeedbackRepository
         case githubFeedbackToken
+        case githubFeedbackRelayURL
+        case githubFeedbackRelayToken
     }
 
     init(from decoder: Decoder) throws {
@@ -274,6 +284,8 @@ extension RemoteControlSettings: Codable {
         dmxInboundEnabled = try c.decodeIfPresent(Bool.self, forKey: .dmxInboundEnabled) ?? false
         dmxInboundMode = try c.decodeIfPresent(String.self, forKey: .dmxInboundMode) ?? "artnet"
         dmxInboundUniverse = try c.decodeIfPresent(Int.self, forKey: .dmxInboundUniverse) ?? 0
+        let rawInboundCount = try c.decodeIfPresent(Int.self, forKey: .dmxInboundUniverseCount) ?? 1
+        dmxInboundUniverseCount = max(1, min(64, rawInboundCount))
         dmxInboundMergeMode = try c.decodeIfPresent(String.self, forKey: .dmxInboundMergeMode) ?? "htp"
         rdmDiscoveryEnabled = try c.decodeIfPresent(Bool.self, forKey: .rdmDiscoveryEnabled) ?? false
         rdmDiscoveryTransportMode = try c.decodeIfPresent(String.self, forKey: .rdmDiscoveryTransportMode) ?? "hardware"
@@ -298,6 +310,8 @@ extension RemoteControlSettings: Codable {
         setupWizardStepSkippedCounts = try c.decodeIfPresent([String: Int].self, forKey: .setupWizardStepSkippedCounts) ?? [:]
         githubFeedbackRepository = try c.decodeIfPresent(String.self, forKey: .githubFeedbackRepository) ?? "athompson36/fs-cos-vis"
         githubFeedbackToken = try c.decodeIfPresent(String.self, forKey: .githubFeedbackToken) ?? ""
+        githubFeedbackRelayURL = try c.decodeIfPresent(String.self, forKey: .githubFeedbackRelayURL) ?? ""
+        githubFeedbackRelayToken = try c.decodeIfPresent(String.self, forKey: .githubFeedbackRelayToken) ?? ""
     }
 
     func encode(to encoder: Encoder) throws {
@@ -327,6 +341,7 @@ extension RemoteControlSettings: Codable {
         try c.encode(dmxInboundEnabled, forKey: .dmxInboundEnabled)
         try c.encode(dmxInboundMode, forKey: .dmxInboundMode)
         try c.encode(dmxInboundUniverse, forKey: .dmxInboundUniverse)
+        try c.encode(dmxInboundUniverseCount, forKey: .dmxInboundUniverseCount)
         try c.encode(dmxInboundMergeMode, forKey: .dmxInboundMergeMode)
         try c.encode(rdmDiscoveryEnabled, forKey: .rdmDiscoveryEnabled)
         try c.encode(rdmDiscoveryTransportMode, forKey: .rdmDiscoveryTransportMode)
@@ -351,6 +366,8 @@ extension RemoteControlSettings: Codable {
         try c.encode(setupWizardStepSkippedCounts, forKey: .setupWizardStepSkippedCounts)
         try c.encode(githubFeedbackRepository, forKey: .githubFeedbackRepository)
         try c.encode(githubFeedbackToken, forKey: .githubFeedbackToken)
+        try c.encode(githubFeedbackRelayURL, forKey: .githubFeedbackRelayURL)
+        try c.encode(githubFeedbackRelayToken, forKey: .githubFeedbackRelayToken)
     }
 }
 

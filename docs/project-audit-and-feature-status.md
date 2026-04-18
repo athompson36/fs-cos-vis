@@ -1,6 +1,6 @@
 # Project audit and feature status
 
-**Last updated:** 2026-04-17  
+**Last updated:** 2026-04-18  
 
 Single-place summary of **what the product is today** and how documentation should talk about it. Align with [`07-roadmap.md`](07-roadmap.md), [`todo-full-implementation.md`](todo-full-implementation.md), and [`03-ui-ux-spec.md`](03-ui-ux-spec.md).
 
@@ -13,8 +13,9 @@ Single-place summary of **what the product is today** and how documentation shou
 
 - Scene library, scene editing, scene cue strip, transitions  
 - Fractal + liquid-light rendering, composite pass, palette/theme systems  
-- **Live Show** and **Scene Studio** with scalable previews; performance vs authoring split  
+- **Live Show** and **Scene Studio** with scalable previews; performance vs authoring split (grouped action bands, audio meter, beat-phase ring, active summary strip — see [`todo-full-implementation.md`](todo-full-implementation.md) Section C)  
 - External display routing and fullscreen presentation  
+- **Syphon** integration: **vendored in-repo** at [`Vendor/Syphon-Framework`](../Vendor/Syphon-Framework) (full tree; not a git submodule) for `import Syphon` / Metal-OBS style paths  
 - **Infinite zoom** motion modes (Standard, Infinite Tunnel, Event Horizon) with expanded zoom modulation  
 - Overlay cards, import flows, black-background removal tooling (authoring-adjacent; some actions also reachable from Live Show)  
 
@@ -37,7 +38,7 @@ Single-place summary of **what the product is today** and how documentation shou
 - Native **Controller** surface; tempo, learn, faders, DMX-oriented group controls  
 - **HTTP + WebSocket** remote control; `WebControlStateDTO` / schema  
 - **MIDI** mapping store and device integration  
-- **OSC** UDP listener (port, LAN bind, optional token), command mapping, `/cosmic/state/get` JSON snapshot aligned with web state  
+- **OSC** UDP listener (port, LAN bind, optional token), expanded command mapping (layer/tempo/lighting aligned with web/MIDI where applicable), `/cosmic/state/get` JSON snapshot aligned with web state — see [`control-parity.md`](control-parity.md) and [`osc-control.md`](osc-control.md)  
 - Setup **wizard** (beta 0.1a): skippable steps, project/audio/output/DMX/AI, provider-specific AI API onboarding (e.g. OpenAI-compatible vs Anthropic)  
 - Optional **analytics** for wizard completion/skip and exportable onboarding diagnostics  
 
@@ -52,30 +53,32 @@ Single-place summary of **what the product is today** and how documentation shou
 - **Fixture verification** workflow, reports, scan wizard steps, severity filters, correction shortcuts  
 - **JSON** import/export helpers in Lighting workspace (power user)  
 
-## Implemented — network DMX (partial / honest scaffolds)
+## Implemented — network DMX (honest boundaries)
 
-- **Art-Net** and **sACN** output modes: settings, UDP send path, packet construction, tests; **multi-universe and production hardening** still backlog  
-- **Inbound** Art-Net/sACN listener scaffold: universe filter, HTP/LPT merge, diagnostics  
-- **RDM** discovery: operator controls + **mock/deterministic** probe for workflow; real RDM stack TBD  
-- **DMX performance profiler:** tick timings, over-budget frames, Settings diagnostics  
+- **Art-Net** and **sACN outbound:** per-logical-universe UDP send (one packet per universe), **network universe offset** in Settings, output diagnostics (**pkt/tick**); same **UDP** behavior over **Ethernet or Wi‑Fi** on the LAN; see `DMXUniverseBuilder`, `AppModel.buildDMXUniversesForNetwork`, `DMXOutputService`, `ArtNetTransport` / `SACNTransport`  
+- **Inbound** Art-Net/sACN: **multi-universe** contiguous range + HTP/LPT merge; **network** path merges per matching logical universe; **USB** merges the configured first universe into the single local buffer; **sACN** joins E1.31 multicast (`239.255.*.*`) per universe in range for IGMP/Wi‑Fi  
+- **sACN / E1.31:** **outbound** full E1.31 data packets; **inbound** standard decode + legacy scaffold + **framing-priority merge** for competing sources; **extended** sync/discovery PDUs **counted** in diagnostics (no sync timing / discovery protocol); field validation vs reference receivers still recommended for your environment  
+- **RDM** discovery: operator controls + **mock/deterministic** probe for workflow; **real RDM** stack TBD  
+- **DMX performance profiler:** tick timings, **max build/send/total**, **nine-bucket total-time histogram**, **approx. median / p95** (from bins), over-budget frames, Settings diagnostics, plus **fixture / modulator / logical-universe** counts on the last tick (optional per-subsystem splits: backlog)  
 
 ## Implemented — project packaging and ops
 
 - Show **project folder** save/load (JSON documents + `Media/`, `Artifacts/`, `Backups/`)  
 - **`.cosmicshow.zip`** archive export/import from Settings  
 - **CI:** `show-package-smoke` workflow + `scripts/ci/smoke-show-package.sh`  
-- **Beta updates** (Sparkle-oriented), **feedback** bundles and optional GitHub issue submission  
+- **Beta updates** (Sparkle-oriented; **feed URL / keys** still operator setup — [`release-runbook.md`](release-runbook.md)), **feedback** bundles, optional **relay URL** submission (no GitHub PAT), or direct GitHub API with token  
 
 ## Documentation and audit alignment
 
 - [`README.md`](../README.md) describes beta product, not “Cursor starter.”  
 - Roadmap, backlog, and this file should stay consistent; large releases should update [`todo-full-implementation.md`](todo-full-implementation.md) open items.  
-- Full narrative audit and copies of roadmap/todo/UI spec live under [`fs-cos-vis-audit-and-docs-update/`](fs-cos-vis-audit-and-docs-update/README_REPLACEMENT.md).  
+- The folder [`fs-cos-vis-audit-and-docs-update/`](fs-cos-vis-audit-and-docs-update/README_REPLACEMENT.md) is a **historical audit pack snapshot**; **live** source-of-truth order is listed at the top of [`todo-full-implementation.md`](todo-full-implementation.md).  
 
 ## Remaining gaps (see also backlog)
 
-- **Documentation/UI polish:** README-aligned docs everywhere; Live Show meter/beat pulse and action-band hierarchy ([`03-ui-ux-spec.md`](03-ui-ux-spec.md), [`todo-full-implementation.md`](todo-full-implementation.md)).  
-- **Network DMX:** finish multi-universe Art-Net/sACN, production inbound merge, RDM beyond mock.  
-- **OSC/web/MIDI:** systematic parity matrix vs native actions.  
-- **Release:** prove signed/notarized pipeline and Sparkle publication on real artifacts.  
-- **Verification:** stronger confidence scoring and CV depth beyond heuristics (where product requires it).  
+- **Inbound DMX:** multi-universe listener + network per-universe merge shipped; **sACN** E1.31 **priority** merge shipped; further desk-grade polish still evolving ([`todo-full-implementation.md`](todo-full-implementation.md) Section I).  
+- **sACN/E1.31:** confirm framing / sync / discovery vs field receivers where you need guarantees.  
+- **RDM** beyond mock; **large-rig** DMX profiling beyond timing + rig-scale counts + histogram + **binned** median/p95 (exact streaming quantiles / per-subsystem optional).  
+- **Feedback:** optional **HTTPS relay** in Settings (JSON POST; no GitHub PAT); hosted relay that calls GitHub remains deployer setup (Section J).  
+- **Release:** Developer ID sign, notarize, DMG/ZIP to testers, Sparkle appcast + Info.plist keys — [`release-runbook.md`](release-runbook.md).  
+- **Verification:** optional deeper CV / geometry beyond current confidence and heuristics if product scope demands it.  

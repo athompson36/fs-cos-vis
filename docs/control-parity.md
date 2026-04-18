@@ -33,5 +33,5 @@ Some actions are primarily **UI affordances** (menus, window chrome): e.g. `Togg
 
 ## Ongoing backlog
 
-- **Feedback API relay** (authenticated issue submission without local tokens) — see `docs/todo-full-implementation.md` Section J.
+- **Feedback relay (client):** Settings supports an optional **HTTPS relay URL** + optional relay bearer (opaque, not a GitHub PAT); the app POSTs JSON `{ title, body, repository, appVersion }`. Hosting a relay that calls the GitHub API with server-side credentials remains a **deployer** concern — see `docs/todo-full-implementation.md` Section J.
 - Expand OSC or schema coverage if operators need specific `RemoteControlCommand` types exposed without raw HTTP.

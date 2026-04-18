@@ -57,7 +57,7 @@ Mapping / performance control: tempo, MIDI learn, faders, DMX-oriented groups, s
 
 Configuration, updates, feedback, show package import/export, AI, remote HTTP/WebSocket, OSC, audio, DMX transports and diagnostics.
 
-**Implemented:** **Basic / Advanced** tier (persisted) for **DMX & network transport** — Basic keeps endpoints and inbound merge controls readable; Advanced adds Art-Net/sACN scaffold notes, grouped **Diagnostics** (output stream, inbound receiver, frame timing), and full **RDM** controls.
+**Implemented:** **Basic / Advanced** tier (persisted) for **DMX & network transport** — Basic keeps endpoints and inbound merge controls readable; Advanced adds Art-Net/sACN **LAN/Wi‑Fi** and multicast hints, grouped **Diagnostics** (output stream, inbound receiver, frame timing), and full **RDM** controls.
 
 ### 5. Lighting Workspace
 
@@ -67,7 +67,7 @@ Configuration, updates, feedback, show package import/export, AI, remote HTTP/We
 
 - Live actions must stay **obvious and low-risk**; authoring must not crowd performance.  
 - Current state must read well in **low light** (contrast, grouping).  
-- Network DMX features that are still scaffolded must stay **honestly labeled** in UI and docs.  
+- Network DMX features that remain **partial** (e.g. RDM beyond mock, sACN discovery) must stay **honestly labeled** in UI and docs.  
 - Advanced tools accessible but not visually dominant.  
 
 ## Style notes (premium cosmic control panel)

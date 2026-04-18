@@ -11,13 +11,13 @@ This repository is **no longer a starter scaffold**. It is a **late-stage beta**
 - **Live Show** — performance preview, cue strips, tempo, recorder, haze safety, quick palette access  
 - **Scene Studio** — scene editing, fractal/liquid/overlay authoring, **palette and overlay work consolidated here** (there is no separate Palette Browser or Overlay Manager app screen)  
 - **Controller** — tempo, MIDI learn, faders, DMX group controls  
-- **Settings** — remote control, OSC, audio, DMX transports, AI, updates, feedback, show package import/export  
+- **Settings** — remote control, OSC, audio, DMX transports (**Art-Net / sACN over UDP on the LAN**, Wi‑Fi or Ethernet), AI, updates, feedback, show package import/export  
 - **Lighting Workspace** — patch, cues, stage, modulation, verification, JSON tools  
 
 ## Documentation (source-of-truth order)
 
 1. This `README.md`  
-2. [`docs/project-audit-and-feature-status.md`](docs/project-audit-and-feature-status.md)  
+2. [`docs/project-audit-and-feature-status.md`](docs/project-audit-and-feature-status.md) — **single-page shipped vs gaps summary** (start here after README)  
 3. [`docs/07-roadmap.md`](docs/07-roadmap.md)  
 4. [`docs/todo-full-implementation.md`](docs/todo-full-implementation.md)  
 5. [`docs/03-ui-ux-spec.md`](docs/03-ui-ux-spec.md)  
@@ -25,11 +25,12 @@ This repository is **no longer a starter scaffold**. It is a **late-stage beta**
 Additional references:
 
 - [`docs/lighting-roadmap.md`](docs/lighting-roadmap.md) — DMX/lighting detail  
+- [`docs/control-parity.md`](docs/control-parity.md) — HTTP / MIDI / OSC vs `applyRemoteCommand`  
 - [`docs/beta-0.1a-release.md`](docs/beta-0.1a-release.md) — beta packaging and validation  
 - [`docs/release-runbook.md`](docs/release-runbook.md) — Release CI, signing, notarization, Sparkle (Section K)  
 - [`docs/osc-control.md`](docs/osc-control.md) — OSC operator quickstart  
 - [`docs/macOS-installer-options.md`](docs/macOS-installer-options.md) — DMG vs ZIP vs PKG for testers  
-- [`docs/fs-cos-vis-audit-and-docs-update/`](docs/fs-cos-vis-audit-and-docs-update/README_REPLACEMENT.md) — FS-COS-VIS audit pack (full project audit, alternate copies of roadmap/todo)  
+- [`docs/fs-cos-vis-audit-and-docs-update/`](docs/fs-cos-vis-audit-and-docs-update/README_REPLACEMENT.md) — **historical** audit pack snapshot (full narrative audit; live backlog is root `docs/`)  
 
 ## Recommended stack
 

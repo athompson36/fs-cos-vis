@@ -199,8 +199,8 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     private var dmxService: DMXOutputService?
     private var dmxInputService: DMXInputService?
     private let rdmDiscoveryService = RDMDiscoveryService()
-    private var inboundDMXFrame: [UInt8] = []
-    private var inboundDMXReceivedAt: TimeInterval?
+    /// Latest inbound frame per wire universe (Art-Net / sACN index), with receive time for merge staleness.
+    private var inboundDMXByUniverse: [Int: (frame: [UInt8], receivedAt: CFAbsoluteTime, priority: UInt8)] = [:]
     /// Published so Controller UI can show current MIDI assignments.
     @Published private(set) var midiMapping: MIDIMapping = MIDIMappingStore.loadOrDefault()
 
@@ -1097,6 +1097,9 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     private func configureDMXInputService() {
         guard remoteSettings.dmxInboundEnabled else {
             dmxInputService?.stop()
+            lightingDMXLock.lock()
+            inboundDMXByUniverse.removeAll()
+            lightingDMXLock.unlock()
             dmxInboundStatus = "Inbound DMX disabled"
             return
         }
@@ -1104,21 +1107,39 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             dmxInputService = DMXInputService()
         }
         dmxInputService?.stop()
+        lightingDMXLock.lock()
+        inboundDMXByUniverse.removeAll()
+        lightingDMXLock.unlock()
+        let start = remoteSettings.dmxInboundUniverse
+        let count = max(1, min(64, remoteSettings.dmxInboundUniverseCount))
         dmxInputService?.configure(
             mode: remoteSettings.dmxInboundMode,
-            universe: remoteSettings.dmxInboundUniverse
-        ) { [weak self] _, frame in
+            universeStart: start,
+            universeCount: count
+        ) { [weak self] universe, frame, priority in
             guard let self else { return }
+            let now = CFAbsoluteTimeGetCurrent()
             self.lightingDMXLock.lock()
-            self.inboundDMXFrame = frame
-            self.inboundDMXReceivedAt = CFAbsoluteTimeGetCurrent()
+            if let existing = self.inboundDMXByUniverse[universe] {
+                let fresh = now - existing.receivedAt <= 3
+                if fresh, priority < existing.priority {
+                    self.lightingDMXLock.unlock()
+                    return
+                }
+            }
+            self.inboundDMXByUniverse[universe] = (frame: frame, receivedAt: now, priority: priority)
             self.lightingDMXLock.unlock()
         }
         dmxInputService?.start()
         if let d = dmxInputService?.diagnostics(), let err = d.lastError, !err.isEmpty {
             dmxInboundStatus = err
         } else {
-            dmxInboundStatus = "Listening for \(remoteSettings.dmxInboundMode.uppercased()) universe \(remoteSettings.dmxInboundUniverse)"
+            let mode = remoteSettings.dmxInboundMode.uppercased()
+            if count <= 1 {
+                dmxInboundStatus = "Listening for \(mode) universe \(start)"
+            } else {
+                dmxInboundStatus = "Listening for \(mode) universes \(start)–\(start + count - 1)"
+            }
         }
     }
 
@@ -1716,9 +1737,9 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         dmxService?.simulationSnapshot()
     }
 
-    func dmxInboundDiagnostics() -> (lastError: String?, running: Bool, frames: UInt64, status: String) {
-        let d = dmxInputService?.diagnostics() ?? (lastError: nil, running: false, frames: 0)
-        return (d.lastError, d.running, d.frames, dmxInboundStatus)
+    func dmxInboundDiagnostics() -> (lastError: String?, running: Bool, frames: UInt64, sacnSyncPackets: UInt64, sacnDiscoveryPackets: UInt64, status: String) {
+        let d = dmxInputService?.diagnostics() ?? (lastError: nil, running: false, frames: 0, sacnSyncPackets: 0, sacnDiscoveryPackets: 0)
+        return (d.lastError, d.running, d.frames, d.sacnSyncPackets, d.sacnDiscoveryPackets, dmxInboundStatus)
     }
 
     func dmxPerformanceDiagnostics() -> DMXPerformanceSnapshot {
@@ -1728,8 +1749,25 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             avgBuildMS: 0,
             avgSendMS: 0,
             avgTotalMS: 0,
-            maxTotalMS: 0
+            maxBuildMS: 0,
+            maxSendMS: 0,
+            maxTotalMS: 0,
+            totalMSHistogramBinCounts: [UInt64](repeating: 0, count: DMXPerformanceProfiler.totalMSHistogramBinCount),
+            rigFixtureInstanceCount: 0,
+            rigModulatorCount: 0,
+            outputLogicalUniverseCount: 0,
+            approxMedianTotalMS: nil,
+            approxP95TotalMS: nil
         )
+    }
+
+    /// Fixture / modulation counts for DMX frame profiler (call from DMX output queue).
+    func dmxRigMetricsForProfiling(outputLogicalUniverseCount: Int) -> (fixtureInstances: Int, modulators: Int, outputLogicalUniverses: Int) {
+        lightingDMXLock.lock()
+        let fi = dmxPatchDocument.instances.count
+        let mo = modulationDocument.modulators.count
+        lightingDMXLock.unlock()
+        return (fi, mo, outputLogicalUniverseCount)
     }
 
     func startRDMDiscoveryProbe() {
@@ -1768,8 +1806,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         let bpm = tempoClock.effectiveBPM
         let beatPhase = tempoClock.beatPhase
         let audio = audioEngine.features
-        let inboundFrame = inboundDMXFrame
-        let inboundReceivedAt = inboundDMXReceivedAt
+        let inboundSnap = inboundDMXByUniverse
         lightingDMXLock.unlock()
 
         var cueMap = LightingCueResolver.resolveChannelMap(document: cueDoc, crossfade: xf, now: time)
@@ -1799,24 +1836,26 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             modulationOffsets: offsets,
             hazeEmergencyKill: hazeEmergencyKillActive
         )
+        // Single-universe (USB) output: merge inbound for the configured **start** universe into local universe 0.
         if remoteSettings.dmxInboundEnabled,
-           inboundFrame.count == 512,
+           let entry = inboundSnap[remoteSettings.dmxInboundUniverse],
+           entry.frame.count == 512,
            remoteSettings.dmxInboundMergeMode == "htp" || remoteSettings.dmxInboundMergeMode == "lpt" {
             let now = CFAbsoluteTimeGetCurrent()
-            if let inboundReceivedAt, now - inboundReceivedAt <= 3 {
+            if now - entry.receivedAt <= 3 {
                 if remoteSettings.dmxInboundMergeMode == "htp" {
                     for idx in 0 ..< 512 {
-                        universe[idx] = max(universe[idx], inboundFrame[idx])
+                        universe[idx] = max(universe[idx], entry.frame[idx])
                     }
                 } else {
-                    universe = inboundFrame
+                    universe = entry.frame
                 }
             }
         }
         return universe
     }
 
-    /// Multiple logical universes for Art-Net / sACN (one UDP packet per universe). Inbound merge applies to universe **0** only.
+    /// Multiple logical universes for Art-Net / sACN (one UDP packet per universe). Inbound merge applies per logical universe when a matching wire universe was received.
     func buildDMXUniversesForNetwork(time: TimeInterval, lastSmoothed: inout [UUID: Float]) -> [Int: [UInt8]] {
         lightingDMXLock.lock()
         let patch = dmxPatchDocument
@@ -1827,8 +1866,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         let bpm = tempoClock.effectiveBPM
         let beatPhase = tempoClock.beatPhase
         let audio = audioEngine.features
-        let inboundFrame = inboundDMXFrame
-        let inboundReceivedAt = inboundDMXReceivedAt
+        let inboundSnap = inboundDMXByUniverse
         lightingDMXLock.unlock()
 
         var cueMap = LightingCueResolver.resolveChannelMap(document: cueDoc, crossfade: xf, now: time)
@@ -1859,19 +1897,20 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             hazeEmergencyKill: hazeEmergencyKillActive
         )
         if remoteSettings.dmxInboundEnabled,
-           inboundFrame.count == 512,
            remoteSettings.dmxInboundMergeMode == "htp" || remoteSettings.dmxInboundMergeMode == "lpt" {
             let now = CFAbsoluteTimeGetCurrent()
-            if let inboundReceivedAt, now - inboundReceivedAt <= 3 {
-                var u0 = perU[0] ?? [UInt8](repeating: 0, count: 512)
+            for logicalID in perU.keys {
+                guard var buf = perU[logicalID] else { continue }
+                guard let entry = inboundSnap[logicalID], entry.frame.count == 512 else { continue }
+                guard now - entry.receivedAt <= 3 else { continue }
                 if remoteSettings.dmxInboundMergeMode == "htp" {
                     for idx in 0 ..< 512 {
-                        u0[idx] = max(u0[idx], inboundFrame[idx])
+                        buf[idx] = max(buf[idx], entry.frame[idx])
                     }
                 } else {
-                    u0 = inboundFrame
+                    buf = entry.frame
                 }
-                perU[0] = u0
+                perU[logicalID] = buf
             }
         }
         return perU
@@ -2545,13 +2584,16 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                try await FeedbackAndLogsService.submitGithubIssue(
+                try await FeedbackAndLogsService.submitFeedbackIssue(
+                    relayURL: settings.githubFeedbackRelayURL,
+                    relayBearer: settings.githubFeedbackRelayToken,
                     repository: settings.githubFeedbackRepository,
-                    token: settings.githubFeedbackToken,
+                    githubToken: settings.githubFeedbackToken,
                     title: title,
                     body: body
                 )
-                feedbackStatus = "Submitted GitHub issue."
+                let relayConfigured = !settings.githubFeedbackRelayURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                feedbackStatus = relayConfigured ? "Submitted feedback via relay." : "Submitted GitHub issue."
             } catch {
                 feedbackStatus = "Issue submission failed: \(error.localizedDescription)"
             }

@@ -109,13 +109,23 @@ final class DMXOutputServiceTests: XCTestCase {
         XCTAssertEqual(packet.count, 18 + 512)
     }
 
-    func testSACNPacket_builderIncludesUniversePrefix() {
+    func testSACNPacket_builderEmitsFullE131Frame() {
         let frame = [UInt8](repeating: 3, count: 512)
-        let packet = DMXNetworkPacketBuilder.makeSACNPacket(universe: 200, frame: frame)
-        XCTAssertEqual(String(decoding: packet.prefix(9), as: UTF8.self), "ASC-E1.31")
-        XCTAssertEqual(packet[9], 0x00)
-        XCTAssertEqual(packet[10], 0xC8)
-        XCTAssertEqual(packet.count, 11 + 512)
+        let packet = DMXNetworkPacketBuilder.makeSACNPacket(universe: 200, frame: frame, sequence: 42)
+        XCTAssertEqual(packet.count, 638)
+        XCTAssertEqual(packet[18], 0x00)
+        XCTAssertEqual(packet[19], 0x00)
+        XCTAssertEqual(packet[20], 0x00)
+        XCTAssertEqual(packet[21], 0x04)
+        XCTAssertEqual(packet[40], 0x00)
+        XCTAssertEqual(packet[41], 0x00)
+        XCTAssertEqual(packet[42], 0x00)
+        XCTAssertEqual(packet[43], 0x02)
+        XCTAssertEqual(packet[111], 42)
+        XCTAssertEqual(packet[113], 0x00)
+        XCTAssertEqual(packet[114], 0xC8)
+        XCTAssertEqual(packet[125], 0x00)
+        XCTAssertEqual(packet[126], 3)
     }
 
     func testInboundDMXPacketDecoder_artnetPacketRoundTrip() {
@@ -125,15 +135,63 @@ final class DMXOutputServiceTests: XCTestCase {
         XCTAssertEqual(decoded?.universe, 2)
         XCTAssertEqual(decoded?.frame.count, 512)
         XCTAssertEqual(decoded?.frame.first, 11)
+        XCTAssertEqual(decoded?.priority, DMXInboundDecoded.defaultPriority)
     }
 
     func testInboundDMXPacketDecoder_sacnPacketRoundTrip() {
         let frame = [UInt8](repeating: 19, count: 512)
-        let packet = DMXNetworkPacketBuilder.makeSACNPacket(universe: 4, frame: frame)
+        let packet = DMXNetworkPacketBuilder.makeSACNPacket(universe: 4, frame: frame, sequence: 0)
         let decoded = DMXInboundPacketDecoder.decode(packet: packet, mode: "sacn")
         XCTAssertEqual(decoded?.universe, 4)
         XCTAssertEqual(decoded?.frame.count, 512)
         XCTAssertEqual(decoded?.frame.first, 19)
+        XCTAssertEqual(decoded?.priority, 100)
+    }
+
+    func testInboundDMXPacketDecoder_sacnPriorityFieldDecoded() {
+        let frame = [UInt8](repeating: 5, count: 512)
+        var packet = DMXNetworkPacketBuilder.makeSACNPacket(universe: 10, frame: frame, sequence: 1)
+        XCTAssertEqual(packet[108], 100)
+        packet[108] = 37
+        let decoded = DMXInboundPacketDecoder.decode(packet: packet, mode: "sacn")
+        XCTAssertEqual(decoded?.universe, 10)
+        XCTAssertEqual(decoded?.priority, 37)
+    }
+
+    func testSACNMulticastAddress_matchesE131MulticastMapping() {
+        XCTAssertEqual(SACNMulticastAddress.multicastString(forWireUniverse: 4), "239.255.0.4")
+        XCTAssertEqual(SACNMulticastAddress.multicastString(forWireUniverse: 200), "239.255.0.200")
+        XCTAssertEqual(SACNMulticastAddress.multicastString(forWireUniverse: 257), "239.255.1.1")
+        XCTAssertEqual(SACNMulticastAddress.multicastString(forWireUniverse: 63999), "239.255.249.255")
+    }
+
+    func testSACNE131InboundClassifier_recognizesExtendedSyncAndDiscovery() {
+        let frame = [UInt8](repeating: 0, count: 512)
+        var data = DMXNetworkPacketBuilder.makeSACNPacket(universe: 1, frame: frame, sequence: 0)
+        XCTAssertNil(SACNE131InboundClassifier.extendedNonDataKind(packet: data))
+        data[18] = 0x00
+        data[19] = 0x00
+        data[20] = 0x00
+        data[21] = 0x08
+        data[40] = 0x00
+        data[41] = 0x00
+        data[42] = 0x00
+        data[43] = 0x01
+        XCTAssertEqual(SACNE131InboundClassifier.extendedNonDataKind(packet: data), .synchronization)
+        data[43] = 0x02
+        XCTAssertEqual(SACNE131InboundClassifier.extendedNonDataKind(packet: data), .universeDiscovery)
+        data[43] = 0x03
+        XCTAssertNil(SACNE131InboundClassifier.extendedNonDataKind(packet: data))
+    }
+
+    func testInboundDMXPacketDecoder_sacnLegacyScaffoldStillDecodes() {
+        var legacy = Array("ASC-E1.31".utf8)
+        legacy += [0x00, 0x04]
+        legacy += [UInt8](repeating: 7, count: 512)
+        let decoded = DMXInboundPacketDecoder.decode(packet: legacy, mode: "sacn")
+        XCTAssertEqual(decoded?.universe, 4)
+        XCTAssertEqual(decoded?.frame.first, 7)
+        XCTAssertEqual(decoded?.priority, DMXInboundDecoded.defaultPriority)
     }
 
     func testRDMDiscoveryService_mockProbeReturnsDeterministicEntries() async {
@@ -151,14 +209,55 @@ final class DMXOutputServiceTests: XCTestCase {
 
     func testDMXPerformanceProfiler_tracksAveragesAndOverBudgetFrames() {
         var profiler = DMXPerformanceProfiler()
-        profiler.recordFrame(buildMS: 4.0, sendMS: 2.0, totalMS: 10.0, budgetMS: 22.7)
-        profiler.recordFrame(buildMS: 8.0, sendMS: 3.0, totalMS: 28.0, budgetMS: 22.7)
+        profiler.recordFrame(
+            buildMS: 4.0, sendMS: 2.0, totalMS: 10.0, budgetMS: 22.7,
+            rigFixtureInstanceCount: 12, rigModulatorCount: 3, outputLogicalUniverseCount: 2
+        )
+        profiler.recordFrame(
+            buildMS: 8.0, sendMS: 3.0, totalMS: 28.0, budgetMS: 22.7,
+            rigFixtureInstanceCount: 40, rigModulatorCount: 5, outputLogicalUniverseCount: 4
+        )
         let snapshot = profiler.snapshot()
         XCTAssertEqual(snapshot.frameCount, 2)
         XCTAssertEqual(snapshot.overBudgetFrameCount, 1)
         XCTAssertEqual(snapshot.avgBuildMS, 6.0, accuracy: 0.001)
         XCTAssertEqual(snapshot.avgSendMS, 2.5, accuracy: 0.001)
         XCTAssertEqual(snapshot.avgTotalMS, 19.0, accuracy: 0.001)
+        XCTAssertEqual(snapshot.maxBuildMS, 8.0, accuracy: 0.001)
+        XCTAssertEqual(snapshot.maxSendMS, 3.0, accuracy: 0.001)
         XCTAssertEqual(snapshot.maxTotalMS, 28.0, accuracy: 0.001)
+        XCTAssertEqual(snapshot.totalMSHistogramBinCounts, [0, 0, 0, 0, 1, 0, 0, 1, 0])
+        XCTAssertNotNil(snapshot.approxMedianTotalMS)
+        XCTAssertNotNil(snapshot.approxP95TotalMS)
+        XCTAssertEqual(snapshot.approxMedianTotalMS!, 12.0, accuracy: 0.001)
+        XCTAssertEqual(snapshot.approxP95TotalMS!, 38.4, accuracy: 0.001)
+        XCTAssertEqual(snapshot.rigFixtureInstanceCount, 40)
+        XCTAssertEqual(snapshot.rigModulatorCount, 5)
+        XCTAssertEqual(snapshot.outputLogicalUniverseCount, 4)
+    }
+
+    func testDMXPerformanceProfiler_histogramQuantile_uniformBin() {
+        var profiler = DMXPerformanceProfiler()
+        for _ in 0 ..< 100 {
+            profiler.recordFrame(
+                buildMS: 1.0, sendMS: 1.0, totalMS: 5.0, budgetMS: 22.7,
+                rigFixtureInstanceCount: 1, rigModulatorCount: 0, outputLogicalUniverseCount: 1
+            )
+        }
+        let snapshot = profiler.snapshot()
+        XCTAssertNotNil(snapshot.approxMedianTotalMS)
+        XCTAssertNotNil(snapshot.approxP95TotalMS)
+        XCTAssertEqual(snapshot.approxMedianTotalMS!, 5.0, accuracy: 0.02)
+        // p95 rank 95 in [4,6): 4 + 0.95 * 2 = 5.9
+        XCTAssertEqual(snapshot.approxP95TotalMS!, 5.9, accuracy: 0.02)
+    }
+
+    func testDMXPerformanceProfiler_approximateTotalMSQuantile_direct() {
+        let bins: [UInt64] = [0, 0, 100, 0, 0, 0, 0, 0, 0]
+        let q = DMXPerformanceProfiler.approximateTotalMSQuantile(
+            bins: bins, frameCount: 100, quantile: 0.5, maxObservedTotalMS: 5.5
+        )
+        XCTAssertNotNil(q)
+        XCTAssertEqual(q!, 5.0, accuracy: 0.001)
     }
 }

@@ -2,7 +2,7 @@
 
 This document captures current implementation status, boundaries, and next work for the DMX lighting stack.
 
-## Status (2026-04-17)
+## Status (2026-04-18)
 
 ## Completed
 
@@ -31,6 +31,10 @@ This document captures current implementation status, boundaries, and next work 
 8. **Fixture source and import**
    - OFL import service and curated catalog sync with fog/haze-focused indexing
    - merged enrichment pipeline now combines OFL curated sync with bundled curated fallback fixtures for offline/missing-entry coverage
+9. **Network outbound Art-Net / sACN (multi-universe)**
+   - `DMXUniverseBuilder.buildPerUniverse` / `AppModel.buildDMXUniversesForNetwork`; `DMXOutputService` sends one UDP packet per logical universe; **network universe offset** in Settings; pkt/tick diagnostics
+   - **Wi‑Fi / LAN:** same UDP transports on wireless or wired; inbound **sACN** joins E1.31 multicast per universe for IGMP (see `SACNMulticastAddress` / `DMXInputService` in `DMXOutputService.swift`)
+   - See also [`todo-full-implementation.md`](todo-full-implementation.md) Section I
 
 ## In progress
 
@@ -45,29 +49,27 @@ This document captures current implementation status, boundaries, and next work 
 
 ## Next milestones
 
-1. **Transport expansion** (scaffold vs production: keep UI/docs honest as behavior hardens)
-   - Art-Net/sACN multi-universe output
-   - started scaffold: output mode selection, network host/universe settings, transport diagnostics, and packet framing placeholders
-   - now sending UDP packets on Art-Net/sACN ports with reusable packet builders covered by unit tests
-   - inbound desk path scaffolded with UDP listener, universe filter, and HTP/LPT merge into built universe
-   - RDM probe scaffold now available with operator controls and deterministic mock discovery output for workflow/testing
-   - production-grade inbound DMX + real RDM remain roadmap items (see **Non-goals** below)
+1. **Transport — inbound and production hardening** (keep UI/docs honest)
+   - **Outbound multi-universe:** shipped (see Completed above)
+   - **Inbound:** contiguous **multi-universe** listener + HTP/LPT merge per logical universe on network output; USB merges the configured **first** universe into the single local buffer; **sACN** framing **priority** respected for competing sources (fresh buffer); full desk parity vs large consoles still **TBD**
+   - **sACN/E1.31:** outbound full **E1.31** framing shipped; inbound priority merge shipped; extended **sync/discovery** PDUs counted in diagnostics; full sync timing / discovery protocol still optional / field-driven
+   - **RDM:** operator mock workflow; **real RDM** stack TBD
 2. **Performance profiling**
-   - DMX runtime profiler now records build/send/total frame timing, max frame duration, and over-budget frame counts
-   - diagnostics surfaced in Settings to evaluate fixture/modulator load behavior before deeper optimization passes
+   - DMX runtime profiler records build/send/total frame timing, **max build/send/total**, a **fixed-bucket total-time histogram**, max frame duration, and over-budget frame counts
+   - Settings **Frame timing** diagnostics include **fixture instance count**, **modulator count**, and **logical output universe count** (last tick) alongside timing, plus **approx. median / p95** from the total-time histogram — extend further if you need per-subsystem splits or exact quantiles before claiming “console scale”
 3. **Verification depth**
    - richer CV/geometric fixture localization beyond luma-only checks
    - orientation/layout validation confidence metrics
 4. **Console-scale workflow**
    - advanced chaser/sequence graphs
    - higher-density fixture/scene authoring ergonomics
-   - OSC parity in progress (UDP listener + mappings + state query; includes live recorder OSC paths — see [`osc-control.md`](osc-control.md))
+   - OSC / web / MIDI: documented in [`control-parity.md`](control-parity.md); [`osc-control.md`](osc-control.md)
 
 ## Non-goals (current shipping scope)
 
 - GrandMA2/full-console parity
 - Full trigger/envelope graph editor UI
-- Production-grade incoming DMX + RDM stack (deferred to transport milestones)
+- Production-grade **incoming** DMX + **real** RDM stack (tracked as milestones above)
 
 ## Persistence paths (Application Support `CosmicVisualizer/`)
 

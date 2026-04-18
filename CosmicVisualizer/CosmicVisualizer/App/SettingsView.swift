@@ -105,6 +105,17 @@ private extension SettingsView {
                 TextField("Feedback / error details", text: $feedbackBody, axis: .vertical)
                     .lineLimit(3 ... 6)
                     .textFieldStyle(.roundedBorder)
+                Text("Relay (recommended): HTTPS URL that accepts JSON `{ title, body, repository, appVersion }` — no GitHub personal token in the app.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                TextField("Feedback relay URL (https://…)", text: stringBinding(\.githubFeedbackRelayURL))
+                    .textFieldStyle(.roundedBorder)
+                SecureField("Relay authorization (optional, not GitHub)", text: stringBinding(\.githubFeedbackRelayToken))
+                    .textFieldStyle(.roundedBorder)
+                Text("Direct GitHub API (fallback when relay URL is empty)")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
                 TextField("GitHub repo (owner/name)", text: stringBinding(\.githubFeedbackRepository))
                     .textFieldStyle(.roundedBorder)
                 SecureField("GitHub token (optional)", text: stringBinding(\.githubFeedbackToken))
@@ -560,8 +571,8 @@ private extension SettingsView {
             Picker("DMX output mode", selection: stringBinding(\.dmxOutputMode)) {
                 Text("Hardware interface").tag("hardware")
                 Text("Simulated interface (offline)").tag("simulated")
-                Text("Art-Net (scaffold)").tag("artnet")
-                Text("sACN E1.31 (scaffold)").tag("sacn")
+                Text("Art-Net (UDP · LAN / Wi‑Fi)").tag("artnet")
+                Text("sACN E1.31 (UDP · LAN / Wi‑Fi)").tag("sacn")
             }
             .pickerStyle(.menu)
             .frame(maxWidth: 320, alignment: .leading)
@@ -589,7 +600,7 @@ private extension SettingsView {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     if transportUITier == .advanced {
-                        Text("UDP to port 6454; diagnostics show UDP packets per timer tick when output is running.")
+                        Text("UDP port 6454 — works over Ethernet or Wi‑Fi on the same subnet; allow UDP in any firewall. Diagnostics show packets per timer tick when output is running.")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -604,12 +615,12 @@ private extension SettingsView {
                         in: 0 ... 63999
                     )
                     .frame(maxWidth: 320, alignment: .leading)
-                    Text("One scaffold E1.31-style frame per logical fixture universe; offset is added to each fixture’s universe index.")
+                    Text("One full E1.31 data packet per logical fixture universe; offset is added to each fixture’s universe index. Uses UDP — same behavior over Ethernet or Wi‑Fi on the LAN.")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     if transportUITier == .advanced {
-                        Text("Full E1.31 root/data layer and multicast discovery remain roadmap items.")
+                        Text("Multicast (e.g. 239.255.x.y) or unicast host. If multicast is unreliable on Wi‑Fi, try unicast to the node’s IP. E1.31 discovery/sync packets are not implemented.")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -676,7 +687,7 @@ private extension SettingsView {
             Text("Inbound DMX merge")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-            Text("Listener decodes one Art-Net or sACN universe at a time (desk merge into local build). Multi-universe inbound is roadmap.")
+            Text("Listener accepts a contiguous range of Art-Net or sACN universes over **UDP** (Ethernet or Wi‑Fi on the same LAN). sACN joins E1.31 multicast groups per universe in the range (helps on Wi‑Fi); if reception fails, check AP multicast/IGMP or send unicast from the desk. Network output merges inbound per matching logical universe; USB merges the **first** universe in the range into the local single-universe buffer.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -689,9 +700,16 @@ private extension SettingsView {
             .frame(maxWidth: 320, alignment: .leading)
             .disabled(!appModel.remoteSettings.dmxInboundEnabled)
             Stepper(
-                "Inbound universe: \(max(0, appModel.remoteSettings.dmxInboundUniverse))",
+                "First inbound universe: \(max(0, appModel.remoteSettings.dmxInboundUniverse))",
                 value: intBinding(\.dmxInboundUniverse),
                 in: 0 ... 63999
+            )
+            .frame(maxWidth: 320, alignment: .leading)
+            .disabled(!appModel.remoteSettings.dmxInboundEnabled)
+            Stepper(
+                "Universe count: \(max(1, min(64, appModel.remoteSettings.dmxInboundUniverseCount)))",
+                value: intBinding(\.dmxInboundUniverseCount),
+                in: 1 ... 64
             )
             .frame(maxWidth: 320, alignment: .leading)
             .disabled(!appModel.remoteSettings.dmxInboundEnabled)
@@ -710,10 +728,13 @@ private extension SettingsView {
             GroupBox {
                 TimelineView(.periodic(from: .now, by: 0.5)) { _ in
                     let inbound = appModel.dmxInboundDiagnostics()
+                    let sacnExtra = appModel.remoteSettings.dmxInboundMode == "sacn" && inbound.running
+                        ? " · sACN sync: \(inbound.sacnSyncPackets) · discovery: \(inbound.sacnDiscoveryPackets)"
+                        : ""
                     HStack(alignment: .top, spacing: 8) {
                         Text("Receiver")
                             .font(.caption.weight(.semibold))
-                        Text(inbound.running ? "\(inbound.status) · frames: \(inbound.frames)" : inbound.status)
+                        Text(inbound.running ? "\(inbound.status) · frames: \(inbound.frames)\(sacnExtra)" : inbound.status)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         if let err = inbound.lastError, !err.isEmpty {
@@ -733,11 +754,25 @@ private extension SettingsView {
                     HStack(alignment: .top, spacing: 8) {
                         Text("Build / send")
                             .font(.caption.weight(.semibold))
-                        Text(
-                            "frames: \(perf.frameCount) · avg build: \(String(format: "%.2f", perf.avgBuildMS)) ms · avg send: \(String(format: "%.2f", perf.avgSendMS)) ms · avg total: \(String(format: "%.2f", perf.avgTotalMS)) ms · max: \(String(format: "%.2f", perf.maxTotalMS)) ms · over budget: \(perf.overBudgetFrameCount)"
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(
+                                "frames: \(perf.frameCount) · fixtures: \(perf.rigFixtureInstanceCount) · modulators: \(perf.rigModulatorCount) · logical universes: \(perf.outputLogicalUniverseCount) · avg build: \(String(format: "%.2f", perf.avgBuildMS)) ms · avg send: \(String(format: "%.2f", perf.avgSendMS)) ms · avg total: \(String(format: "%.2f", perf.avgTotalMS)) ms · max build: \(String(format: "%.2f", perf.maxBuildMS)) ms · max send: \(String(format: "%.2f", perf.maxSendMS)) ms · max total: \(String(format: "%.2f", perf.maxTotalMS)) ms · over budget: \(perf.overBudgetFrameCount)"
+                            )
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            if perf.frameCount > 0 {
+                                Text("total Δt (ms): \(perf.totalMSHistogramSummary)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                                if let med = perf.approxMedianTotalMS, let p95 = perf.approxP95TotalMS {
+                                    Text(
+                                        "est. total median \(String(format: "%.2f", med)) ms · est. p95 \(String(format: "%.2f", p95)) ms (from Δt bins)"
+                                    )
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                                }
+                            }
+                        }
                     }
                 }
             } label: {

@@ -144,6 +144,17 @@ final class ModelCodableTests: XCTestCase {
         XCTAssertEqual(decoded.dmxSACNHost, "239.255.0.1")
     }
 
+    func testRemoteControlSettings_decodeLegacyFeedbackRelayDefaults() throws {
+        let json = """
+        {
+          "githubFeedbackRepository": "a/b"
+        }
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(RemoteControlSettings.self, from: json)
+        XCTAssertEqual(decoded.githubFeedbackRelayURL, "")
+        XCTAssertEqual(decoded.githubFeedbackRelayToken, "")
+    }
+
     func testRemoteControlSettings_decodeLegacyInboundDMXDefaults() throws {
         let json = """
         {
@@ -155,6 +166,7 @@ final class ModelCodableTests: XCTestCase {
         XCTAssertFalse(decoded.dmxInboundEnabled)
         XCTAssertEqual(decoded.dmxInboundMode, "artnet")
         XCTAssertEqual(decoded.dmxInboundUniverse, 0)
+        XCTAssertEqual(decoded.dmxInboundUniverseCount, 1)
         XCTAssertEqual(decoded.dmxInboundMergeMode, "htp")
     }
 
