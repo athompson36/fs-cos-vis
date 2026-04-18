@@ -1,85 +1,81 @@
-# Project Audit and Feature Status (2026-04-17)
+# Project audit and feature status
 
-This audit summarizes the current implementation state of Cosmic Visualizer based on the repository contents and recent feature delivery work.
+**Last updated:** 2026-04-17  
 
-## Audit scope
+Single-place summary of **what the product is today** and how documentation should talk about it. Align with [`07-roadmap.md`](07-roadmap.md), [`todo-full-implementation.md`](todo-full-implementation.md), and [`03-ui-ux-spec.md`](03-ui-ux-spec.md).
 
-- App architecture and core feature surfaces
-- Lighting/DMX stack (patch, cues, modulation, stage, preview, verification)
-- Control and integration surfaces (web control, MIDI mapping, project/context export)
-- Documentation/roadmap/todo alignment
+## Product positioning
 
-## Implemented systems
+- **Cosmic Visualizer** (repo: FS-COS-VIS) is a **late-stage beta** macOS application: hybrid **real-time visualization + live/show control**, not a Cursor starter template.
+- **Intentional IA decision:** There is **no standalone “Palette Browser” or “Overlay Manager” screen**. Palette creation/selection and overlay authoring live in **Scene Studio** by design. Documentation must describe that consolidation, not treat those as missing features.
 
-### Core visualization and performance UI
+## Implemented — core visualization and UI
 
-- Scene management, scene editing, and cue-strip surfaces for live/studio workflows
-- Fractal + liquid renderer pipeline with composite pass and palette/theme controls
-- Live show and scene studio views with scalable preview/cue panels
-- External display output routing and presentation flow
+- Scene library, scene editing, scene cue strip, transitions  
+- Fractal + liquid-light rendering, composite pass, palette/theme systems  
+- **Live Show** and **Scene Studio** with scalable previews; performance vs authoring split  
+- External display routing and fullscreen presentation  
+- **Infinite zoom** motion modes (Standard, Infinite Tunnel, Event Horizon) with expanded zoom modulation  
+- Overlay cards, import flows, black-background removal tooling (authoring-adjacent; some actions also reachable from Live Show)  
 
-### Audio analysis and routing
+## Implemented — audio
 
-- Audio device enumeration and selection
-- Audio feature extraction (FFT, RMS/peak/flux, BPM feeds)
-- Input channel selection with stereo pairs / mono / mix-all modes
-- OBS-forwarding support path via CoreAudio device/aggregate workflows
+- Input device enumeration and selection  
+- **Input channel modes:** stereo pairs, mono, mix-all  
+- FFT / RMS / peak / flux, BPM and beat-confidence feeds  
+- Microphone permission: explicit request on audio start + **Open Microphone Settings** / retry flows (important after new installs/builds)  
+- OBS / forwarding-oriented audio path documentation in Settings  
 
-### Lighting and DMX stack
+## Implemented — live output and capture
 
-- Fixture models, profile library, patch instances, conflict audit, and persistence
-- DMX universe builder including cues, crossfade, and modulation merge
-- Fog/haze learn workflow and emergency haze kill controls
-- DMX output abstraction with hardware and simulated transport
-- Stage layout editing with fixture placement + rotation
-- 2.5D preview driven from built DMX universe
-- Backdrop cues and stage snapshot recall
-- OFL import + curated catalog sync + fog/haze fixture tagging
-- Fixture verification workflow with assisted camera-based scans and persisted reports
+- **Live output recorder:** main preview or external output, quality presets (fps/bitrate), project-local `Media/Recordings` when a show folder is active  
+- Share/reveal recording; health indicators for window availability and screen/microphone permissions  
+- **Remote/OSS parity:** recorder start/stop, source, quality; status and latest path exposed via web `/api/state` and OSC (`/cosmic/recording/*`)  
 
-### Stage plot and scan-planning additions
+## Implemented — control and integration
 
-- Stage dimensions persisted and editable
-- Common stage gear/instrument objects (drag/scale/rotate/label)
-- Real-space object footprint auto-scaling against stage dimensions
-- Primary/secondary scan camera overlays on stage plot (position + angle wedges)
-- Optional secondary iOS continuity-camera path in fixture verification flow
+- Native **Controller** surface; tempo, learn, faders, DMX-oriented group controls  
+- **HTTP + WebSocket** remote control; `WebControlStateDTO` / schema  
+- **MIDI** mapping store and device integration  
+- **OSC** UDP listener (port, LAN bind, optional token), command mapping, `/cosmic/state/get` JSON snapshot aligned with web state  
+- Setup **wizard** (beta 0.1a): skippable steps, project/audio/output/DMX/AI, provider-specific AI API onboarding (e.g. OpenAI-compatible vs Anthropic)  
+- Optional **analytics** for wizard completion/skip and exportable onboarding diagnostics  
 
-### Integration and context surfaces
+## Implemented — lighting and DMX
 
-- Web control server/state DTO updates for lighting features
-- Project save/load bundle support for lighting/state artifacts
-- AI context export paths and calibration/report artifact persistence
+- Fixture profiles/instances, patch document, conflict audit, persistence  
+- Cues, crossfade, bookmark metadata for overlay text substitution; overlay element timeouts  
+- Modulation runtime merged into DMX build  
+- Stage layout, 2D editor, 2.5D preview, backdrop cues, gear objects, scan-camera overlays (primary + optional secondary / continuity-style path)  
+- Fog/haze learn, emergency kill, cue envelopes  
+- **OFL import** and **curated catalog** sync; **merged fallback fixture list** for offline coverage (`ofl_curated` vs `curated_local` catalog sources)  
+- **Fixture verification** workflow, reports, scan wizard steps, severity filters, correction shortcuts  
+- **JSON** import/export helpers in Lighting workspace (power user)  
 
-## Documentation alignment outcome
+## Implemented — network DMX (partial / honest scaffolds)
 
-- `README.md` updated with current capability status and where to find roadmap/todo docs
-- `docs/07-roadmap.md` updated from legacy phase list to status-oriented roadmap
-- `docs/lighting-roadmap.md` updated with completed status + remaining roadmap
-- `docs/todo-full-implementation.md` added as consolidated backlog
-- `docs/fs-cos-vis-cursor-context-pack-updated/` reviewed and folded into current execution priorities
+- **Art-Net** and **sACN** output modes: settings, UDP send path, packet construction, tests; **multi-universe and production hardening** still backlog  
+- **Inbound** Art-Net/sACN listener scaffold: universe filter, HTP/LPT merge, diagnostics  
+- **RDM** discovery: operator controls + **mock/deterministic** probe for workflow; real RDM stack TBD  
+- **DMX performance profiler:** tick timings, over-budget frames, Settings diagnostics  
 
-## Context-pack audit deltas (integrated)
+## Implemented — project packaging and ops
 
-- Treat the product as late-stage hybrid visualizer + show-control (completion-first, not starter scaffolding)
-- Track explicit spec-alignment checks for:
-  - dedicated palette browser vs current Scene Studio flow
-  - dedicated overlay manager vs current consolidated authoring flow
-  - quick palette access in live workflow
-- Maintain anti-duplication discipline: refine existing systems before introducing parallel UI or storage paths
+- Show **project folder** save/load (JSON documents + `Media/`, `Artifacts/`, `Backups/`)  
+- **`.cosmicshow.zip`** archive export/import from Settings  
+- **CI:** `show-package-smoke` workflow + `scripts/ci/smoke-show-package.sh`  
+- **Beta updates** (Sparkle-oriented), **feedback** bundles and optional GitHub issue submission  
 
-## Gaps and risks (remaining backlog)
+## Documentation and audit alignment
 
-- Automated CV-based spatial fixture localization beyond luma heuristics
-- True multi-universe network DMX (Art-Net/sACN) and inbound DMX/RDM workflows
-- Expanded automated test coverage for dual-camera verification and stage-plot camera overlays
-- Broader fixture knowledge sources beyond OFL-first strategy (still OFL-centric by design)
-- Performance hardening/telemetry for large patches and high-modulator loads
+- [`README.md`](../README.md) describes beta product, not “Cursor starter.”  
+- Roadmap, backlog, and this file should stay consistent; large releases should update [`todo-full-implementation.md`](todo-full-implementation.md) open items.  
+- Full narrative audit and copies of roadmap/todo/UI spec live under [`fs-cos-vis-audit-and-docs-update/`](fs-cos-vis-audit-and-docs-update/README_REPLACEMENT.md).  
 
-## Recommended near-term execution order
+## Remaining gaps (see also backlog)
 
-1. Stabilize fixture verification with deterministic tests and confidence scoring.
-2. Add stage-plot UX polish (snap/grid/layer locking/duplicate/group).
-3. Extend DMX transport to network multi-universe roadmap.
-4. Complete integration-test matrix for web control + project import/export.
-
+- **Documentation/UI polish:** README-aligned docs everywhere; Live Show meter/beat pulse and action-band hierarchy ([`03-ui-ux-spec.md`](03-ui-ux-spec.md), [`todo-full-implementation.md`](todo-full-implementation.md)).  
+- **Network DMX:** finish multi-universe Art-Net/sACN, production inbound merge, RDM beyond mock.  
+- **OSC/web/MIDI:** systematic parity matrix vs native actions.  
+- **Release:** prove signed/notarized pipeline and Sparkle publication on real artifacts.  
+- **Verification:** stronger confidence scoring and CV depth beyond heuristics (where product requires it).  

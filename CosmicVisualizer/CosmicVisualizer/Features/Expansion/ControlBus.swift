@@ -83,12 +83,61 @@ final class OSCControlBusStub: ControlBus {
         case "/cosmic/tempo/bpm":
             guard let v = floatValue else { return nil }
             return RemoteControlCommand(type: "SetManualBPM", bpm: Double(v))
+        case "/cosmic/tempo/source":
+            guard let raw = stringValue else { return nil }
+            return RemoteControlCommand(type: "SetTempoSource", source: raw)
+        case "/cosmic/scene/index":
+            let idx = intValue ?? Int(floatValue ?? -1)
+            guard idx >= 0 else { return nil }
+            return RemoteControlCommand(type: "JumpToSceneIndex", index: idx)
         case "/cosmic/fractal/zoom":
             guard let v = floatValue else { return nil }
             return RemoteControlCommand(type: "SetFractalZoom", fractalZoom: v)
         case "/cosmic/liquid/turbulence":
             guard let v = floatValue else { return nil }
             return RemoteControlCommand(type: "SetLiquidTurbulence", liquidTurbulence: v)
+        case "/cosmic/liquid/focus":
+            guard let v = floatValue else { return nil }
+            return RemoteControlCommand(type: "SetLiquidFocus", liquidFocus: v)
+        case "/cosmic/fractal/appearance":
+            guard let v = floatValue else { return nil }
+            return RemoteControlCommand(type: "SetFractalAppearance", fractalAppearance: v)
+        case "/cosmic/fractal/overlay_fusion":
+            guard let v = floatValue else { return nil }
+            return RemoteControlCommand(type: "SetOverlayFractalFusion", overlayFractalFusion: v)
+        case "/cosmic/fractal/explore":
+            guard let v = floatValue else { return nil }
+            return RemoteControlCommand(type: "SetFractalExplore", fractalExplore: v)
+        case "/cosmic/fractal/explore_speed":
+            guard let v = floatValue else { return nil }
+            return RemoteControlCommand(type: "SetFractalExploreSpeed", fractalExploreSpeed: v)
+        case "/cosmic/fractal/iter_boost":
+            guard let v = floatValue else { return nil }
+            return RemoteControlCommand(type: "SetFractalIterBoost", fractalIterBoost: v)
+        case "/cosmic/fractal/zoom_effect":
+            let idx = intValue ?? Int(floatValue ?? -1)
+            guard (0 ... 2).contains(idx) else { return nil }
+            return RemoteControlCommand(type: "SetZoomEffectType", index: idx)
+        case "/cosmic/liquid/reconstitute_amount":
+            guard let v = floatValue else { return nil }
+            return RemoteControlCommand(type: "SetLiquidReconstituteAmount", liquidReconstituteAmount: v)
+        case "/cosmic/liquid/reconstitute_rate":
+            guard let v = floatValue else { return nil }
+            return RemoteControlCommand(type: "SetLiquidReconstituteRate", liquidReconstituteRate: v)
+        case "/cosmic/liquid/reconstitute_bpm_sync":
+            return RemoteControlCommand(type: "SetLiquidReconstituteBPMSync", enabled: boolValue)
+        case "/cosmic/liquid/dye_mix":
+            guard let v = floatValue else { return nil }
+            return RemoteControlCommand(type: "SetDyeMix", dyeMix: v)
+        case "/cosmic/fractal/smooth_shading":
+            guard let v = floatValue else { return nil }
+            return RemoteControlCommand(type: "SetFractalSmoothShading", fractalSmoothShading: v)
+        case "/cosmic/composite/bloom":
+            guard let v = floatValue else { return nil }
+            return RemoteControlCommand(type: "SetCompositeBloomStrength", compositeBloomStrength: v)
+        case "/cosmic/composite/vignette":
+            guard let v = floatValue else { return nil }
+            return RemoteControlCommand(type: "SetCompositeVignetteStrength", compositeVignetteStrength: v)
         case "/cosmic/composite/blend":
             guard let v = floatValue else { return nil }
             return RemoteControlCommand(type: "SetCompositeBlend", compositeBlend: v)
@@ -108,6 +157,10 @@ final class OSCControlBusStub: ControlBus {
             let idx = intValue ?? Int(floatValue ?? -1)
             guard idx >= 0 else { return nil }
             return RemoteControlCommand(type: "SetActiveLightingCueIndex", index: idx)
+        case "/cosmic/lighting/cue/next":
+            return RemoteControlCommand(type: "NextLightingCue")
+        case "/cosmic/lighting/cue/previous":
+            return RemoteControlCommand(type: "PreviousLightingCue")
         case "/cosmic/recording/start":
             return RemoteControlCommand(type: "StartLiveOutputRecording")
         case "/cosmic/recording/stop":

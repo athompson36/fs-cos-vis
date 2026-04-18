@@ -3,10 +3,23 @@ import CoreMIDI
 import CoreAudio
 import SwiftUI
 
+private enum SettingsTransportUITier: String, CaseIterable {
+    case basic
+    case advanced
+
+    var label: String {
+        switch self {
+        case .basic: "Basic"
+        case .advanced: "Advanced"
+        }
+    }
+}
+
 struct SettingsView: View {
     @EnvironmentObject private var appModel: AppModel
     @StateObject private var sweepCalibration = DMXSweepCalibrationService()
     @StateObject private var webcam = WebcamCaptureService()
+    @AppStorage("settings.transportUITier") private var transportUITierRaw = SettingsTransportUITier.basic.rawValue
     @State private var midiSources: [(uid: Int32, name: String)] = []
     @State private var dmxDevicePaths: [String] = []
     @State private var llmKeyDraft = ""
@@ -486,127 +499,219 @@ private extension SettingsView {
     }
 
     var dmxSection: some View {
-        GroupBox("DMX output") {
-            VStack(alignment: .leading, spacing: 10) {
-                Toggle("DMX output enabled", isOn: boolBinding(\.dmxOutputEnabled))
-                Picker("DMX output mode", selection: stringBinding(\.dmxOutputMode)) {
-                    Text("Hardware interface").tag("hardware")
-                    Text("Simulated interface (offline)").tag("simulated")
-                    Text("Art-Net (scaffold)").tag("artnet")
-                    Text("sACN E1.31 (scaffold)").tag("sacn")
+        GroupBox("DMX & network transport") {
+            VStack(alignment: .leading, spacing: 12) {
+                transportTierPicker
+                Text(transportTierCaption)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                dmxOutputCoreBlock
+                if transportUITier == .advanced {
+                    dmxOutputDiagnosticsGroup
+                }
+                Divider()
+                dmxInboundCoreBlock
+                if transportUITier == .advanced {
+                    dmxTransportDiagnosticsGroups
+                }
+                Divider()
+                dmxRDMTieredBlock
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var transportUITier: SettingsTransportUITier {
+        SettingsTransportUITier(rawValue: transportUITierRaw) ?? .basic
+    }
+
+    private var transportTierCaption: String {
+        switch transportUITier {
+        case .basic:
+            return "Basic: enable transport, pick hardware or network endpoints, and configure inbound merge. Switch to Advanced for live diagnostics, frame timing, and full RDM controls."
+        case .advanced:
+            return "Advanced: adds streaming status, inbound receiver stats, frame-budget timings, and RDM probe tooling."
+        }
+    }
+
+    private var transportTierPicker: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Text("Detail")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Picker("Transport detail level", selection: $transportUITierRaw) {
+                ForEach(SettingsTransportUITier.allCases, id: \.rawValue) { tier in
+                    Text(tier.label).tag(tier.rawValue)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 280)
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var dmxOutputCoreBlock: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("DMX output")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Toggle("DMX output enabled", isOn: boolBinding(\.dmxOutputEnabled))
+            Picker("DMX output mode", selection: stringBinding(\.dmxOutputMode)) {
+                Text("Hardware interface").tag("hardware")
+                Text("Simulated interface (offline)").tag("simulated")
+                Text("Art-Net (scaffold)").tag("artnet")
+                Text("sACN E1.31 (scaffold)").tag("sacn")
+            }
+            .pickerStyle(.menu)
+            .frame(maxWidth: 320, alignment: .leading)
+            if appModel.remoteSettings.dmxOutputMode == "simulated" {
+                Picker("Simulated adapter", selection: stringBinding(\.dmxSimulatedInterface)) {
+                    Text("Enttec Open DMX").tag("enttec_open_dmx")
+                    Text("Enttec DMX USB Pro").tag("enttec_usb_pro")
+                    Text("Generic USB-DMX").tag("generic_usb_dmx")
                 }
                 .pickerStyle(.menu)
                 .frame(maxWidth: 320, alignment: .leading)
-                if appModel.remoteSettings.dmxOutputMode == "simulated" {
-                    Picker("Simulated adapter", selection: stringBinding(\.dmxSimulatedInterface)) {
-                        Text("Enttec Open DMX").tag("enttec_open_dmx")
-                        Text("Enttec DMX USB Pro").tag("enttec_usb_pro")
-                        Text("Generic USB-DMX").tag("generic_usb_dmx")
-                    }
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: 320, alignment: .leading)
-                }
+            }
                 if appModel.remoteSettings.dmxOutputMode == "artnet" {
                     TextField("Art-Net target host/IP", text: stringBinding(\.dmxArtNetHost))
                         .textFieldStyle(.roundedBorder)
                         .frame(maxWidth: 320)
                     Stepper(
-                        "Network universe: \(max(0, appModel.remoteSettings.dmxNetworkUniverse))",
+                        "Network universe offset: \(max(0, appModel.remoteSettings.dmxNetworkUniverse))",
                         value: intBinding(\.dmxNetworkUniverse),
                         in: 0 ... 32767
                     )
                     .frame(maxWidth: 320, alignment: .leading)
-                    Text("Scaffold mode: packet formatting and diagnostics are wired; full UDP output routing is next.")
+                    Text("Each patched fixture universe is sent as its own ArtDMX packet; this value is added to every fixture’s universe index (multi-universe rigs).")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if transportUITier == .advanced {
+                        Text("UDP to port 6454; diagnostics show UDP packets per timer tick when output is running.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 if appModel.remoteSettings.dmxOutputMode == "sacn" {
                     TextField("sACN destination host", text: stringBinding(\.dmxSACNHost))
                         .textFieldStyle(.roundedBorder)
                         .frame(maxWidth: 320)
                     Stepper(
-                        "Network universe: \(max(0, appModel.remoteSettings.dmxNetworkUniverse))",
+                        "Network universe offset: \(max(0, appModel.remoteSettings.dmxNetworkUniverse))",
                         value: intBinding(\.dmxNetworkUniverse),
                         in: 0 ... 63999
                     )
                     .frame(maxWidth: 320, alignment: .leading)
-                    Text("Scaffold mode: framing and diagnostics are wired; multicast/unicast send is next.")
+                    Text("One scaffold E1.31-style frame per logical fixture universe; offset is added to each fixture’s universe index.")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                }
-                Picker("Detected DMX USB interfaces", selection: dmxPathSelectionBinding) {
-                    Text("Select detected interface").tag("")
-                    ForEach(dmxDevicePaths, id: \.self) { path in
-                        Text(path).tag(path)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if transportUITier == .advanced {
+                        Text("Full E1.31 root/data layer and multicast discovery remain roadmap items.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
                 }
-                .pickerStyle(.menu)
-                .frame(maxWidth: 420, alignment: .leading)
-                .disabled(appModel.remoteSettings.dmxOutputMode != "hardware")
-                HStack(spacing: 8) {
-                    Button("Rescan DMX interfaces") {
-                        refreshDMXDevices()
+            Picker("Detected DMX USB interfaces", selection: dmxPathSelectionBinding) {
+                Text("Select detected interface").tag("")
+                ForEach(dmxDevicePaths, id: \.self) { path in
+                    Text(path).tag(path)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(maxWidth: 420, alignment: .leading)
+            .disabled(appModel.remoteSettings.dmxOutputMode != "hardware")
+            HStack(spacing: 8) {
+                Button("Rescan DMX interfaces") {
+                    refreshDMXDevices()
+                }
+                .controlSize(.small)
+                TextField("/dev/cu.usbserial-*", text: stringBinding(\.dmxSerialDevicePath))
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 420)
+            }
+            .disabled(appModel.remoteSettings.dmxOutputMode != "hardware")
+        }
+    }
+
+    private var dmxOutputDiagnosticsGroup: some View {
+        GroupBox {
+            TimelineView(.periodic(from: .now, by: 0.5)) { _ in
+                let d = appModel.dmxOutputDiagnostics()
+                HStack(alignment: .top, spacing: 8) {
+                    Text("Status")
+                        .font(.caption.weight(.semibold))
+                    if appModel.remoteSettings.dmxOutputEnabled {
+                        Text(d.running ? "Streaming ~\(Int(d.nominalHz)) Hz · \(d.packetsLastTimerTick) UDP pkt/tick" : "Enabled · idle (no frames or device closed)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Output disabled")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                    .controlSize(.small)
-                    TextField("/dev/cu.usbserial-*", text: stringBinding(\.dmxSerialDevicePath))
-                        .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: 420)
-                }
-                .disabled(appModel.remoteSettings.dmxOutputMode != "hardware")
-                TimelineView(.periodic(from: .now, by: 0.5)) { _ in
-                    let d = appModel.dmxOutputDiagnostics()
-                    HStack(alignment: .top, spacing: 8) {
-                        Text("Status")
-                            .font(.caption.weight(.semibold))
-                        if appModel.remoteSettings.dmxOutputEnabled {
-                            Text(d.running ? "Streaming ~\(Int(d.nominalHz)) Hz" : "Enabled · idle (no frames or device closed)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Text("Output disabled")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        if let err = d.lastError, !err.isEmpty {
-                            Text(err)
-                                .font(.caption)
-                                .foregroundStyle(.red)
-                        }
+                    if let err = d.lastError, !err.isEmpty {
+                        Text(err)
+                            .font(.caption)
+                            .foregroundStyle(.red)
                     }
                 }
-                if appModel.remoteSettings.dmxOutputMode == "simulated",
-                   let sim = appModel.dmxSimulationSnapshot() {
-                    Text("Simulation: \(sim.info) · Ch1=\(sim.universe.first ?? 0)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                Divider()
-                Toggle("Enable inbound DMX merge", isOn: boolBinding(\.dmxInboundEnabled))
-                Picker("Inbound mode", selection: stringBinding(\.dmxInboundMode)) {
-                    Text("Art-Net").tag("artnet")
-                    Text("sACN").tag("sacn")
-                }
-                .pickerStyle(.menu)
-                .frame(maxWidth: 320, alignment: .leading)
-                .disabled(!appModel.remoteSettings.dmxInboundEnabled)
-                Stepper(
-                    "Inbound universe: \(max(0, appModel.remoteSettings.dmxInboundUniverse))",
-                    value: intBinding(\.dmxInboundUniverse),
-                    in: 0 ... 63999
-                )
-                .frame(maxWidth: 320, alignment: .leading)
-                .disabled(!appModel.remoteSettings.dmxInboundEnabled)
-                Picker("Inbound merge mode", selection: stringBinding(\.dmxInboundMergeMode)) {
-                    Text("HTP (highest takes precedence)").tag("htp")
-                    Text("LTP/LPT (latest inbound frame)").tag("lpt")
-                }
-                .pickerStyle(.menu)
-                .frame(maxWidth: 320, alignment: .leading)
-                .disabled(!appModel.remoteSettings.dmxInboundEnabled)
+            }
+            if appModel.remoteSettings.dmxOutputMode == "simulated",
+               let sim = appModel.dmxSimulationSnapshot() {
+                Text("Simulation: \(sim.info) · Ch1=\(sim.universe.first ?? 0)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        } label: {
+            Label("Diagnostics · DMX output stream", systemImage: "arrow.up.circle")
+                .font(.caption.weight(.semibold))
+        }
+    }
+
+    private var dmxInboundCoreBlock: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Inbound DMX merge")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text("Listener decodes one Art-Net or sACN universe at a time (desk merge into local build). Multi-universe inbound is roadmap.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+            Toggle("Enable inbound DMX merge", isOn: boolBinding(\.dmxInboundEnabled))
+            Picker("Inbound mode", selection: stringBinding(\.dmxInboundMode)) {
+                Text("Art-Net").tag("artnet")
+                Text("sACN").tag("sacn")
+            }
+            .pickerStyle(.menu)
+            .frame(maxWidth: 320, alignment: .leading)
+            .disabled(!appModel.remoteSettings.dmxInboundEnabled)
+            Stepper(
+                "Inbound universe: \(max(0, appModel.remoteSettings.dmxInboundUniverse))",
+                value: intBinding(\.dmxInboundUniverse),
+                in: 0 ... 63999
+            )
+            .frame(maxWidth: 320, alignment: .leading)
+            .disabled(!appModel.remoteSettings.dmxInboundEnabled)
+            Picker("Inbound merge mode", selection: stringBinding(\.dmxInboundMergeMode)) {
+                Text("HTP (highest takes precedence)").tag("htp")
+                Text("LTP/LPT (latest inbound frame)").tag("lpt")
+            }
+            .pickerStyle(.menu)
+            .frame(maxWidth: 320, alignment: .leading)
+            .disabled(!appModel.remoteSettings.dmxInboundEnabled)
+        }
+    }
+
+    private var dmxTransportDiagnosticsGroups: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            GroupBox {
                 TimelineView(.periodic(from: .now, by: 0.5)) { _ in
                     let inbound = appModel.dmxInboundDiagnostics()
                     HStack(alignment: .top, spacing: 8) {
-                        Text("Inbound")
+                        Text("Receiver")
                             .font(.caption.weight(.semibold))
                         Text(inbound.running ? "\(inbound.status) · frames: \(inbound.frames)" : inbound.status)
                             .font(.caption)
@@ -618,10 +723,15 @@ private extension SettingsView {
                         }
                     }
                 }
+            } label: {
+                Label("Diagnostics · Inbound DMX", systemImage: "arrow.down.circle")
+                    .font(.caption.weight(.semibold))
+            }
+            GroupBox {
                 TimelineView(.periodic(from: .now, by: 1.0)) { _ in
                     let perf = appModel.dmxPerformanceDiagnostics()
                     HStack(alignment: .top, spacing: 8) {
-                        Text("Perf")
+                        Text("Build / send")
                             .font(.caption.weight(.semibold))
                         Text(
                             "frames: \(perf.frameCount) · avg build: \(String(format: "%.2f", perf.avgBuildMS)) ms · avg send: \(String(format: "%.2f", perf.avgSendMS)) ms · avg total: \(String(format: "%.2f", perf.avgTotalMS)) ms · max: \(String(format: "%.2f", perf.maxTotalMS)) ms · over budget: \(perf.overBudgetFrameCount)"
@@ -630,8 +740,26 @@ private extension SettingsView {
                         .foregroundStyle(.secondary)
                     }
                 }
-                Divider()
-                Toggle("Enable RDM discovery scaffold", isOn: boolBinding(\.rdmDiscoveryEnabled))
+            } label: {
+                Label("Diagnostics · Frame timing", systemImage: "timer")
+                    .font(.caption.weight(.semibold))
+            }
+        }
+    }
+
+    private var dmxRDMTieredBlock: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("RDM discovery")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Toggle("Enable RDM discovery scaffold", isOn: boolBinding(\.rdmDiscoveryEnabled))
+            if transportUITier == .basic {
+                if appModel.remoteSettings.rdmDiscoveryEnabled {
+                    Text("Advanced detail shows universe, transport, probes, and last results.")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
+            } else {
                 Picker("RDM transport", selection: stringBinding(\.rdmDiscoveryTransportMode)) {
                     Text("Hardware (USB/OpenDMX path)").tag("hardware")
                     Text("Art-Net").tag("artnet")
@@ -663,7 +791,6 @@ private extension SettingsView {
                         .foregroundStyle(.secondary)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

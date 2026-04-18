@@ -62,6 +62,7 @@
 		7905F2DB84848CAE782CE870 /* FixtureModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E870BA0E74F8A6BF0C0C3A4E /* FixtureModels.swift */; };
 		79AE39520F996D7863018983 /* CosmicShellBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30CAAB859911090B4FC7C7E5 /* CosmicShellBackground.swift */; };
 		7B2BEDC3954826F8D8ADEFD2 /* AudioDeviceEnumeratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5555298E0620E58398D85BD1 /* AudioDeviceEnumeratorTests.swift */; };
+		7BE37A61913C4A3153B25477 /* Syphon.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 3B93EA5C7C94F7F8800D440D /* Syphon.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		824E80CFF778ABD1BF01824C /* AppUpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09DAA68A7740EAFAAF7D551D /* AppUpdateService.swift */; };
 		831FCD5517BC95C1ECBDD935 /* FeedbackAndLogsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D81DA29836C046402C834924 /* FeedbackAndLogsService.swift */; };
 		84AE3653AECA8C3ABEB8BB64 /* OverlayCardModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 782A2D3B26E049FCB67F904D /* OverlayCardModels.swift */; };
@@ -82,8 +83,6 @@
 		A5F651648501D05A378BF0D5 /* FixtureVerificationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F22CA64D1CE3BA2DF8C58DD2 /* FixtureVerificationModels.swift */; };
 		A612CC30D82A7B3340E05AED /* LightingCueModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F68C0F66E40B10F139A6B28A /* LightingCueModels.swift */; };
 		ABC65448AED0460ABC4E8DB9 /* FixtureVerificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E878DE6D64E80CF9E5549A2 /* FixtureVerificationService.swift */; };
-		AF29305672FFB67BA0C560D7 /* OpenVideoTap.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 018341536E5E167B8315AB46 /* OpenVideoTap.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		B0F37127AED6200C16D25ACC /* OpenVideoTap.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 018341536E5E167B8315AB46 /* OpenVideoTap.framework */; };
 		B120C6B5B3BE306D8DDAC67C /* ControlBusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F8F27850520A35785F34A01 /* ControlBusTests.swift */; };
 		B2964E5EA89D0E01486CDDE2 /* LiveShowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 519456B6D25C34DFCE705B4C /* LiveShowView.swift */; };
 		B2A06E0FEC17DAE0F13C331A /* WebAPIRequestBodies.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6412F84A966B3621CAE46B0 /* WebAPIRequestBodies.swift */; };
@@ -112,6 +111,7 @@
 		DB464D622D356775E94ABF84 /* FlyingFox in Frameworks */ = {isa = PBXBuildFile; productRef = 1D8C0BA17C3DE08F86E02506 /* FlyingFox */; };
 		DBB4A6776E4CFE49D8C09137 /* OverlayBlendModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC8A105CE5B22CD1BD6BAAF4 /* OverlayBlendModeTests.swift */; };
 		DCB614670BE432B7B57B7180 /* OverlayCardAuthoringView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA6B6BAE7E191DAC995F5437 /* OverlayCardAuthoringView.swift */; };
+		DCD37D851D63BB62543D93D3 /* Syphon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3B93EA5C7C94F7F8800D440D /* Syphon.framework */; };
 		DD5364D892BD1B698DBF4CA6 /* LiveShowCueStripsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36243DAF37E67DD52263162B /* LiveShowCueStripsView.swift */; };
 		DF69428FC2DA7A79FA542F44 /* ControllerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45FC5017C9CF68DAF44AD77F /* ControllerView.swift */; };
 		E00A224DBCC3D63672F3ED4A /* FractalPass.metal in Sources */ = {isa = PBXBuildFile; fileRef = 6D79C94381A6D0EB1D766752 /* FractalPass.metal */; };
@@ -135,6 +135,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		3100B1536D03AE48CC14282E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 95527101B7FD36890719B339 /* Syphon */;
+			proxyType = 2;
+			remoteGlobalIDString = 8DC2EF5B0486A6940098B216;
+			remoteInfo = Syphon;
+		};
 		38C4CBB570764C6E7659B83E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 95527101B7FD36890719B339 /* Syphon */;
@@ -149,13 +156,6 @@
 			remoteGlobalIDString = 0A0F824F47B32EA22C288ADE;
 			remoteInfo = CosmicVisualizer;
 		};
-		8911CC634661266529E9F9A4 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 95527101B7FD36890719B339 /* Syphon */;
-			proxyType = 2;
-			remoteGlobalIDString = 8DC2EF5B0486A6940098B216;
-			remoteInfo = Syphon;
-		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -165,7 +165,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				AF29305672FFB67BA0C560D7 /* OpenVideoTap.framework in Embed Frameworks */,
+				7BE37A61913C4A3153B25477 /* Syphon.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -307,7 +307,7 @@
 			files = (
 				DB464D622D356775E94ABF84 /* FlyingFox in Frameworks */,
 				B3596DD98B936F74EA716DFC /* Sparkle in Frameworks */,
-				B0F37127AED6200C16D25ACC /* OpenVideoTap.framework in Frameworks */,
+				DCD37D851D63BB62543D93D3 /* Syphon.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -532,7 +532,7 @@
 		C6A087A1C52CEE02055116CE /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				018341536E5E167B8315AB46 /* OpenVideoTap.framework */,
+				3B93EA5C7C94F7F8800D440D /* Syphon.framework */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -683,10 +683,10 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					0A0F824F47B32EA22C288ADE = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = FH4FKB9AUS;
 					};
 					9B69DDD1DD5A4F82C4CEDF41 = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = FH4FKB9AUS;
 					};
 				};
 			};
@@ -721,11 +721,11 @@
 /* End PBXProject section */
 
 /* Begin PBXReferenceProxy section */
-		018341536E5E167B8315AB46 /* OpenVideoTap.framework */ = {
+		3B93EA5C7C94F7F8800D440D /* Syphon.framework */ = {
 			isa = PBXReferenceProxy;
 			fileType = wrapper.framework;
-			path = OpenVideoTap.framework;
-			remoteRef = 8911CC634661266529E9F9A4 /* PBXContainerItemProxy */;
+			path = Syphon.framework;
+			remoteRef = 3100B1536D03AE48CC14282E /* PBXContainerItemProxy */;
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
 /* End PBXReferenceProxy section */
@@ -949,7 +949,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = FH4FKB9AUS;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -1073,7 +1073,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = FH4FKB9AUS;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;

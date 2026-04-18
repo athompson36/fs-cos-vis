@@ -44,6 +44,8 @@ struct LiveShowView: View {
                 }
 
                 devicePicker
+                audioLevelAndBeatPulseRow
+                liveContextSummaryStrip
 
                 fogHazeEmergencyRow
 
@@ -62,7 +64,6 @@ struct LiveShowView: View {
                         scalablePanel(scale: $showCueScale) {
                             LiveShowCueStripsView(chipScale: showCueScale)
                         }
-                        tempoStatusRow
                     } else if appModel.remoteSettings.lightingPerformanceStripEnabled
                         || appModel.remoteSettings.backdropPerformanceStripEnabled {
                         scalablePanel(scale: $showCueScale) {
@@ -75,7 +76,7 @@ struct LiveShowView: View {
                         .frame(maxWidth: .infinity, minHeight: 200)
                 }
 
-                liveSceneControls
+                performanceSceneActionsRow
                 quickPaletteControls
                 recordingControls
                 overlayAndLiquidToggles
@@ -118,6 +119,101 @@ struct LiveShowView: View {
         }
     }
 
+    /// Visible RMS level + beat-phase ring (`AppModel.tempoClock`).
+    private var audioLevelAndBeatPulseRow: some View {
+        GroupBox {
+            HStack(alignment: .center, spacing: 16) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Input level")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    GeometryReader { geo in
+                        let rms = Double(appModel.audioEngine.features.rms)
+                        let width = max(4, geo.size.width * min(1, rms * 4.2))
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(Color.white.opacity(0.1))
+                            Capsule()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.cyan.opacity(0.85), Color.purple.opacity(0.75)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: width)
+                        }
+                    }
+                    .frame(height: 10)
+                    Text(String(format: "Peak %.0f%% · RMS %.0f%%", appModel.audioEngine.features.peak * 100, appModel.audioEngine.features.rms * 100))
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.tertiary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                VStack(spacing: 4) {
+                    Text("Beat")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    ZStack {
+                        Circle()
+                            .stroke(Color.pink.opacity(0.25), lineWidth: 3)
+                            .frame(width: 46, height: 46)
+                        Circle()
+                            .trim(from: 0, to: CGFloat(min(1, max(0, appModel.tempoClock.beatPhase))))
+                            .stroke(
+                                AngularGradient(colors: [Color.pink, Color.orange, Color.pink], center: .center),
+                                style: StrokeStyle(lineWidth: 4, lineCap: .round)
+                            )
+                            .frame(width: 46, height: 46)
+                            .rotationEffect(.degrees(-90))
+                            .animation(.easeInOut(duration: 0.08), value: appModel.tempoClock.beatPhase)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var liveContextSummaryStrip: some View {
+        let sceneName: String = {
+            guard appModel.sceneManager.scenes.indices.contains(appModel.sceneManager.currentIndex) else { return "—" }
+            return appModel.sceneManager.scenes[appModel.sceneManager.currentIndex].name
+        }()
+        let paletteName: String = {
+            guard let id = appModel.selectedPaletteID,
+                  let p = appModel.palettes.first(where: { $0.id == id }) else { return "—" }
+            return p.name
+        }()
+        let cueName: String = {
+            guard let idx = appModel.lightingCueDocument.activeCueIndex,
+                  appModel.lightingCueDocument.cues.indices.contains(idx) else { return "—" }
+            return appModel.lightingCueDocument.cues[idx].name
+        }()
+        return GroupBox("Active") {
+            HStack(alignment: .top, spacing: 20) {
+                summaryLabeledColumn(title: "Scene", value: sceneName)
+                summaryLabeledColumn(title: "Palette", value: paletteName)
+                summaryLabeledColumn(title: "Lighting cue", value: cueName)
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func summaryLabeledColumn(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+        .frame(maxWidth: 200, alignment: .leading)
+    }
+
     private var fogHazeEmergencyRow: some View {
         GroupBox {
             HStack(alignment: .center, spacing: 12) {
@@ -156,40 +252,87 @@ struct LiveShowView: View {
         }
     }
 
-    private var liveSceneControls: some View {
-        HStack(spacing: 12) {
-            Button("Previous") {
-                appModel.previousScene()
-            }
-            .keyboardShortcut(.leftArrow, modifiers: [])
+    /// Performance: scene transport, tempo readout, tap; overlay file tools tucked into a menu.
+    private var performanceSceneActionsRow: some View {
+        GroupBox("Performance") {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 12) {
+                    Button("Previous") {
+                        appModel.previousScene()
+                    }
+                    .keyboardShortcut(.leftArrow, modifiers: [])
 
-            Button("Next") {
-                appModel.nextScene()
-            }
-            .keyboardShortcut(.rightArrow, modifiers: [])
+                    Button("Next") {
+                        appModel.nextScene()
+                    }
+                    .keyboardShortcut(.rightArrow, modifiers: [])
 
-            Button("Random") {
-                appModel.randomScene()
-            }
+                    Button("Random") {
+                        appModel.randomScene()
+                    }
 
-            Button("Fullscreen this window") {
-                appModel.toggleMainWindowFullscreen()
-            }
-            .keyboardShortcut("f", modifiers: [.command, .shift])
+                    Button("Fullscreen this window") {
+                        appModel.toggleMainWindowFullscreen()
+                    }
+                    .keyboardShortcut("f", modifiers: [.command, .shift])
 
-            Button("Import overlay…") {
-                appModel.importOverlayAsset()
+                    Button("Tap tempo") {
+                        appModel.applyRemoteCommand(RemoteControlCommand(type: "TapTempo"))
+                    }
+                    .buttonStyle(.bordered)
+
+                    Menu {
+                        Button("Import overlay…") {
+                            appModel.importOverlayAsset()
+                        }
+                        Button("Remove black → PNG…") {
+                            appModel.exportBlackBackgroundRemovedCopy()
+                        }
+                    } label: {
+                        Label("Overlay file tools…", systemImage: "ellipsis.circle")
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color(red: 0.45, green: 0.2, blue: 0.75))
+
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("BPM")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("\(Int(appModel.bpm.rounded()))")
+                            .font(.system(.title3, design: .rounded, weight: .semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(Color(red: 0.4, green: 0.95, blue: 0.95))
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Beat confidence")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(String(format: "%.0f%%", appModel.beatConfidence * 100))
+                            .font(.body.monospacedDigit())
+                            .foregroundStyle(Color.pink.opacity(0.9))
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("MIDI clock")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(appModel.tempoClock.midiClockRunning ? "Running" : "Idle")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                    Text("Full tempo source / BPM on Controller tab.")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    Spacer()
+                }
             }
-            Button("Remove black → PNG…") {
-                appModel.exportBlackBackgroundRemovedCopy()
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(Color(red: 0.45, green: 0.2, blue: 0.75))
     }
 
     private var quickPaletteControls: some View {
-        GroupBox("Palette quick access") {
+        GroupBox("Look / palette") {
             VStack(alignment: .leading, spacing: 8) {
                 if appModel.palettes.isEmpty {
                     Text("No palettes available. Add palettes in Scene Studio.")
@@ -268,7 +411,7 @@ struct LiveShowView: View {
     }
 
     private var recordingControls: some View {
-        GroupBox("Live output recorder") {
+        GroupBox("Capture / output") {
             VStack(alignment: .leading, spacing: 8) {
                 Picker("Video source", selection: $appModel.liveOutputRecordingSource) {
                     ForEach(AppModel.LiveOutputRecordingSource.allCases) { source in
@@ -353,43 +496,6 @@ struct LiveShowView: View {
         return String(format: "%02d:%02d", mins, secs)
     }
 
-    private var tempoStatusRow: some View {
-        HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("BPM")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("\(Int(appModel.bpm.rounded()))")
-                    .font(.system(.title3, design: .rounded, weight: .semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(Color(red: 0.4, green: 0.95, blue: 0.95))
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Beat")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(String(format: "%.0f%%", appModel.beatConfidence * 100))
-                    .font(.body.monospacedDigit())
-                    .foregroundStyle(Color.pink.opacity(0.9))
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Text("MIDI clock")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(appModel.tempoClock.midiClockRunning ? "Running" : "Idle")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
-            Button("Tap tempo") {
-                appModel.applyRemoteCommand(RemoteControlCommand(type: "TapTempo"))
-            }
-            .buttonStyle(.bordered)
-            Text("Full tempo controls live on the Controller tab.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-            Spacer()
-        }
-    }
 }
 
 private struct HoverScaleButtons: View {

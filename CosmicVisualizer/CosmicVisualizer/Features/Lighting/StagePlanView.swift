@@ -204,6 +204,9 @@ struct StagePlanView: View {
                 Text("Scan wedges show required camera angles for fixture-learning passes. Position cameras, then resume scan from Fixture verification.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                Text("For reliable luma probes, avoid a crushed black image or blown highlights—set exposure/gain so the stage read is mostly mid-tones.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }

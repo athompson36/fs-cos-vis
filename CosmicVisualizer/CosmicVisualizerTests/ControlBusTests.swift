@@ -58,6 +58,28 @@ final class ControlBusTests: XCTestCase {
         let cmd = try XCTUnwrap(OSCControlBusStub.parseCommand("/cosmic/lighting/cue/index i 3"))
         XCTAssertEqual(cmd.type, "SetActiveLightingCueIndex")
         XCTAssertEqual(cmd.index, 3)
+
+        let nextCue = try XCTUnwrap(OSCControlBusStub.parseCommand("/cosmic/lighting/cue/next"))
+        XCTAssertEqual(nextCue.type, "NextLightingCue")
+
+        let prevCue = try XCTUnwrap(OSCControlBusStub.parseCommand("/cosmic/lighting/cue/previous"))
+        XCTAssertEqual(prevCue.type, "PreviousLightingCue")
+
+        let sceneIdx = try XCTUnwrap(OSCControlBusStub.parseCommand("/cosmic/scene/index i 2"))
+        XCTAssertEqual(sceneIdx.type, "JumpToSceneIndex")
+        XCTAssertEqual(sceneIdx.index, 2)
+
+        let tempoSrc = try XCTUnwrap(OSCControlBusStub.parseCommand("/cosmic/tempo/source s manual"))
+        XCTAssertEqual(tempoSrc.type, "SetTempoSource")
+        XCTAssertEqual(tempoSrc.source, "manual")
+
+        let liquidFocus = try XCTUnwrap(OSCControlBusStub.parseCommand("/cosmic/liquid/focus f 0.5"))
+        XCTAssertEqual(liquidFocus.type, "SetLiquidFocus")
+        XCTAssertEqual(liquidFocus.liquidFocus, 0.5)
+
+        let zoomEffect = try XCTUnwrap(OSCControlBusStub.parseCommand("/cosmic/fractal/zoom_effect i 1"))
+        XCTAssertEqual(zoomEffect.type, "SetZoomEffectType")
+        XCTAssertEqual(zoomEffect.index, 1)
     }
 
     func testOSCParse_commandMappingRecordingStart() throws {

@@ -2,6 +2,8 @@
 
 Cosmic Visualizer supports UDP OSC-style control lines in Settings under **Remote control**.
 
+See also: [`control-parity.md`](control-parity.md) (how OSC relates to HTTP and MIDI), [`macOS-installer-options.md`](macOS-installer-options.md) (beta handoff), [`beta-0.1a-release.md`](beta-0.1a-release.md) (post-install validation including OSC and recorder checks).
+
 ## Enable OSC
 
 1. Open `Settings`.
@@ -32,14 +34,32 @@ Messages are newline-free UTF-8 lines sent over UDP.
 - `/cosmic/scene/jump <uuid>`
 - `/cosmic/tempo/tap`
 - `/cosmic/tempo/bpm f 128.0`
+- `/cosmic/tempo/source s audioDetection|manual|tapTempo|midiClock`
+- `/cosmic/scene/index i <n>` (jump by scene list index; same as `JumpToSceneIndex` / `CueSceneIndex` over HTTP)
 - `/cosmic/fractal/zoom f 1.4`
 - `/cosmic/liquid/turbulence f 1.2`
+- `/cosmic/liquid/focus f 0…1`
+- `/cosmic/fractal/appearance f 0…1`
+- `/cosmic/fractal/overlay_fusion f 0…1` (logo ↔ fractal fusion)
+- `/cosmic/fractal/explore f 0…1`
+- `/cosmic/fractal/explore_speed f 0.05…6`
+- `/cosmic/fractal/iter_boost f 0.25…3`
+- `/cosmic/fractal/zoom_effect i 0|1|2` (0 standard, 1 infinite tunnel, 2 event horizon)
+- `/cosmic/liquid/reconstitute_amount f 0…1`
+- `/cosmic/liquid/reconstitute_rate f 0.05…3`
+- `/cosmic/liquid/reconstitute_bpm_sync f 0|1`
+- `/cosmic/liquid/dye_mix f 0…1`
+- `/cosmic/fractal/smooth_shading f 0…1`
+- `/cosmic/composite/bloom f 0…0.85`
+- `/cosmic/composite/vignette f 0…1`
 - `/cosmic/composite/blend f 0.65`
 - `/cosmic/liquid/enabled f 1`
 - `/cosmic/overlay/enabled f 1`
 - `/cosmic/performance/enabled f 0`
 - `/cosmic/palette/select s <uuid>`
 - `/cosmic/lighting/cue/index i <index>`
+- `/cosmic/lighting/cue/next`
+- `/cosmic/lighting/cue/previous`
 - `/cosmic/recording/start`
 - `/cosmic/recording/stop`
 - `/cosmic/recording/source s mainLivePreview`

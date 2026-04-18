@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ControllerView: View {
     @EnvironmentObject private var appModel: AppModel
+    @State private var faderSearchText = ""
     private let sliderHeight: CGFloat = 190
 
     var body: some View {
@@ -17,6 +18,8 @@ struct ControllerView: View {
                         statusStrip
                         tempoBlock
                         Divider()
+                        mappingSummarySection
+                        Divider()
                         mappingLearnSection
                         Divider()
                         dmxOutputLegend
@@ -27,15 +30,22 @@ struct ControllerView: View {
                 .tabItem { Text("Overview") }
 
                 ScrollView(.vertical) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Active controls")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 14) {
+                        faderTabHeader
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(alignment: .top, spacing: 18) {
-                                sceneControlGroup
-                                ForEach(dmxControlGroups, id: \.id) { group in
-                                    dmxControlGroup(group)
+                                sceneFadersRegion
+                                if filteredDmxControlGroups.isEmpty, !dmxControlGroups.isEmpty {
+                                    ContentUnavailableView(
+                                        "No matching fixtures",
+                                        systemImage: "line.3.horizontal.decrease.circle",
+                                        description: Text("Try a different search, or clear the filter.")
+                                    )
+                                    .frame(minWidth: 220, minHeight: 120)
+                                } else {
+                                    ForEach(filteredDmxControlGroups, id: \.id) { group in
+                                        dmxFadersRegion(group)
+                                    }
                                 }
                             }
                         }
@@ -46,6 +56,168 @@ struct ControllerView: View {
                 .tabItem { Text("Faders") }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private var faderTabHeader: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Live faders")
+                .font(.headline)
+            Text("Scene parameters use the current layer. Fixture sliders send manual DMX values from the patch.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.tertiary)
+                TextField("Filter fixtures and channels…", text: $faderSearchText)
+                    .textFieldStyle(.roundedBorder)
+                    .controlSize(.small)
+                if !faderSearchText.isEmpty {
+                    Button("Clear") {
+                        faderSearchText = ""
+                    }
+                    .controlSize(.small)
+                }
+            }
+        }
+    }
+
+    private var filteredDmxControlGroups: [DMXGroup] {
+        let q = faderSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !q.isEmpty else { return dmxControlGroups }
+        return dmxControlGroups.filter { group in
+            if group.title.lowercased().contains(q) { return true }
+            return group.controls.contains { $0.label.lowercased().contains(q) }
+        }
+    }
+
+    private var mappingSummarySection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Control mappings")
+                .font(.headline)
+            Text("Saved MIDI routes and how OSC fits alongside them. Faders show assignments under each handle.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 12) {
+                    midiContinuousMappingCard
+                    midiDiscreteMappingCard
+                    oscMappingCard
+                }
+                VStack(alignment: .leading, spacing: 12) {
+                    midiContinuousMappingCard
+                    midiDiscreteMappingCard
+                    oscMappingCard
+                }
+            }
+        }
+    }
+
+    private var midiContinuousMappingCard: some View {
+        GroupBox {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 6) {
+                    let rows = appModel.midiMapping.continuousCC
+                    ForEach(Array(rows.enumerated()), id: \.offset) { idx, row in
+                        let name = LayerControlParameter(parameterID: row.parameterID)?.displayName ?? row.parameterID
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(name)
+                                .font(.caption)
+                                .lineLimit(2)
+                            Spacer(minLength: 8)
+                            Text("Ch \(row.channel + 1) · CC \(row.controller)")
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                        if idx < rows.count - 1 {
+                            Divider()
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxHeight: 220)
+        } label: {
+            Label("MIDI → scene parameters", systemImage: "slider.horizontal.3")
+                .font(.subheadline.weight(.semibold))
+        }
+    }
+
+    private var midiDiscreteMappingCard: some View {
+        GroupBox {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 6) {
+                    let rows = appModel.midiMapping.cc
+                    ForEach(Array(rows.enumerated()), id: \.offset) { idx, row in
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(midiTriggerDisplayName(row.commandType))
+                                .font(.caption)
+                                .lineLimit(2)
+                            Spacer(minLength: 8)
+                            Text("Ch \(row.channel + 1) · CC \(row.controller)")
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                        if idx < rows.count - 1 {
+                            Divider()
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxHeight: 220)
+        } label: {
+            Label("MIDI → triggers", systemImage: "button.programmable")
+                .font(.subheadline.weight(.semibold))
+        }
+    }
+
+    private var oscMappingCard: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("OSC uses typed addresses over UDP — the same show actions as the app, without per-control CC learn.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 4) {
+                    oscExampleRow("/cosmic/scene/next", "Advance scene")
+                    oscExampleRow("/cosmic/tempo/bpm f 128", "Set manual BPM")
+                    oscExampleRow("/cosmic/state/get", "Full state JSON (query)")
+                }
+                Text("Port, bind, and token are in Settings → Remote.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        } label: {
+            Label("OSC (network)", systemImage: "network")
+                .font(.subheadline.weight(.semibold))
+        }
+    }
+
+    private func oscExampleRow(_ path: String, _ caption: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(path)
+                .font(.caption2.monospaced())
+                .foregroundStyle(.primary.opacity(0.9))
+                .lineLimit(2)
+            Spacer(minLength: 4)
+            Text(caption)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    private func midiTriggerDisplayName(_ commandType: String) -> String {
+        switch commandType {
+        case "NextScene": return "Next scene"
+        case "PreviousScene": return "Previous scene"
+        case "RandomScene": return "Random scene"
+        case "TapTempo": return "Tap tempo"
+        case "NextLightingCue": return "Next lighting cue"
+        case "PreviousLightingCue": return "Previous lighting cue"
+        default: return commandType
         }
     }
 
@@ -120,12 +292,12 @@ struct ControllerView: View {
 
     private var mappingLearnSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Auto-detect mapping")
+            Text("Hardware learn")
+                .font(.headline)
+            Text("Choose a layer parameter and MIDI learn, then move a hardware control to assign. DMX learn arrives with incoming desk data.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text("Pick a layer parameter, choose MIDI (or Coming soon: DMX / combined), then move a hardware control to assign.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
 
             Picker("Learn target", selection: $appModel.midiLearnTarget) {
                 Text("None").tag(Optional<LayerControlParameter>.none)
@@ -168,33 +340,53 @@ struct ControllerView: View {
     }
 
     private func learnModeButtonDisabled(_ mode: ControlLearnMode, hint: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Button(mode.title) {}
-                .buttonStyle(.bordered)
-                .disabled(true)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .center, spacing: 8) {
+                Button(mode.title) {}
+                    .buttonStyle(.bordered)
+                    .disabled(true)
+                Text("Planned")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.orange.opacity(0.18), in: Capsule(style: .continuous))
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .strokeBorder(Color.orange.opacity(0.35), lineWidth: 1)
+                    )
+            }
             Text(hint)
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: 220, alignment: .leading)
+        .frame(maxWidth: 240, alignment: .leading)
     }
 
-    private var sceneControlGroup: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Backdrop scene")
-                .font(.caption.weight(.semibold))
+    private var sceneFadersRegion: some View {
+        GroupBox {
             HStack(alignment: .top, spacing: 12) {
                 ForEach(LayerControlParameter.allCases) { param in
                     verticalSlider(
                         title: param.displayName,
                         value: appModel.layerFloatBinding(for: param),
                         range: param.floatRange,
-                        assignmentLabel: appModel.midiAssignmentLabel(for: param)
+                        assignment: .sceneMIDI(line: appModel.midiAssignmentLabel(for: param))
                     )
                 }
             }
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Label("Scene parameters", systemImage: "paintpalette")
+                    .font(.subheadline.weight(.semibold))
+                Text("Layer controls · MIDI assignment under each fader (learn on Overview).")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
         }
+        .padding(8)
+        .background(Color.cyan.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private struct DMXGroup: Identifiable {
@@ -226,19 +418,62 @@ struct ControllerView: View {
         }
     }
 
-    private func dmxControlGroup(_ group: DMXGroup) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(group.title)
-                .font(.caption.weight(.semibold))
+    private func dmxFadersRegion(_ group: DMXGroup) -> some View {
+        GroupBox {
             HStack(alignment: .top, spacing: 10) {
                 ForEach(group.controls) { control in
                     verticalSlider(
                         title: control.label,
                         value: dmxChannelBinding(instanceID: control.instanceID, channelIndex: control.channelIndex),
                         range: 0 ... 255,
-                        assignmentLabel: "DMX"
+                        assignment: .dmxFixtureManual
                     )
                 }
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Label(group.title, systemImage: "lightbulb.led.wide")
+                    .font(.subheadline.weight(.semibold))
+                Text("Fixture manual · stage output (not MIDI learn).")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(8)
+        .background(Color.orange.opacity(0.05), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private enum FaderAssignment {
+        case sceneMIDI(line: String?)
+        case dmxFixtureManual
+    }
+
+    @ViewBuilder
+    private func assignmentHeader(_ assignment: FaderAssignment) -> some View {
+        switch assignment {
+        case .sceneMIDI(let line):
+            VStack(spacing: 2) {
+                Text("MIDI")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Color.cyan.opacity(0.95))
+                if let line {
+                    Text(line)
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Unassigned")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        case .dmxFixtureManual:
+            VStack(spacing: 2) {
+                Text("DMX")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Color.orange.opacity(0.95))
+                Text("Manual out")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
         }
     }
@@ -247,16 +482,12 @@ struct ControllerView: View {
         title: String,
         value: Binding<Float>,
         range: ClosedRange<Float>,
-        assignmentLabel: String?
+        assignment: FaderAssignment
     ) -> some View {
-        VStack(spacing: 6) {
-            if let assignmentLabel {
-                Text(assignmentLabel)
-                    .font(.caption2.monospaced())
-                    .foregroundStyle(.tertiary)
-            } else {
-                Spacer().frame(height: 0)
-            }
+        let captionHeight: CGFloat = 34
+        return VStack(spacing: 6) {
+            assignmentHeader(assignment)
+                .frame(height: captionHeight)
             Slider(value: value, in: range)
                 .rotationEffect(.degrees(-90))
                 .frame(width: sliderHeight, height: 28)
@@ -267,7 +498,7 @@ struct ControllerView: View {
                 .frame(width: 80)
                 .lineLimit(2)
         }
-        .frame(width: 84, height: sliderHeight + 70, alignment: .top)
+        .frame(width: 84, height: sliderHeight + 70 + captionHeight - 12, alignment: .top)
     }
 
     private func dmxChannelBinding(instanceID: UUID, channelIndex: Int) -> Binding<Float> {

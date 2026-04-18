@@ -226,5 +226,60 @@ final class FixtureVerificationTests: XCTestCase {
             observedDelta: 0.08
         )
         XCTAssertNil(nominal)
+
+        let weakContrast = FixtureVerificationEvaluator.exposureHint(
+            primaryBaseline: 0.22,
+            primaryLit: 0.34,
+            secondaryBaseline: nil,
+            secondaryLit: nil,
+            observedDelta: 0.02
+        )
+        XCTAssertEqual(
+            weakContrast,
+            "Weak contrast on camera; adjust angle, zoom, or lock exposure if response stays borderline."
+        )
+    }
+
+    func testFixtureVerificationEvaluator_confidenceScoreBounds() {
+        let strong = FixtureVerificationFixtureResult(
+            fixtureID: UUID(),
+            fixtureName: "PAR",
+            fixtureIndex: 1,
+            startAddress: 1,
+            channelSpan: 4,
+            expectedPlacement: StagePlacement(x: 0.4, y: 0.5, rotation: 0),
+            observedLumaDelta: 0.14,
+            patching: FixtureVerificationCategoryResult(status: .pass, note: "ok"),
+            quantity: FixtureVerificationCategoryResult(status: .pass, note: "ok"),
+            layout: FixtureVerificationCategoryResult(status: .pass, note: "ok"),
+            orientation: FixtureVerificationCategoryResult(status: .pass, note: "ok")
+        )
+        let cStrong = FixtureVerificationEvaluator.confidence01(for: strong)
+        XCTAssertGreaterThan(cStrong, 0.85)
+        XCTAssertLessThanOrEqual(cStrong, 1.0)
+
+        let weak = FixtureVerificationFixtureResult(
+            fixtureID: UUID(),
+            fixtureName: "PAR",
+            fixtureIndex: 1,
+            startAddress: 1,
+            channelSpan: 4,
+            expectedPlacement: nil,
+            observedLumaDelta: 0.01,
+            patching: FixtureVerificationCategoryResult(status: .fail, note: "no"),
+            quantity: FixtureVerificationCategoryResult(status: .warn, note: "partial"),
+            layout: FixtureVerificationCategoryResult(status: .warn, note: "map"),
+            orientation: FixtureVerificationCategoryResult(status: .warn, note: "map")
+        )
+        let cWeak = FixtureVerificationEvaluator.confidence01(for: weak)
+        XCTAssertGreaterThanOrEqual(cWeak, 0)
+        XCTAssertLessThan(cWeak, 0.55)
+
+        let doc = FixtureVerificationDocument(
+            fixtureCountExpected: 2,
+            fixtureCountScanned: 2,
+            fixtures: [strong, weak]
+        )
+        XCTAssertEqual(FixtureVerificationEvaluator.averageConfidencePercent(for: doc), Int(((cStrong + cWeak) / 2 * 100).rounded()))
     }
 }

@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
+# Package Release CosmicVisualizer.app as ZIP + DMG (UDZO).
+# Prerequisites: Release build (see docs/release-runbook.md).
+# Env:
+#   COSMIC_RELEASE_APP — override path to .app (default: build/.../Release/CosmicVisualizer.app)
+#   GITHUB_REF_NAME    — version label for filenames (default: beta-0.1a)
 set -euo pipefail
 
-APP_PATH="build/Build/Products/Release/CosmicVisualizer.app"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "${ROOT_DIR}"
+
+APP_PATH="${COSMIC_RELEASE_APP:-build/Build/Products/Release/CosmicVisualizer.app}"
 DIST_DIR="dist"
 VERSION_TAG="${GITHUB_REF_NAME:-beta-0.1a}"
 

@@ -15,13 +15,14 @@ jobs:
       - name: Generate Xcode project
         run: |
           brew install xcodegen
+          cp -f project.local.yml.example project.local.yml
           xcodegen generate
 
       - name: Build app
         run: |
           xcodebuild -project "CosmicVisualizer.xcodeproj" -scheme "CosmicVisualizer" -configuration Release -derivedDataPath build
 
-      - name: Package ZIP
+      - name: Package ZIP + DMG (unsigned — see docs/release-runbook.md for signing)
         run: |
           bash scripts/release/package-beta.sh
 

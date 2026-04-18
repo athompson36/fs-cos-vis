@@ -196,6 +196,54 @@ enum FixtureVerificationEvaluator {
         if minBaseline <= 0.05 && observedDelta < patchingThreshold {
             return "Low-light feed; increase front light or camera gain for reliable verification."
         }
+        if observedDelta < patchingThreshold,
+           observedDelta >= patchingThreshold * 0.5,
+           maxLit < 0.97,
+           minBaseline > 0.05
+        {
+            return "Weak contrast on camera; adjust angle, zoom, or lock exposure if response stays borderline."
+        }
         return nil
+    }
+
+    /// Maps category status to a 0…1 contribution for confidence blending.
+    static func statusContribution(_ status: FixtureVerificationStatus) -> Double {
+        switch status {
+        case .pass: return 1.0
+        case .warn: return 0.55
+        case .fail: return 0.15
+        }
+    }
+
+    /// Normalizes observed luma step strength (rolls off above ~0.12).
+    static func patchingSignalQuality01(delta: Double) -> Double {
+        min(1.0, max(0, delta) / 0.12)
+    }
+
+    /// Blended 0…1 score from patching signal, quantity, layout, and orientation (per-fixture).
+    static func confidence01(for fixture: FixtureVerificationFixtureResult) -> Double {
+        let sig = patchingSignalQuality01(delta: fixture.observedLumaDelta)
+        let patchStat = statusContribution(fixture.patching.status)
+        let patchingBlend = sig * 0.55 + patchStat * 0.45
+        let q = statusContribution(fixture.quantity.status)
+        let l = statusContribution(fixture.layout.status)
+        let o = statusContribution(fixture.orientation.status)
+        let raw = patchingBlend * 0.42 + q * 0.23 + l * 0.20 + o * 0.15
+        return max(0, min(1, raw))
+    }
+
+    static func confidencePercent(for fixture: FixtureVerificationFixtureResult) -> Int {
+        Int((confidence01(for: fixture) * 100).rounded())
+    }
+
+    static func averageConfidence01(for report: FixtureVerificationDocument) -> Double? {
+        guard !report.fixtures.isEmpty else { return nil }
+        let sum = report.fixtures.reduce(0.0) { $0 + confidence01(for: $1) }
+        return sum / Double(report.fixtures.count)
+    }
+
+    static func averageConfidencePercent(for report: FixtureVerificationDocument) -> Int? {
+        guard let avg = averageConfidence01(for: report) else { return nil }
+        return Int((avg * 100).rounded())
     }
 }

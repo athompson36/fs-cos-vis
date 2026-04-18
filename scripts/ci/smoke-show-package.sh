@@ -6,6 +6,9 @@ if ! command -v xcodegen >/dev/null 2>&1; then
   brew install xcodegen
 fi
 
+echo "[smoke] Local XcodeGen signing stub (see project.local.yml.example)"
+cp -f project.local.yml.example project.local.yml
+
 echo "[smoke] Generating Xcode project"
 xcodegen generate
 

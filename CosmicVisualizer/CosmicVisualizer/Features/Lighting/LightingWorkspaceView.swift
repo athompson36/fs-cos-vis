@@ -38,21 +38,40 @@ struct LightingWorkspaceView: View {
     @State private var fixtureReportSeverityFilter: FixtureVerificationSeverityFilter = .all
     @State private var newBookmarkMetadataKey = ""
     @State private var newBookmarkMetadataValue = ""
+    @State private var patchSearchText = ""
+    @State private var cueSearchText = ""
 
     var body: some View {
         TabView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    patchSection
                     oflImportSection
+                    patchSection
+                }
+                .padding()
+            }
+            .tabItem { Label("Patch", systemImage: "cable.connector") }
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
                     cueSection
                     backdropCueSection
+                }
+                .padding()
+            }
+            .tabItem { Label("Cues", systemImage: "list.bullet.rectangle") }
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
                     StagePlanView()
                     LightingPreview25DView()
                 }
                 .padding()
             }
-            .tabItem { Text("Patch & stage") }
+            .tabItem { Label("Stage", systemImage: "theatermasks") }
+
+            verificationWorkspaceTab
+                .tabItem { Label("Verify", systemImage: "checkmark.shield") }
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
@@ -62,9 +81,61 @@ struct LightingWorkspaceView: View {
                 }
                 .padding()
             }
-            .tabItem { Text("Modulation & tools") }
+            .tabItem { Label("Tools", systemImage: "wrench.and.screwdriver") }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var verificationWorkspaceTab: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                verificationTabIntro
+                verificationExposureBanner
+                fixtureVerificationSection
+            }
+            .padding()
+        }
+        .background(Color.black.opacity(0.12))
+    }
+
+    private var verificationTabIntro: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Fixture verification", systemImage: "camera.viewfinder")
+                .font(.title3.weight(.semibold))
+            Text("Run assisted scans on this tab so Patch and Stage stay uncluttered. If a run stops mid-rig, fix cameras or DMX and tap Resume scan — wizard steps and device picks stay here.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Amber alerts below echo live exposure/contrast hints during a scan. Reports include a numeric confidence score per fixture.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private var verificationExposureBanner: some View {
+        Group {
+            if let hint = appModel.fixtureVerificationExposureHint, !hint.isEmpty {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "light.beacon.max")
+                        .foregroundStyle(.orange)
+                    Text(hint)
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange.opacity(0.14), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(Color.orange.opacity(0.35), lineWidth: 1)
+                )
+            }
+        }
     }
 
     private var oflImportSection: some View {
@@ -264,7 +335,6 @@ struct LightingWorkspaceView: View {
                 patchHealthAndDMXStatusRow
 
                 fogHazeLearnSection
-                fixtureVerificationSection
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Universe 0 · channels 1–32 (live)")
@@ -285,18 +355,35 @@ struct LightingWorkspaceView: View {
                     Button("Remove last fixture") { removeLastFixture() }
                         .disabled(appModel.dmxPatchDocument.instances.isEmpty)
                 }
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.tertiary)
+                    TextField("Filter fixtures by name or start address…", text: $patchSearchText)
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                    if !patchSearchText.isEmpty {
+                        Button("Clear") {
+                            patchSearchText = ""
+                        }
+                        .controlSize(.small)
+                    }
+                }
                 if appModel.dmxPatchDocument.instances.isEmpty {
                     Text("No fixtures patched yet.")
                         .foregroundStyle(.secondary)
+                } else if filteredPatchInstances.isEmpty {
+                    Text("No fixtures match this filter.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 } else {
-                    ForEach(Array(appModel.dmxPatchDocument.instances.enumerated()), id: \.element.id) { pair in
-                        let inst = pair.element
+                    ForEach(filteredPatchInstances) { inst in
+                        let pairOffset = appModel.dmxPatchDocument.instances.firstIndex(where: { $0.id == inst.id }) ?? 0
                         GroupBox {
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack {
                                     Text(appModel.dmxPatchDocument.profile(id: inst.profileID)?.name ?? "Unknown profile")
                                     Spacer()
-                                    Text("Fixture \(pair.offset + 1)")
+                                    Text("Fixture \(pairOffset + 1)")
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
                                     Button("Remove", role: .destructive) {
@@ -357,6 +444,19 @@ struct LightingWorkspaceView: View {
     private var cueSection: some View {
         GroupBox("Lighting cues") {
             VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.tertiary)
+                    TextField("Filter cues by name…", text: $cueSearchText)
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                    if !cueSearchText.isEmpty {
+                        Button("Clear") {
+                            cueSearchText = ""
+                        }
+                        .controlSize(.small)
+                    }
+                }
                 HStack {
                     Button("Capture cue from current patch") { captureCueFromCurrentPatch() }
                     Button("Apply active cue → fixture manuals") { applyActiveCueToFixtureManuals() }
@@ -398,7 +498,7 @@ struct LightingWorkspaceView: View {
                     .foregroundStyle(.secondary)
                 Picker("Cue editor", selection: selectedCueBinding) {
                     Text("None").tag(Optional<UUID>.none)
-                    ForEach(appModel.lightingCueDocument.cues) { cue in
+                    ForEach(cuesForFilteredEditor) { cue in
                         Text(cue.name).tag(Optional(cue.id))
                     }
                 }
@@ -591,7 +691,7 @@ struct LightingWorkspaceView: View {
     }
 
     private var jsonTransportSection: some View {
-        GroupBox("Templates & JSON transport") {
+        GroupBox("Templates & JSON import/export (bulk)") {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Full lighting workspace")
                     .font(.caption.weight(.semibold))
@@ -733,7 +833,7 @@ struct LightingWorkspaceView: View {
                     Text("USB DMX")
                         .font(.caption.weight(.semibold))
                     if appModel.remoteSettings.dmxOutputEnabled {
-                        Text(d.running ? "streaming ~\(Int(d.nominalHz)) Hz" : "enabled · idle (check device path in Settings)")
+                        Text(d.running ? "streaming ~\(Int(d.nominalHz)) Hz · \(d.packetsLastTimerTick) pkt/tick" : "enabled · idle (check device path in Settings)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {
@@ -866,6 +966,12 @@ struct LightingWorkspaceView: View {
                         Text("Pass").tag(FixtureVerificationSeverityFilter.pass)
                     }
                     .pickerStyle(.segmented)
+                    if let avgPct = FixtureVerificationEvaluator.averageConfidencePercent(for: report) {
+                        Text("Run confidence (avg): \(avgPct)% — blends patching signal strength with quantity, layout, and orientation checks.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     HStack(spacing: 10) {
                         categoryBadge("Patching", status: aggregateStatus(report.fixtures.map(\.patching.status)))
                         categoryBadge("Quantity", status: aggregateStatus(report.fixtures.map(\.quantity.status)))
@@ -884,10 +990,13 @@ struct LightingWorkspaceView: View {
                             HStack {
                                 Text("#\(fixture.fixtureIndex) \(fixture.fixtureName) @ \(fixture.startAddress)")
                                 Spacer()
+                                Text("\(FixtureVerificationEvaluator.confidencePercent(for: fixture))% conf.")
+                                    .font(.caption2.monospacedDigit())
+                                    .foregroundStyle(.secondary)
                                 categoryBadge("Severity", status: FixtureVerificationEvaluator.severity(for: fixture))
                             }
                                 .font(.caption.weight(.semibold))
-                            Text("Patch \(fixture.patching.status.rawValue): \(fixture.patching.note)")
+                            Text("Signal Δ \(String(format: "%.3f", fixture.observedLumaDelta)) · Patch \(fixture.patching.status.rawValue): \(fixture.patching.note)")
                                 .font(.caption2)
                             Text("Layout \(fixture.layout.status.rawValue): \(fixture.layout.note)")
                                 .font(.caption2)
@@ -1103,6 +1212,30 @@ struct LightingWorkspaceView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private var filteredPatchInstances: [FixtureInstance] {
+        let all = appModel.dmxPatchDocument.instances
+        let q = patchSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !q.isEmpty else { return all }
+        return all.filter { inst in
+            let name = appModel.dmxPatchDocument.profile(id: inst.profileID)?.name.lowercased() ?? ""
+            let addr = "\(inst.startAddress)"
+            if let idx = all.firstIndex(where: { $0.id == inst.id }) {
+                if q == "\(idx + 1)" { return true }
+            }
+            return name.contains(q) || addr.contains(q)
+        }
+    }
+
+    private var cuesForFilteredEditor: [LightingCue] {
+        let base = appModel.lightingCueDocument.cues
+        let q = cueSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let filtered = q.isEmpty ? base : base.filter { $0.name.lowercased().contains(q) }
+        if let id = selectedCueID, let sel = base.first(where: { $0.id == id }), !filtered.contains(where: { $0.id == id }) {
+            return [sel] + filtered
+        }
+        return filtered
     }
 
     private var selectedCue: LightingCue? {

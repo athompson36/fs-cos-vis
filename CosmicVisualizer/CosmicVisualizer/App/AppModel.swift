@@ -175,6 +175,8 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     private var fogHazeLearnTask: Task<Void, Never>?
     @Published private(set) var fixtureVerificationPhase: String = ""
     @Published private(set) var fixtureVerificationReport: FixtureVerificationDocument?
+    /// Latest exposure / contrast hint from the current or last fixture step (Verify tab banner).
+    @Published private(set) var fixtureVerificationExposureHint: String?
     private var fixtureVerificationTask: Task<Void, Never>?
     @Published private(set) var feedbackStatus: String = ""
     @Published private(set) var appUpdateStatus: String = ""
@@ -1705,8 +1707,8 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     // MARK: - Lighting / DMX documents
 
     /// USB DMX output worker status; when output is disabled in Settings the service may be stopped (`running` false).
-    func dmxOutputDiagnostics() -> (lastError: String?, running: Bool, nominalHz: Double) {
-        dmxService?.extendedDiagnostics() ?? (nil, false, 44.0)
+    func dmxOutputDiagnostics() -> (lastError: String?, running: Bool, nominalHz: Double, packetsLastTimerTick: Int) {
+        dmxService?.extendedDiagnostics() ?? (nil, false, 44.0, 0)
     }
 
     /// Returns simulated DMX transport details when running in simulation mode.
@@ -1814,6 +1816,67 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         return universe
     }
 
+    /// Multiple logical universes for Art-Net / sACN (one UDP packet per universe). Inbound merge applies to universe **0** only.
+    func buildDMXUniversesForNetwork(time: TimeInterval, lastSmoothed: inout [UUID: Float]) -> [Int: [UInt8]] {
+        lightingDMXLock.lock()
+        let patch = dmxPatchDocument
+        let cueDoc = lightingCueDocument
+        let modDoc = modulationDocument
+        let xf = lightingCueCrossfade
+        let envStart = hazeEnvelopeStartedAt
+        let bpm = tempoClock.effectiveBPM
+        let beatPhase = tempoClock.beatPhase
+        let audio = audioEngine.features
+        let inboundFrame = inboundDMXFrame
+        let inboundReceivedAt = inboundDMXReceivedAt
+        lightingDMXLock.unlock()
+
+        var cueMap = LightingCueResolver.resolveChannelMap(document: cueDoc, crossfade: xf, now: time)
+        let activeCue: LightingCue? = {
+            guard let ai = cueDoc.activeCueIndex, cueDoc.cues.indices.contains(ai) else { return nil }
+            return cueDoc.cues[ai]
+        }()
+        FogHazeCueEnvelope.merge(
+            cueMap: &cueMap,
+            activeCue: activeCue,
+            patch: patch,
+            envelopeStartedAt: envStart,
+            now: time
+        )
+        let offsets = ModulationRuntime.offsets(
+            document: modDoc,
+            time: time,
+            bpm: bpm,
+            beatPhase: beatPhase,
+            audio: audio,
+            lastSmoothed: &lastSmoothed
+        )
+        var perU = DMXUniverseBuilder.buildPerUniverse(
+            model: self,
+            patch: patch,
+            cueChannelMap: cueMap,
+            modulationOffsets: offsets,
+            hazeEmergencyKill: hazeEmergencyKillActive
+        )
+        if remoteSettings.dmxInboundEnabled,
+           inboundFrame.count == 512,
+           remoteSettings.dmxInboundMergeMode == "htp" || remoteSettings.dmxInboundMergeMode == "lpt" {
+            let now = CFAbsoluteTimeGetCurrent()
+            if let inboundReceivedAt, now - inboundReceivedAt <= 3 {
+                var u0 = perU[0] ?? [UInt8](repeating: 0, count: 512)
+                if remoteSettings.dmxInboundMergeMode == "htp" {
+                    for idx in 0 ..< 512 {
+                        u0[idx] = max(u0[idx], inboundFrame[idx])
+                    }
+                } else {
+                    u0 = inboundFrame
+                }
+                perU[0] = u0
+            }
+        }
+        return perU
+    }
+
     func applyDMXPatchDocument(_ doc: DMXPatchDocument) {
         lightingDMXLock.lock()
         dmxPatchDocument = doc
@@ -1874,6 +1937,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             fixtureVerificationPhase = "Enable and position the primary scan camera on the stage plot, then resume scan."
             return
         }
+        fixtureVerificationExposureHint = nil
         fixtureVerificationPhase = "Preparing fixture verification…"
         fixtureVerificationTask?.cancel()
         let outputFolder = contextParentFolder()
@@ -1964,6 +2028,9 @@ final class AppModel: ObservableObject, @unchecked Sendable {
                     secondaryLit: secondaryReadyForThisFixture ? litSecondary : nil,
                     observedDelta: delta
                 )
+                if let exposureHint {
+                    fixtureVerificationExposureHint = exposureHint
+                }
                 results.append(
                     FixtureVerificationFixtureResult(
                         fixtureID: inst.id,

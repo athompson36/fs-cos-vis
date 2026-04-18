@@ -1,6 +1,40 @@
 import AppKit
 import SwiftUI
 
+/// Authoring sub-mode for Scene Studio (persisted).
+private enum SceneStudioAuthoringSection: String, CaseIterable, Identifiable {
+    case scene
+    case look
+    case fractal
+    case liquid
+    case overlay
+    case palette
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .scene: "Scene"
+        case .look: "Look"
+        case .fractal: "Fractal"
+        case .liquid: "Liquid"
+        case .overlay: "Overlay"
+        case .palette: "Palette"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .scene: "film.stack"
+        case .look: "paintpalette.fill"
+        case .fractal: "circle.hexagongrid.fill"
+        case .liquid: "drop.fill"
+        case .overlay: "square.on.square.dashed"
+        case .palette: "swatchpalette.fill"
+        }
+    }
+}
+
 struct SceneStudioView: View {
     @EnvironmentObject private var appModel: AppModel
     @State private var newPalettePresented = false
@@ -10,9 +44,11 @@ struct SceneStudioView: View {
     @State private var paletteDraftAccent = Color(nsColor: NSColor(hexRGB: "#00E5FF") ?? .cyan)
     @State private var paletteDraftGlow = Color(nsColor: NSColor(hexRGB: "#FF2EE6") ?? .magenta)
     @State private var paletteAIPrompt = "cosmic neon"
-    @State private var fractalSectionExpanded = true
-    @State private var lookSectionExpanded = true
-    @State private var liquidSectionExpanded = true
+    @AppStorage("sceneStudio.authoringSection") private var authoringSectionRaw = SceneStudioAuthoringSection.look.rawValue
+    @AppStorage("sceneStudio.expanded.liquidDropper") private var liquidDropperSubsectionExpanded = true
+    @AppStorage("sceneStudio.expanded.liquidPalette") private var liquidPaletteSubsectionExpanded = true
+    @AppStorage("sceneStudio.expanded.overlayFiles") private var overlayFilesSubsectionExpanded = true
+    @AppStorage("sceneStudio.expanded.overlayCards") private var overlayCardsSubsectionExpanded = true
     @State private var editingDropperLayerID: UUID?
     @State private var liquidPaletteDraftName = "Liquid palette"
     @State private var previewScale: CGFloat = 1.0
@@ -22,33 +58,17 @@ struct SceneStudioView: View {
         GeometryReader { proxy in
             if proxy.size.width >= wideLayoutMinWidth {
                 HStack(alignment: .top, spacing: 10) {
-                    ScrollView(.vertical) {
-                        VStack(alignment: .leading, spacing: 10) {
-                            studioLivePreviewColumn
-                            studioControlsStack(includeLiquid: true, includeFractal: false)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .frame(minWidth: 280, idealWidth: 540, maxWidth: .infinity)
+                    studioLivePreviewColumn
+                        .frame(minWidth: 280, idealWidth: 540, maxWidth: .infinity)
 
-                    ScrollView(.vertical) {
-                        VStack(alignment: .leading, spacing: 10) {
-                            sceneSectionCompact
-                                .simultaneousGesture(TapGesture().onEnded { appModel.disarmLiquidDropper() })
-                            fractalUniverseCard
-                            paletteStripCompact
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .frame(minWidth: 340, idealWidth: 460, maxWidth: 520)
+                    sceneStudioAuthoringColumn
+                        .frame(minWidth: 340, idealWidth: 460, maxWidth: 520)
                 }
             } else {
                 ScrollView(.vertical) {
                     VStack(alignment: .leading, spacing: 10) {
                         studioLivePreviewColumn
-                        sceneSectionCompact
-                            .simultaneousGesture(TapGesture().onEnded { appModel.disarmLiquidDropper() })
-                        studioControlsStack(includeLiquid: true, includeFractal: true)
+                        sceneStudioAuthoringColumn
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -170,25 +190,97 @@ struct SceneStudioView: View {
         }
     }
 
-    private func studioControlsStack(includeLiquid: Bool, includeFractal: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if includeFractal {
-                fractalUniverseCard
-                paletteStripCompact
+    private var authoringSection: SceneStudioAuthoringSection {
+        SceneStudioAuthoringSection(rawValue: authoringSectionRaw) ?? .look
+    }
+
+    private var sceneStudioAuthoringColumn: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            authoringSectionPicker
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 10) {
+                    authoringSectionContent
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            DisclosureGroup(isExpanded: $lookSectionExpanded) {
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .padding(10)
+        .background(Color.black.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var authoringSectionPicker: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Authoring")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(SceneStudioAuthoringSection.allCases) { section in
+                        authoringSectionChip(section)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+        }
+    }
+
+    private func authoringSectionChip(_ section: SceneStudioAuthoringSection) -> some View {
+        let selected = authoringSection == section
+        return Button {
+            authoringSectionRaw = section.rawValue
+        } label: {
+            Label(section.title, systemImage: section.systemImage)
+                .font(.caption.weight(.medium))
+                .labelStyle(.titleAndIcon)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    selected ? Color.accentColor.opacity(0.35) : Color.white.opacity(0.06),
+                    in: Capsule(style: .continuous)
+                )
+                .overlay(
+                    Capsule(style: .continuous)
+                        .strokeBorder(selected ? Color.accentColor.opacity(0.55) : Color.white.opacity(0.12), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    @ViewBuilder
+    private var authoringSectionContent: some View {
+        switch authoringSection {
+        case .scene:
+            sceneSectionCompact
+                .simultaneousGesture(TapGesture().onEnded { appModel.disarmLiquidDropper() })
+        case .look:
+            GroupBox {
                 sceneLookControlsCompact
             } label: {
                 Label("Scene look", systemImage: "paintpalette.fill")
-                    .font(.subheadline.weight(.medium))
+                    .font(.caption.weight(.semibold))
             }
             .simultaneousGesture(TapGesture().onEnded { appModel.disarmLiquidDropper() })
-            if includeLiquid {
-                liquidControlsCard
+        case .fractal:
+            GroupBox {
+                fractalUniverseControlsCompact
+            } label: {
+                Label("Fractal universe", systemImage: "circle.hexagongrid.fill")
+                    .font(.caption.weight(.semibold))
             }
-            overlayAuthoringCompact
-                .simultaneousGesture(TapGesture().onEnded { appModel.disarmLiquidDropper() })
-            OverlayCardAuthoringView()
+            .simultaneousGesture(TapGesture().onEnded { appModel.disarmLiquidDropper() })
+        case .liquid:
+            liquidAuthoringSections
+        case .overlay:
+            overlayAuthoringSections
+        case .palette:
+            paletteStripCompact
+        }
+    }
+
+    private var liquidAuthoringSections: some View {
+        VStack(alignment: .leading, spacing: 10) {
             Toggle("Liquid light (current scene)", isOn: Binding(
                 get: {
                     guard appModel.sceneManager.scenes.indices.contains(appModel.sceneManager.currentIndex) else { return false }
@@ -202,26 +294,51 @@ struct SceneStudioView: View {
                     appModel.disarmLiquidDropper()
                 }
             }
+            DisclosureGroup(isExpanded: $liquidDropperSubsectionExpanded) {
+                liquidPourControlsDropperHalf
+            } label: {
+                Label("Pour, tilt & reconstitute", systemImage: "hand.point.up.left.fill")
+                    .font(.subheadline.weight(.medium))
+            }
+            .simultaneousGesture(TapGesture().onEnded { appModel.disarmLiquidDropper() })
+            DisclosureGroup(isExpanded: $liquidPaletteSubsectionExpanded) {
+                liquidPourControlsPaletteHalf
+            } label: {
+                Label("Palettes & maintenance", systemImage: "eyedropper.halffull")
+                    .font(.subheadline.weight(.medium))
+            }
         }
     }
 
-    private var fractalUniverseCard: some View {
-        DisclosureGroup(isExpanded: $fractalSectionExpanded) {
-            fractalUniverseControlsCompact
-        } label: {
-            Label("Fractal universe", systemImage: "circle.hexagongrid.fill")
-                .font(.subheadline.weight(.medium))
+    private var overlayAuthoringSections: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            DisclosureGroup(isExpanded: $overlayFilesSubsectionExpanded) {
+                overlayFileUtilityButtons
+            } label: {
+                Label("Overlay files", systemImage: "doc.badge.arrow.up")
+                    .font(.subheadline.weight(.medium))
+            }
+            .simultaneousGesture(TapGesture().onEnded { appModel.disarmLiquidDropper() })
+            DisclosureGroup(isExpanded: $overlayCardsSubsectionExpanded) {
+                OverlayCardAuthoringView()
+            } label: {
+                Label("Overlay cards", systemImage: "rectangle.stack.fill")
+                    .font(.subheadline.weight(.medium))
+            }
         }
-        .simultaneousGesture(TapGesture().onEnded { appModel.disarmLiquidDropper() })
     }
 
-    private var liquidControlsCard: some View {
-        DisclosureGroup(isExpanded: $liquidSectionExpanded) {
-            liquidPourControlsCompact
-        } label: {
-            Label("Liquid pour & tray", systemImage: "drop.fill")
-                .font(.subheadline.weight(.medium))
+    private var overlayFileUtilityButtons: some View {
+        HStack(spacing: 8) {
+            Button("Import overlay…") {
+                appModel.importOverlayAsset()
+            }
+            Button("Remove black → PNG…") {
+                appModel.exportBlackBackgroundRemovedCopy()
+            }
         }
+        .controlSize(.small)
+        .buttonStyle(.bordered)
     }
 
     private var sceneSectionCompact: some View {
@@ -414,7 +531,7 @@ struct SceneStudioView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var liquidPourControlsCompact: some View {
+    private var liquidPourControlsDropperHalf: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 ForEach(currentDropperLayers) { layer in
@@ -486,6 +603,12 @@ struct SceneStudioView: View {
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
+        }
+        .controlSize(.small)
+    }
+
+    private var liquidPourControlsPaletteHalf: some View {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Picker("Palette", selection: selectedLiquidPaletteID) {
                     Text("Choose palette").tag(UUID?.none)
@@ -524,24 +647,7 @@ struct SceneStudioView: View {
             .controlSize(.small)
             .buttonStyle(.bordered)
         }
-    }
-
-    private var overlayAuthoringCompact: some View {
-        GroupBox {
-            HStack(spacing: 8) {
-                Button("Import overlay…") {
-                    appModel.importOverlayAsset()
-                }
-                Button("Remove black → PNG…") {
-                    appModel.exportBlackBackgroundRemovedCopy()
-                }
-            }
-            .controlSize(.small)
-            .buttonStyle(.bordered)
-        } label: {
-            Text("Overlays")
-                .font(.caption.weight(.semibold))
-        }
+        .controlSize(.small)
     }
 
     private var liquidTiltXBinding: Binding<Float> {

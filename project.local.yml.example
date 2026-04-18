@@ -1,0 +1,11 @@
+# Copy to project.local.yml (gitignored) and set your 10-character Apple Team ID
+# (replace the empty string below). Then: xcodegen generate
+# Or run: bash scripts/bootstrap-xcodegen.sh
+#
+# Team ID: Xcode → Settings → Accounts → your team → Team ID
+# Or: https://developer.apple.com/account → Membership details
+
+settings:
+  base:
+    # 10-character Team ID (Membership details / Xcode Accounts). Not your name, not a UUID.
+    DEVELOPMENT_TEAM: ""

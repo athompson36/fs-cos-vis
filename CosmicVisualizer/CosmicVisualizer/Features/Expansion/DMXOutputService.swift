@@ -383,53 +383,71 @@ private final class MockOpenDMXTransport: DMXTransport {
 private final class ArtNetTransport: DMXTransport {
     private(set) var frameCount: UInt64 = 0
     private(set) var host = "255.255.255.255"
-    private(set) var universe: Int = 0
+    private(set) var packetsLastSend = 0
     private let client = UDPDMXClient()
 
     func prepare(with model: AppModel) throws {
         host = model.remoteSettings.dmxArtNetHost.trimmingCharacters(in: .whitespacesAndNewlines)
         if host.isEmpty { host = "255.255.255.255" }
-        universe = max(0, min(32767, model.remoteSettings.dmxNetworkUniverse))
         try client.configure(host: host, port: 6454)
     }
 
+    /// One ArtDMX packet per logical universe; `networkOffset` is added to each fixture’s `universe` index (Settings “Network universe”).
+    func sendUniverseMap(_ map: [Int: [UInt8]], networkOffset: Int) throws {
+        packetsLastSend = 0
+        for (logical, data) in map.sorted(by: { $0.key < $1.key }) {
+            let netU = max(0, min(32767, logical + networkOffset))
+            let payload = DMXNetworkPacketBuilder.makeArtNetPacket(universe: netU, frame: data)
+            try client.send(payload: payload)
+            frameCount &+= 1
+            packetsLastSend += 1
+        }
+    }
+
     func send(universe: [UInt8]) throws {
-        let payload = DMXNetworkPacketBuilder.makeArtNetPacket(universe: self.universe, frame: universe)
-        try client.send(payload: payload)
-        frameCount &+= 1
+        let offset = 0
+        try sendUniverseMap([0: universe], networkOffset: offset)
     }
 
     func close() {
         client.close()
     }
 
-    var diagnosticsLabel: String { "artnet:\(host) u:\(universe) frames:\(frameCount)" }
+    var diagnosticsLabel: String { "artnet:\(host) lastTickPackets:\(packetsLastSend) totalFrames:\(frameCount)" }
 }
 
 private final class SACNTransport: DMXTransport {
     private(set) var frameCount: UInt64 = 0
     private(set) var host = "239.255.0.1"
-    private(set) var universe: Int = 0
+    private(set) var packetsLastSend = 0
     private let client = UDPDMXClient()
 
     func prepare(with model: AppModel) throws {
         host = model.remoteSettings.dmxSACNHost.trimmingCharacters(in: .whitespacesAndNewlines)
         if host.isEmpty { host = "239.255.0.1" }
-        universe = max(0, min(63999, model.remoteSettings.dmxNetworkUniverse))
         try client.configure(host: host, port: 5568)
     }
 
+    func sendUniverseMap(_ map: [Int: [UInt8]], networkOffset: Int) throws {
+        packetsLastSend = 0
+        for (logical, data) in map.sorted(by: { $0.key < $1.key }) {
+            let netU = max(0, min(63999, logical + networkOffset))
+            let payload = DMXNetworkPacketBuilder.makeSACNPacket(universe: netU, frame: data)
+            try client.send(payload: payload)
+            frameCount &+= 1
+            packetsLastSend += 1
+        }
+    }
+
     func send(universe: [UInt8]) throws {
-        let payload = DMXNetworkPacketBuilder.makeSACNPacket(universe: self.universe, frame: universe)
-        try client.send(payload: payload)
-        frameCount &+= 1
+        try sendUniverseMap([0: universe], networkOffset: 0)
     }
 
     func close() {
         client.close()
     }
 
-    var diagnosticsLabel: String { "sacn:\(host) u:\(universe) frames:\(frameCount)" }
+    var diagnosticsLabel: String { "sacn:\(host) lastTickPackets:\(packetsLastSend) totalFrames:\(frameCount)" }
 }
 
 /// Maps a subset of live parameters into a single DMX universe and pushes frames at ~44 Hz.
@@ -443,6 +461,8 @@ final class DMXOutputService: ControlBus {
     private var modulationLastSmoothed: [UUID: Float] = [:]
     private var transport: DMXTransport?
     private var performanceProfiler = DMXPerformanceProfiler()
+    /// UDP packets sent in the last timer tick (1 for USB/sim; N for multi-universe Art-Net/sACN).
+    private(set) var packetsLastTimerTick: Int = 1
 
     init(model: AppModel) {
         self.model = model
@@ -478,6 +498,35 @@ final class DMXOutputService: ControlBus {
         }
 
         let tickStart = CFAbsoluteTimeGetCurrent()
+
+        if mode == "artnet" || mode == "sacn" {
+            let buildStart = tickStart
+            let map = model.buildDMXUniversesForNetwork(time: buildStart, lastSmoothed: &modulationLastSmoothed)
+            let buildMS = max(0, (CFAbsoluteTimeGetCurrent() - buildStart) * 1000)
+            let sendStart = CFAbsoluteTimeGetCurrent()
+            do {
+                let transport = try resolveTransport(model: model)
+                try transport.prepare(with: model)
+                let offset = model.remoteSettings.dmxNetworkUniverse
+                if let art = transport as? ArtNetTransport {
+                    try art.sendUniverseMap(map, networkOffset: offset)
+                    packetsLastTimerTick = art.packetsLastSend
+                    transportInfo = art.diagnosticsLabel
+                } else if let sacn = transport as? SACNTransport {
+                    try sacn.sendUniverseMap(map, networkOffset: offset)
+                    packetsLastTimerTick = sacn.packetsLastSend
+                    transportInfo = sacn.diagnosticsLabel
+                }
+                lastError = nil
+            } catch {
+                lastError = error.localizedDescription
+            }
+            let sendMS = max(0, (CFAbsoluteTimeGetCurrent() - sendStart) * 1000)
+            let totalMS = max(0, (CFAbsoluteTimeGetCurrent() - tickStart) * 1000)
+            performanceProfiler.recordFrame(buildMS: buildMS, sendMS: sendMS, totalMS: totalMS, budgetMS: 1000.0 / 44.0)
+            return
+        }
+
         let buildStart = tickStart
         universe = model.buildDMXUniverse(time: buildStart, lastSmoothed: &modulationLastSmoothed)
         let buildMS = max(0, (CFAbsoluteTimeGetCurrent() - buildStart) * 1000)
@@ -488,6 +537,7 @@ final class DMXOutputService: ControlBus {
             try transport.prepare(with: model)
             try transport.send(universe: universe)
             transportInfo = transport.diagnosticsLabel
+            packetsLastTimerTick = 1
             lastError = nil
         } catch {
             lastError = error.localizedDescription
@@ -540,8 +590,8 @@ final class DMXOutputService: ControlBus {
     }
 
     /// Nominal frame rate (timer interval); adapters may vary.
-    func extendedDiagnostics() -> (lastError: String?, running: Bool, nominalHz: Double) {
-        (lastError, isRunning, 44.0)
+    func extendedDiagnostics() -> (lastError: String?, running: Bool, nominalHz: Double, packetsLastTimerTick: Int) {
+        (lastError, isRunning, 44.0, packetsLastTimerTick)
     }
 
     func simulationSnapshot() -> (mode: String, info: String, universe: [UInt8])? {

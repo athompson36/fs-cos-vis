@@ -45,13 +45,13 @@ This document captures current implementation status, boundaries, and next work 
 
 ## Next milestones
 
-1. **Transport expansion**
+1. **Transport expansion** (scaffold vs production: keep UI/docs honest as behavior hardens)
    - Art-Net/sACN multi-universe output
    - started scaffold: output mode selection, network host/universe settings, transport diagnostics, and packet framing placeholders
    - now sending UDP packets on Art-Net/sACN ports with reusable packet builders covered by unit tests
    - inbound desk path scaffolded with UDP listener, universe filter, and HTP/LPT merge into built universe
    - RDM probe scaffold now available with operator controls and deterministic mock discovery output for workflow/testing
-   - inbound DMX and RDM discovery roadmap
+   - production-grade inbound DMX + real RDM remain roadmap items (see **Non-goals** below)
 2. **Performance profiling**
    - DMX runtime profiler now records build/send/total frame timing, max frame duration, and over-budget frame counts
    - diagnostics surfaced in Settings to evaluate fixture/modulator load behavior before deeper optimization passes
@@ -61,7 +61,7 @@ This document captures current implementation status, boundaries, and next work 
 4. **Console-scale workflow**
    - advanced chaser/sequence graphs
    - higher-density fixture/scene authoring ergonomics
-   - OSC parity scaffold in progress (UDP listener + command mapping parity with core web/MIDI actions)
+   - OSC parity in progress (UDP listener + mappings + state query; includes live recorder OSC paths — see [`osc-control.md`](osc-control.md))
 
 ## Non-goals (current shipping scope)
 

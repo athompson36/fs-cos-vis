@@ -1,84 +1,71 @@
-# Cosmic Visualizer Cursor Starter
+# FS-COS-VIS
 
-A Cursor-ready starter package for building a macOS-native, audio-reactive fractal and liquid-light visualization app.
+## Cosmic Visualizer (beta)
 
-This starter is designed to help Cursor understand:
-- the product vision
-- the technical architecture
-- the visual direction
-- the implementation sequence
-- the Drew Spaceman aesthetic and brand tone
+FS-COS-VIS is a **hybrid macOS performance application**: real-time cosmic audio-reactive visualization, fractal + liquid-light scene authoring, live show controls, lighting patch/cue/modulation/stage workflows, fixture verification, and beta distribution/update support.
 
-## Included
+This repository is **no longer a starter scaffold**. It is a **late-stage beta** codebase with substantial implementation across rendering, audio/BPM, scene workflows, live output recording, web/MIDI/OSC control, lighting and stage planning, project packaging, and operator onboarding.
 
-- detailed product and UX documentation
-- Cursor-specific context and rules
-- a recommended macOS-first architecture
-- starter Swift/Metal project structure
-- scene, theme, BPM, overlay, and rendering guidance
+## Major app surfaces
 
-## Current implementation status
+- **Live Show** — performance preview, cue strips, tempo, recorder, haze safety, quick palette access  
+- **Scene Studio** — scene editing, fractal/liquid/overlay authoring, **palette and overlay work consolidated here** (there is no separate Palette Browser or Overlay Manager app screen)  
+- **Controller** — tempo, MIDI learn, faders, DMX group controls  
+- **Settings** — remote control, OSC, audio, DMX transports, AI, updates, feedback, show package import/export  
+- **Lighting Workspace** — patch, cues, stage, modulation, verification, JSON tools  
 
-Cosmic Visualizer has progressed beyond starter scaffolding into a substantial implementation:
+## Documentation (source-of-truth order)
 
-- core scene/render/audio workflow is in place
-- performance/live control surfaces are implemented
-- lighting stack includes patch/cues/modulation/stage/2.5D preview
-- fog/haze learn and fixture verification workflows are implemented
-- OFL fixture import and curated catalog sync are integrated
-- stage plot supports fixture placement, gear objects, and scan-camera overlays
-- cue bookmarks now support metadata (for example song title/artist), and overlay elements support metadata binding + per-element auto-hide timeout
-- Live Show includes project-scoped output recording (video + audio) with source selection and share/reveal actions
-- fractal zoom now includes Standard / Infinite Tunnel / Event Horizon modes with expanded zoom modulation range
-- first-run Setup Wizard (beta 0.1a) now guides project/audio/output/DMX/AI setup with skippable steps and provider-specific AI API onboarding links/instructions (OpenAI-compatible vs Claude/Anthropic)
-- audio startup now requests microphone permission explicitly and includes one-click recovery actions to open macOS Microphone Privacy settings if access is denied after a new build/install
-- Settings now includes beta update checks and dual-path feedback/error-log reporting (local bundle + optional GitHub issue)
+1. This `README.md`  
+2. [`docs/project-audit-and-feature-status.md`](docs/project-audit-and-feature-status.md)  
+3. [`docs/07-roadmap.md`](docs/07-roadmap.md)  
+4. [`docs/todo-full-implementation.md`](docs/todo-full-implementation.md)  
+5. [`docs/03-ui-ux-spec.md`](docs/03-ui-ux-spec.md)  
 
-For full details, see:
+Additional references:
 
-- `docs/project-audit-and-feature-status.md`
-- `docs/lighting-roadmap.md`
-- `docs/todo-full-implementation.md`
-- `docs/beta-0.1a-release.md`
-- `docs/osc-control.md`
+- [`docs/lighting-roadmap.md`](docs/lighting-roadmap.md) — DMX/lighting detail  
+- [`docs/beta-0.1a-release.md`](docs/beta-0.1a-release.md) — beta packaging and validation  
+- [`docs/release-runbook.md`](docs/release-runbook.md) — Release CI, signing, notarization, Sparkle (Section K)  
+- [`docs/osc-control.md`](docs/osc-control.md) — OSC operator quickstart  
+- [`docs/macOS-installer-options.md`](docs/macOS-installer-options.md) — DMG vs ZIP vs PKG for testers  
+- [`docs/fs-cos-vis-audit-and-docs-update/`](docs/fs-cos-vis-audit-and-docs-update/README_REPLACEMENT.md) — FS-COS-VIS audit pack (full project audit, alternate copies of roadmap/todo)  
 
 ## Recommended stack
 
-- SwiftUI for app UI
-- Metal for real-time rendering
-- AVFoundation / Core Audio for device selection and capture
-- Accelerate for FFT / spectral analysis
+- SwiftUI for app UI  
+- Metal for real-time rendering  
+- AVFoundation / Core Audio for device selection and capture  
+- Accelerate for FFT / spectral analysis  
 
 ## Primary goals
 
-1. Build a responsive real-time visual instrument, not just a screensaver.
-2. Support fractal, liquid-light, and hybrid scenes.
-3. Make BPM and beat information musically useful.
-4. Preserve strong cosmic identity with live-performance usability.
-5. Keep the app modular so future Windows or plugin versions are possible.
+1. Build a responsive real-time visual instrument, not just a screensaver.  
+2. Support fractal, liquid-light, and hybrid scenes.  
+3. Make BPM and beat information musically useful.  
+4. Preserve strong cosmic identity with live-performance usability.  
+5. Keep the app modular so future Windows or plugin versions are possible.  
 
-## Important design note
+## Drew Spaceman aesthetic
 
-"Drew Spaceman" should be treated as a defining aesthetic system for the app:
-- cosmic
-- psychedelic
-- analog-meets-futurist
-- immersive, not sterile
-- rich, glowy, cinematic, musical
+Treat **Drew Spaceman** as a defining aesthetic system: cosmic, psychedelic, analog-meets-futurist, immersive (not sterile), rich and cinematic. Start with:
 
-Start with:
-- `docs/01-cursor-context.md`
-- `docs/06-drew-spaceman-aesthetic.md`
-- `.cursor/rules.md`
+- [`docs/01-cursor-context.md`](docs/01-cursor-context.md)  
+- [`docs/06-drew-spaceman-aesthetic.md`](docs/06-drew-spaceman-aesthetic.md)  
+- [`.cursor/rules.md`](.cursor/rules.md)  
 
 ## Building and testing
 
-The Xcode project is generated from [project.yml](project.yml) using [XcodeGen](https://github.com/yonaskolb/XcodeGen). After cloning:
+The Xcode project is generated from [`project.yml`](project.yml) using [XcodeGen](https://github.com/yonaskolb/XcodeGen). Signing uses a **local-only** [`project.local.yml`](project.local.yml.example) (copy from `project.local.yml.example`, set your Apple **DEVELOPMENT_TEAM**; file is gitignored). After cloning:
 
 ```bash
+cp project.local.yml.example project.local.yml
+# Edit project.local.yml — set DEVELOPMENT_TEAM to your 10-character Team ID
 xcodegen generate
 open CosmicVisualizer.xcodeproj
 ```
+
+Or: `bash scripts/bootstrap-xcodegen.sh` creates `project.local.yml` from the example if missing.
 
 Run tests from Xcode (**Cmd-U**) or from the terminal:
 
@@ -86,13 +73,14 @@ Run tests from Xcode (**Cmd-U**) or from the terminal:
 xcodebuild -scheme CosmicVisualizer -destination 'platform=macOS' test
 ```
 
-The app requires microphone access for live audio analysis (see Info usage string in `project.yml`). If permission is denied, use the in-app **Open Microphone Settings** action to jump directly to macOS Privacy settings and then retry audio start.
+CI also includes a **show package** smoke workflow (see [`.github/workflows/show-package-smoke.yml`](.github/workflows/show-package-smoke.yml)).
 
-If the build fails with **missing Metal Toolchain** when compiling `.metal` files, install Apple’s component:
+The app requires microphone access for live audio analysis (see Info usage string in `project.yml`). If permission is denied, use the in-app **Open Microphone Settings** action to jump to macOS Privacy settings, then retry audio start.
+
+If the build fails with **missing Metal Toolchain** when compiling `.metal` files:
 
 ```bash
 xcodebuild -downloadComponent MetalToolchain
 ```
 
 The generated [CosmicVisualizer.xcodeproj](CosmicVisualizer.xcodeproj) is checked in so you can open the project without running XcodeGen; regenerate it whenever `project.yml` changes.
-

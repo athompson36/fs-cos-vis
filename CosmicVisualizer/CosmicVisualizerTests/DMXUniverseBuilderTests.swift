@@ -144,4 +144,20 @@ final class DMXUniverseBuilderTests: XCTestCase {
         XCTAssertEqual(decoded.version, bundle.version)
         XCTAssertEqual(decoded.dmxPatch.profiles.count, bundle.dmxPatch.profiles.count)
     }
+
+    func testBuildDMXUniversesForNetwork_splitsFixtureUniverses() {
+        let model = AppModel()
+        var patch = DMXPatchDocument.default()
+        patch.useLegacyVisualizationSlots = false
+        let rgb = patch.profiles.first(where: { $0.name.contains("RGB") })!
+        patch.instances = [
+            FixtureInstance(profileID: rgb.id, universe: 0, startAddress: 10, manualValues: ["0": 100]),
+            FixtureInstance(profileID: rgb.id, universe: 1, startAddress: 10, manualValues: ["0": 88]),
+        ]
+        model.applyDMXPatchDocument(patch)
+        var smooth: [UUID: Float] = [:]
+        let per = model.buildDMXUniversesForNetwork(time: 0, lastSmoothed: &smooth)
+        XCTAssertEqual(per[0]?[9], 100)
+        XCTAssertEqual(per[1]?[9], 88)
+    }
 }
