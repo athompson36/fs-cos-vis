@@ -26,6 +26,25 @@ Paste the same value as **Relay authorization** as you set in `RELAY_SECRET` (th
 - Set `RELAY_SECRET`, `GITHUB_TOKEN`, and `PORT` via the host’s env config.
 - Use `https://your-domain/` as the relay URL in the app (plain `http` is only allowed for localhost in the client).
 
+### Docker
+
+From `scripts/feedback-relay/`:
+
+```bash
+docker build -t cosmic-feedback-relay .
+docker run --rm -p 8080:8080 \
+  -e RELAY_SECRET="$RELAY_SECRET" \
+  -e GITHUB_TOKEN="$GITHUB_TOKEN" \
+  -e PORT=8080 \
+  cosmic-feedback-relay
+```
+
+The image runs `node server.js` as a non-root user. Prefer a managed secret store for `GITHUB_TOKEN` in production.
+
+### macOS app signing / notarization
+
+Shipping the **desktop** app is separate from this relay. Maintainer steps (Developer ID, `notarytool`, stapling) are documented in the repo root [`docs/release-runbook.md`](../../docs/release-runbook.md) (Section K and following).
+
 ## Optional: lock repository server-side
 
 To ignore spoofed `repository` from the client, change `server.js` to use a fixed `owner/repo` from env (e.g. `TARGET_REPOSITORY`) instead of `req.body.repository`.

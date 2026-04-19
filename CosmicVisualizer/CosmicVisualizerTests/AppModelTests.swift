@@ -49,6 +49,8 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(dp.frameCount, perf.frameCount)
         XCTAssertEqual(dp.avgTotalMS, perf.avgTotalMS, accuracy: 0.000_1)
         XCTAssertEqual(dp.maxTotalMS, perf.maxTotalMS, accuracy: 0.000_1)
+        XCTAssertEqual(dp.exactMedianTotalMS, perf.exactMedianTotalMS)
+        XCTAssertEqual(dp.exactP95TotalMS, perf.exactP95TotalMS)
     }
 
     func testResolvedOverlayText_usesActiveCueBookmarkMetadata() {

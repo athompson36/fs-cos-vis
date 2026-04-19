@@ -284,5 +284,88 @@ final class DMXOutputServiceTests: XCTestCase {
         XCTAssertEqual(cleared.totalMSHistogramBinCounts, [UInt64](repeating: 0, count: DMXPerformanceProfiler.totalMSHistogramBinCount))
         XCTAssertNil(cleared.approxMedianBuildMS)
         XCTAssertNil(cleared.approxMedianSendMS)
+        XCTAssertNil(cleared.exactMedianTotalMS)
+        XCTAssertNil(cleared.exactP95TotalMS)
+    }
+
+    func testDMXPerformanceProfiler_exactQuantilesFromRing() {
+        var profiler = DMXPerformanceProfiler()
+        for _ in 0 ..< 100 {
+            profiler.recordFrame(
+                buildMS: 1.0, sendMS: 1.0, totalMS: 5.0, budgetMS: 22.7,
+                rigFixtureInstanceCount: 1, rigModulatorCount: 0, outputLogicalUniverseCount: 1
+            )
+        }
+        let s = profiler.snapshot()
+        XCTAssertNotNil(s.exactMedianTotalMS)
+        XCTAssertNotNil(s.exactP95TotalMS)
+        XCTAssertEqual(s.exactMedianTotalMS!, 5.0, accuracy: 0.000_1)
+        XCTAssertEqual(s.exactP95TotalMS!, 5.0, accuracy: 0.000_1)
+    }
+
+    func testDMXPerformanceProfiler_exactQuantile_interpolatedMedian() {
+        var profiler = DMXPerformanceProfiler()
+        profiler.recordFrame(
+            buildMS: 1.0, sendMS: 1.0, totalMS: 0.0, budgetMS: 22.7,
+            rigFixtureInstanceCount: 1, rigModulatorCount: 0, outputLogicalUniverseCount: 1
+        )
+        profiler.recordFrame(
+            buildMS: 1.0, sendMS: 1.0, totalMS: 10.0, budgetMS: 22.7,
+            rigFixtureInstanceCount: 1, rigModulatorCount: 0, outputLogicalUniverseCount: 1
+        )
+        let s = profiler.snapshot()
+        XCTAssertEqual(s.exactMedianTotalMS!, 5.0, accuracy: 0.000_1)
+    }
+
+    func testArtNetArtPollDiscovery_pollPacketLayout() {
+        let p = ArtNetArtPollDiscovery.makeArtPollPacket()
+        XCTAssertEqual(p.count, 14)
+        XCTAssertEqual(String(decoding: p.prefix(8), as: UTF8.self), "Art-Net\u{0}")
+        XCTAssertEqual(p[8], 0x00)
+        XCTAssertEqual(p[9], 0x20)
+    }
+
+    func testArtNetArtPollDiscovery_parsesMinimalPollReply() {
+        var d = [UInt8](repeating: 0, count: 42)
+        let art = Array("Art-Net\u{0}".utf8)
+        for k in 0 ..< 8 { d[k] = art[k] }
+        d[8] = 0x00
+        d[9] = 0x21
+        let label = Array("Node-A".utf8)
+        for i in 0 ..< min(18, label.count) {
+            d[21 + i] = label[i]
+        }
+        let dev = ArtNetArtPollDiscovery.parseArtPollReply(d, sourceIPv4: "192.168.1.40")
+        XCTAssertEqual(dev?.modelLabel, "Node-A")
+        XCTAssertEqual(dev?.manufacturer, "Art-Net")
+        XCTAssertEqual(dev?.uid, "ip:192.168.1.40")
+    }
+
+    func testSACNE131InboundClassifier_syncUniverseField() {
+        let syncHex = "001000004153432d45312e313700000070210000000800000000000000000000000000000000700b000000010730390000"
+        let packet = Self.bytes(fromHex: syncHex)
+        XCTAssertEqual(packet.count, 49)
+        XCTAssertEqual(SACNE131InboundClassifier.synchronizationSyncWireUniverse(packet: packet), 12_345)
+    }
+
+    func testSACNE131InboundClassifier_universeDiscoveryList() {
+        let udlHex = "001000004153432d45312e3137000000706e00000008ef07c8dd00644401a3a2459ef8e6143e705800000002536f757263655f41000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000700e000000010001000100020003"
+        let packet = Self.bytes(fromHex: udlHex)
+        XCTAssertEqual(packet.count, 126)
+        let list = SACNE131InboundClassifier.universeDiscoveryWireUniverses(packet: packet)
+        XCTAssertEqual(list, [1, 2, 3])
+    }
+
+    private static func bytes(fromHex hex: String) -> [UInt8] {
+        var out: [UInt8] = []
+        var i = hex.startIndex
+        while i < hex.endIndex {
+            let j = hex.index(i, offsetBy: 2, limitedBy: hex.endIndex) ?? hex.endIndex
+            let pair = hex[i ..< j]
+            XCTAssertEqual(pair.count, 2)
+            out.append(UInt8(String(pair), radix: 16)!)
+            i = j
+        }
+        return out
     }
 }

@@ -26,6 +26,13 @@ struct WebControlStateDTO: Codable, Equatable, Sendable {
         var maxBuildMS: Double
         var maxSendMS: Double
         var maxTotalMS: Double
+        /// Exact median / p95 from the last ≤512 raw frame samples (when available).
+        var exactMedianTotalMS: Double?
+        var exactP95TotalMS: Double?
+        var exactMedianBuildMS: Double?
+        var exactP95BuildMS: Double?
+        var exactMedianSendMS: Double?
+        var exactP95SendMS: Double?
     }
 
     var bpm: Double

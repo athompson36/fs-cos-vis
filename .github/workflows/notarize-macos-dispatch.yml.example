@@ -1,0 +1,23 @@
+# Rename to notarize-macos-dispatch.yml and wire repository secrets before use.
+# Intended for manual `workflow_dispatch` notarization when Developer ID + API key
+# secrets are available (not enabled in-repo by default).
+#
+# Required secrets (example names — adjust to your org):
+#   APPLE_API_KEY_ID, APPLE_API_ISSUER_ID, APPLE_API_KEY_P8 (or use notarytool keychain profile on a self-hosted runner)
+#   DEVELOPMENT_TEAM, SIGNING_CERT_NAME
+#
+# This is a skeleton only; align steps with docs/release-runbook.md.
+
+name: Notarize macOS (dispatch example)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  notarize:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Placeholder — generate project, build Release, package, codesign, notarytool submit
+        run: |
+          echo "Copy this workflow from the example and implement signing/notarization per docs/release-runbook.md"

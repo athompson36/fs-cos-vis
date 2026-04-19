@@ -728,16 +728,25 @@ private extension SettingsView {
             GroupBox {
                 TimelineView(.periodic(from: .now, by: 0.5)) { _ in
                     let inbound = appModel.dmxInboundDiagnostics()
-                    let sacnExtra = appModel.remoteSettings.dmxInboundMode == "sacn" && inbound.running
-                        ? " · sACN sync: \(inbound.sacnSyncPackets) · discovery: \(inbound.sacnDiscoveryPackets)"
-                        : ""
+                    let d = inbound.diagnostics
+                    let sacnExtra: String = {
+                        guard appModel.remoteSettings.dmxInboundMode == "sacn", d.running else { return "" }
+                        let syncU = d.sacnLastSyncUniverse.map { "last sync U \($0)" } ?? "sync U —"
+                        let discU: String = {
+                            if d.sacnLastDiscoveryUniverses.isEmpty { return "UDL —" }
+                            let s = d.sacnLastDiscoveryUniverses.prefix(12).map(String.init).joined(separator: ",")
+                            let more = d.sacnLastDiscoveryUniverses.count > 12 ? "…" : ""
+                            return "UDL \(s)\(more)"
+                        }()
+                        return " · sACN sync pkts: \(d.sacnSyncPackets) (\(syncU)) · discovery pkts: \(d.sacnDiscoveryPackets) (\(discU))"
+                    }()
                     HStack(alignment: .top, spacing: 8) {
                         Text("Receiver")
                             .font(.caption.weight(.semibold))
-                        Text(inbound.running ? "\(inbound.status) · frames: \(inbound.frames)\(sacnExtra)" : inbound.status)
+                        Text(d.running ? "\(inbound.status) · frames: \(d.frames)\(sacnExtra)" : inbound.status)
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        if let err = inbound.lastError, !err.isEmpty {
+                        if let err = d.lastError, !err.isEmpty {
                             Text(err)
                                 .font(.caption)
                                 .foregroundStyle(.red)
@@ -783,6 +792,13 @@ private extension SettingsView {
                                    let sm = perf.approxMedianSendMS, let sp = perf.approxP95SendMS {
                                     Text(
                                         "est. build median \(String(format: "%.2f", bm)) ms · p95 \(String(format: "%.2f", bp)) ms · est. send median \(String(format: "%.2f", sm)) ms · p95 \(String(format: "%.2f", sp)) ms"
+                                    )
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                                }
+                                if let em = perf.exactMedianTotalMS, let ep = perf.exactP95TotalMS {
+                                    Text(
+                                        "exact total median \(String(format: "%.2f", em)) ms · exact p95 \(String(format: "%.2f", ep)) ms (last ≤\(DMXPerformanceProfiler.recentSampleRingCapacity) samples)"
                                     )
                                     .font(.caption2)
                                     .foregroundStyle(.tertiary)

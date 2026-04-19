@@ -134,7 +134,9 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     @Published var remoteSettings: RemoteControlSettings = RemoteControlSettingsStore.load() {
         didSet {
             RemoteControlSettingsStore.save(remoteSettings)
-            refreshAuxiliaryServices()
+            DispatchQueue.main.async { [weak self] in
+                self?.refreshAuxiliaryServices()
+            }
         }
     }
 
@@ -415,7 +417,13 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             avgTotalMS: perf.avgTotalMS,
             maxBuildMS: perf.maxBuildMS,
             maxSendMS: perf.maxSendMS,
-            maxTotalMS: perf.maxTotalMS
+            maxTotalMS: perf.maxTotalMS,
+            exactMedianTotalMS: perf.exactMedianTotalMS,
+            exactP95TotalMS: perf.exactP95TotalMS,
+            exactMedianBuildMS: perf.exactMedianBuildMS,
+            exactP95BuildMS: perf.exactP95BuildMS,
+            exactMedianSendMS: perf.exactMedianSendMS,
+            exactP95SendMS: perf.exactP95SendMS
         )
         let dto = WebControlStateDTO(
             bpm: tempoClock.effectiveBPM,
@@ -739,8 +747,13 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         default:
             break
         }
-        bpm = tempoClock.effectiveBPM
-        beatConfidence = tempoClock.displayConfidence
+        let nextBpm = tempoClock.effectiveBPM
+        let nextBeatConf = tempoClock.displayConfidence
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.bpm = nextBpm
+            self.beatConfidence = nextBeatConf
+        }
     }
 
     private func mutateCurrentEdit(_ body: (inout SceneEditState) -> Void) {
@@ -1749,9 +1762,9 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         dmxService?.simulationSnapshot()
     }
 
-    func dmxInboundDiagnostics() -> (lastError: String?, running: Bool, frames: UInt64, sacnSyncPackets: UInt64, sacnDiscoveryPackets: UInt64, status: String) {
-        let d = dmxInputService?.diagnostics() ?? (lastError: nil, running: false, frames: 0, sacnSyncPackets: 0, sacnDiscoveryPackets: 0)
-        return (d.lastError, d.running, d.frames, d.sacnSyncPackets, d.sacnDiscoveryPackets, dmxInboundStatus)
+    func dmxInboundDiagnostics() -> (diagnostics: DMXInboundDiagnostics, status: String) {
+        let d = dmxInputService?.diagnostics() ?? .none
+        return (d, dmxInboundStatus)
     }
 
     func dmxPerformanceDiagnostics() -> DMXPerformanceSnapshot {
@@ -1773,7 +1786,13 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             approxMedianBuildMS: nil,
             approxP95BuildMS: nil,
             approxMedianSendMS: nil,
-            approxP95SendMS: nil
+            approxP95SendMS: nil,
+            exactMedianTotalMS: nil,
+            exactP95TotalMS: nil,
+            exactMedianBuildMS: nil,
+            exactP95BuildMS: nil,
+            exactMedianSendMS: nil,
+            exactP95SendMS: nil
         )
     }
 
@@ -1798,10 +1817,11 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         }
         rdmDiscoveryStatus = "Running RDM probe..."
         Task { @MainActor in
-            let result = await rdmDiscoveryService.runMockProbe(
+            let result = await rdmDiscoveryService.runProbe(
                 mode: remoteSettings.rdmDiscoveryTransportMode,
                 universe: remoteSettings.rdmDiscoveryUniverse,
-                serialPath: remoteSettings.dmxSerialDevicePath
+                serialPath: remoteSettings.dmxSerialDevicePath,
+                artNetHost: remoteSettings.dmxArtNetHost
             )
             rdmDiscoveryResult = result
             rdmDiscoveryStatus = "Probe complete: \(result.devices.count) device(s) on universe \(result.universe)."

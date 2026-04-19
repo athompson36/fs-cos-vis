@@ -50,12 +50,27 @@ final class CompositeRenderer: NSObject, MTKViewDelegate, ObservableObject, @unc
     /// If set, called after the composite pass and before `present` (e.g. Syphon publish to OBS).
     var onBeforePresent: ((MTLTexture, MTLCommandBuffer, CGSize) -> Void)?
 
-    @Published var parameters = RenderParameters()
+    /// Backing store read synchronously in `draw(in:)`; SwiftUI is notified on the next main run-loop turn to avoid publishing during view/display updates.
+    private var _parameters = RenderParameters()
+    var parameters: RenderParameters {
+        get { _parameters }
+        set {
+            _parameters = newValue
+            scheduleObservableUpdate()
+        }
+    }
 
     func updateParameters(_ update: (inout RenderParameters) -> Void) {
-        var next = parameters
+        var next = _parameters
         update(&next)
-        parameters = next
+        _parameters = next
+        scheduleObservableUpdate()
+    }
+
+    private func scheduleObservableUpdate() {
+        DispatchQueue.main.async { [weak self] in
+            self?.objectWillChange.send()
+        }
     }
 
     /// Thread-safe: splats are applied on the next `draw(in:)`.
