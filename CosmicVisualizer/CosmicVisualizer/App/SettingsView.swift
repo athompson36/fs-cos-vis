@@ -751,9 +751,17 @@ private extension SettingsView {
             GroupBox {
                 TimelineView(.periodic(from: .now, by: 1.0)) { _ in
                     let perf = appModel.dmxPerformanceDiagnostics()
-                    HStack(alignment: .top, spacing: 8) {
-                        Text("Build / send")
-                            .font(.caption.weight(.semibold))
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .center) {
+                            Text("Build / send")
+                                .font(.caption.weight(.semibold))
+                            Spacer(minLength: 8)
+                            Button("Reset stats") {
+                                appModel.resetDMXPerformanceProfiler()
+                            }
+                            .font(.caption)
+                            .help("Clear accumulated frame timing stats (histogram, averages, maxima).")
+                        }
                         VStack(alignment: .leading, spacing: 4) {
                             Text(
                                 "frames: \(perf.frameCount) · fixtures: \(perf.rigFixtureInstanceCount) · modulators: \(perf.rigModulatorCount) · logical universes: \(perf.outputLogicalUniverseCount) · avg build: \(String(format: "%.2f", perf.avgBuildMS)) ms · avg send: \(String(format: "%.2f", perf.avgSendMS)) ms · avg total: \(String(format: "%.2f", perf.avgTotalMS)) ms · max build: \(String(format: "%.2f", perf.maxBuildMS)) ms · max send: \(String(format: "%.2f", perf.maxSendMS)) ms · max total: \(String(format: "%.2f", perf.maxTotalMS)) ms · over budget: \(perf.overBudgetFrameCount)"
@@ -767,6 +775,14 @@ private extension SettingsView {
                                 if let med = perf.approxMedianTotalMS, let p95 = perf.approxP95TotalMS {
                                     Text(
                                         "est. total median \(String(format: "%.2f", med)) ms · est. p95 \(String(format: "%.2f", p95)) ms (from Δt bins)"
+                                    )
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                                }
+                                if let bm = perf.approxMedianBuildMS, let bp = perf.approxP95BuildMS,
+                                   let sm = perf.approxMedianSendMS, let sp = perf.approxP95SendMS {
+                                    Text(
+                                        "est. build median \(String(format: "%.2f", bm)) ms · p95 \(String(format: "%.2f", bp)) ms · est. send median \(String(format: "%.2f", sm)) ms · p95 \(String(format: "%.2f", sp)) ms"
                                     )
                                     .font(.caption2)
                                     .foregroundStyle(.tertiary)

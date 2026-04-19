@@ -177,14 +177,14 @@ This backlog was originally derived from the **FS-COS-VIS audit pack** in [`docs
 - [ ] **E1.31 / sACN** — **partial:** **outbound** uses full **E1.31** data packet layout (638 bytes, Root/Framing/DMP); **inbound** decodes standard packets and the older app scaffold; **inbound multicast** — `IP_ADD_MEMBERSHIP` / `IP_DROP_MEMBERSHIP` for `239.255.x.y` per listened universe (Wi‑Fi / IGMP); **inbound priority merge** (framing priority) **shipped**; **inbound** recognizes **extended** PDUs (root vector `0x08`) and counts **synchronization** vs **universe discovery** frames for diagnostics (no sync timing / discovery protocol handling yet); deeper field hardening — field-test vs reference receivers where you need guarantees.
 - [x] **DMX over Wi‑Fi / LAN (operator path)** — Settings + wizard copy; **inbound sACN** multicast join — [`DMXOutputService.swift`](../CosmicVisualizer/CosmicVisualizer/Features/Expansion/DMXOutputService.swift) (`SACNMulticastAddress`, `DMXInputService`).
 - [ ] **RDM discovery/probing** beyond **mock/scaffold** — replace or augment `RDMDiscoveryService` mock with real workflow when ready.
-- [ ] **Performance profiling** under **larger fixture counts / high modulator density** — **partial:** profiler snapshot + Settings show fixture/modulator/logical-universe counts, **max build/send/total**, **nine-bucket total-time histogram**, and **approx. median / p95** (interpolated from bins); optional **per-subsystem** splits or exact percentiles still open.
+- [ ] **Performance profiling** under **larger fixture counts / high modulator density** — **partial:** profiler snapshot + Settings show fixture/modulator/logical-universe counts, **max build/send/total**, **nine-bucket total-time histogram**, **approx. median / p95** for **total**, **build**, and **send** (interpolated from bins), and **Reset stats**; optional **exact streaming quantiles** or richer breakdowns still open.
 
 **Progress notes (keep in sync with code)**
 
 - [x] Initial Art-Net/sACN **scaffolding**, UDP send path, packet builders — extended with **per-universe** send and **pkt/tick** in output diagnostics (`extendedDiagnostics` / Settings / Lighting patch strip); **sACN outbound** now emits **full E1.31** data packets (`DMXNetworkPacketBuilder.makeSACNPacket`).
 - [x] Inbound listener, HTP/LPT merge, decode tests — **contiguous multi-universe** listen + per-universe network merge; USB merges configured start universe into universe 0; **sACN priority** respected for competing sources (see open bullets).
 - [x] RDM **mock** probe + UI scaffold — partial.
-- [x] DMX **runtime profiler** + over-budget frames + **histogram** + **approx. median/p95** (`DMXPerformanceProfiler`, Settings).
+- [x] DMX **runtime profiler** + over-budget frames + **histogram** + **approx. median/p95** + **reset** (`DMXPerformanceProfiler`, Settings).
 
 ---
 
@@ -236,14 +236,14 @@ This backlog was originally derived from the **FS-COS-VIS audit pack** in [`docs
 1. [x] **Docs / spec / roadmap / README** agree (no drift) — *pass verified 2026-04-18* ([`project-audit-and-feature-status.md`](project-audit-and-feature-status.md), [`07-roadmap.md`](07-roadmap.md), this file, [`README.md`](../README.md)).
 2. [x] **Live** performance UX is clearly separated from **authoring** — *Section C complete*: grouped action bands, audio meter, beat-phase ring, active summary strip, overlay tools in menu; [`live_show` rule](../.cursor/rules/live_show.mdc).
 3. [x] **Verification** is reliable, test-backed, and operator-polished for beta — *Section H complete* (deterministic tests, confidence/diagnostics, exposure hints). *[ ] Optional:* deeper CV / geometry beyond heuristics if product scope expands (not blocking beta).
-4. [x] **Transport claims match behavior** — **Outbound** Art-Net/sACN multi-universe + offset + diagnostics **shipped**; **sACN outbound** uses full E1.31 framing; UI labels scaffolds where needed. *[ ] Still open:* inbound desk-grade polish (cross-subnet etc.), sACN **sync/discovery protocol** behavior (beyond packet counts), RDM beyond mock, optional **per-subsystem** / exact profiler stats — see Section I.
+4. [x] **Transport claims match behavior** — **Outbound** Art-Net/sACN multi-universe + offset + diagnostics **shipped**; **sACN outbound** uses full E1.31 framing; UI labels scaffolds where needed. *[ ] Still open:* inbound desk-grade polish (cross-subnet etc.), sACN **sync/discovery protocol** behavior (beyond packet counts), RDM beyond mock, optional **exact** profiler quantiles — see Section I.
 5. [ ] **Beta tester** can install and run **without Xcode friction** — *operational:* signed/notarized DMG validated on a clean Mac ([`release-runbook.md`](release-runbook.md)).
 6. [x] **OSC / web / MIDI** parity **documented and exercised** — [`control-parity.md`](control-parity.md), [`osc-control.md`](osc-control.md), `POST /api/command` superset; Section J parity audit **[x]**. *[ ] Separate:* authenticated **feedback** relay (Section J) does not block control parity.
 
 **Implementation depth (P0 / P1 / P2)**
 
 1. [x] **P0/P1** stability and operator UX for beta — core surfaces, tests, and runbooks in place; remaining items are **release ops** (Section K) and optional CI expansion (Section L).
-2. [x] **P2 transport (partial):** **Outbound** multi-universe + docs **done**; **inbound** multi-universe listen + network per-universe merge + **sACN priority merge** **done**; **sACN** extended sync/discovery **packet counts** in Settings **done**; DMX **frame histogram** + **binned median/p95** in Settings **done**. *[ ] P2 continues for:* RDM, optional per-subsystem profiler splits, sACN sync/discovery **protocol** + field verification — Section I.
+2. [x] **P2 transport (partial):** **Outbound** multi-universe + docs **done**; **inbound** multi-universe listen + network per-universe merge + **sACN priority merge** **done**; **sACN** extended sync/discovery **packet counts** in Settings **done**; DMX **frame histogram** + **binned median/p95** (total/build/send) in Settings **done**. *[ ] P2 continues for:* RDM, sACN sync/discovery **protocol** + field verification — Section I.
 3. [x] **Control parity** — documented coverage in [`control-parity.md`](control-parity.md); MIDI/web/OSC mapped to `applyRemoteCommand` with honest gaps for settings-only actions.
 
 ---

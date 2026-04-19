@@ -406,6 +406,17 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             lcSnap.cues.indices.contains(i) ? lcSnap.cues[i].name : nil
         }
         let lightingCueNames = lcSnap.cues.map(\.name)
+        let perf = dmxPerformanceDiagnostics()
+        let dmxPerf = WebControlStateDTO.DMXPerformanceSummary(
+            frameCount: perf.frameCount,
+            overBudgetFrameCount: perf.overBudgetFrameCount,
+            avgBuildMS: perf.avgBuildMS,
+            avgSendMS: perf.avgSendMS,
+            avgTotalMS: perf.avgTotalMS,
+            maxBuildMS: perf.maxBuildMS,
+            maxSendMS: perf.maxSendMS,
+            maxTotalMS: perf.maxTotalMS
+        )
         let dto = WebControlStateDTO(
             bpm: tempoClock.effectiveBPM,
             beatPhase: tempoClock.beatPhase,
@@ -446,7 +457,8 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             lightingActiveCueIndex: lcSnap.activeCueIndex,
             lightingActiveCueName: activeCueName,
             lightingModulatorCount: modSnapCount,
-            lightingCueNames: lightingCueNames
+            lightingCueNames: lightingCueNames,
+            dmxPerformance: dmxPerf
         )
         return (try? JSONEncoder().encode(dto)) ?? Data()
     }
@@ -1757,8 +1769,17 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             rigModulatorCount: 0,
             outputLogicalUniverseCount: 0,
             approxMedianTotalMS: nil,
-            approxP95TotalMS: nil
+            approxP95TotalMS: nil,
+            approxMedianBuildMS: nil,
+            approxP95BuildMS: nil,
+            approxMedianSendMS: nil,
+            approxP95SendMS: nil
         )
+    }
+
+    /// Clears DMX output frame timing accumulators (histogram, averages, maxima). No-op if `DMXOutputService` was never created (enable DMX output once to allocate it).
+    func resetDMXPerformanceProfiler() {
+        dmxService?.resetPerformanceProfiler()
     }
 
     /// Fixture / modulation counts for DMX frame profiler (call from DMX output queue).

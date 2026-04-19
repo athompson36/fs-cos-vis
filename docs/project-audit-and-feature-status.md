@@ -36,7 +36,7 @@ Single-place summary of **what the product is today** and how documentation shou
 ## Implemented — control and integration
 
 - Native **Controller** surface; tempo, learn, faders, DMX-oriented group controls  
-- **HTTP + WebSocket** remote control; `WebControlStateDTO` / schema  
+- **HTTP + WebSocket** remote control; `WebControlStateDTO` / schema (includes **`dmxPerformance`** summary on `/api/state` and OSC `/cosmic/state/get`)  
 - **MIDI** mapping store and device integration  
 - **OSC** UDP listener (port, LAN bind, optional token), expanded command mapping (layer/tempo/lighting aligned with web/MIDI where applicable), `/cosmic/state/get` JSON snapshot aligned with web state — see [`control-parity.md`](control-parity.md) and [`osc-control.md`](osc-control.md)  
 - Setup **wizard** (beta 0.1a): skippable steps, project/audio/output/DMX/AI, provider-specific AI API onboarding (e.g. OpenAI-compatible vs Anthropic)  
@@ -59,7 +59,7 @@ Single-place summary of **what the product is today** and how documentation shou
 - **Inbound** Art-Net/sACN: **multi-universe** contiguous range + HTP/LPT merge; **network** path merges per matching logical universe; **USB** merges the configured first universe into the single local buffer; **sACN** joins E1.31 multicast (`239.255.*.*`) per universe in range for IGMP/Wi‑Fi  
 - **sACN / E1.31:** **outbound** full E1.31 data packets; **inbound** standard decode + legacy scaffold + **framing-priority merge** for competing sources; **extended** sync/discovery PDUs **counted** in diagnostics (no sync timing / discovery protocol); field validation vs reference receivers still recommended for your environment  
 - **RDM** discovery: operator controls + **mock/deterministic** probe for workflow; **real RDM** stack TBD  
-- **DMX performance profiler:** tick timings, **max build/send/total**, **nine-bucket total-time histogram**, **approx. median / p95** (from bins), over-budget frames, Settings diagnostics, plus **fixture / modulator / logical-universe** counts on the last tick (optional per-subsystem splits: backlog)  
+- **DMX performance profiler:** tick timings, **max build/send/total**, **nine-bucket** duration histogram (total), **approx. median / p95** for **total / build / send** (binned), **reset** of accumulators, over-budget frames, Settings diagnostics, plus **fixture / modulator / logical-universe** counts on the last tick (optional exact streaming quantiles: backlog)  
 
 ## Implemented — project packaging and ops
 

@@ -64,6 +64,12 @@ struct DMXPerformanceSnapshot: Equatable, Sendable {
     var approxMedianTotalMS: Double?
     /// Approximate 95th percentile of **total** frame time (ms); `nil` when `frameCount == 0`.
     var approxP95TotalMS: Double?
+    /// Approximate median **build** phase time (ms); `nil` when `frameCount == 0`.
+    var approxMedianBuildMS: Double?
+    var approxP95BuildMS: Double?
+    /// Approximate median **send** phase time (ms); `nil` when `frameCount == 0`.
+    var approxMedianSendMS: Double?
+    var approxP95SendMS: Double?
 
     /// Labels for ``totalMSHistogramBinCounts`` buckets (ms, half-open except last).
     static let totalMSHistogramBinLabels: [String] = [
@@ -90,12 +96,14 @@ struct DMXPerformanceProfiler: Sendable {
     private(set) var maxSendMS: Double = 0
     private(set) var maxFrameMS: Double = 0
     private var totalMSHistogram: [UInt64] = [UInt64](repeating: 0, count: DMXPerformanceProfiler.totalMSHistogramBinCount)
+    private var buildMSHistogram: [UInt64] = [UInt64](repeating: 0, count: DMXPerformanceProfiler.totalMSHistogramBinCount)
+    private var sendMSHistogram: [UInt64] = [UInt64](repeating: 0, count: DMXPerformanceProfiler.totalMSHistogramBinCount)
     private(set) var lastRigFixtureInstanceCount: Int = 0
     private(set) var lastRigModulatorCount: Int = 0
     private(set) var lastOutputLogicalUniverseCount: Int = 0
 
-    private static func totalMSHistogramBinIndex(totalMS: Double) -> Int {
-        let t = max(0, totalMS)
+    private static func durationHistogramBinIndex(_ ms: Double) -> Int {
+        let t = max(0, ms)
         switch t {
         case ..<2: return 0
         case ..<4: return 1
@@ -109,21 +117,21 @@ struct DMXPerformanceProfiler: Sendable {
         }
     }
 
-    /// Lower bounds (ms) for each histogram bin; must stay aligned with ``totalMSHistogramBinIndex``.
-    private static let totalMSHistogramBinLowerMs: [Double] = [0, 2, 4, 6, 8, 12, 16, 24, 40]
+    /// Lower bounds (ms) for each histogram bin; must stay aligned with ``durationHistogramBinIndex``.
+    private static let durationHistogramBinLowerMs: [Double] = [0, 2, 4, 6, 8, 12, 16, 24, 40]
 
     /// Linear interpolation on the empirical histogram CDF: `quantile` in (0,1), `t = quantile * n` sample-ranks.
-    static func approximateTotalMSQuantile(
+    static func approximateDurationQuantile(
         bins: [UInt64],
         frameCount: UInt64,
         quantile: Double,
-        maxObservedTotalMS: Double
+        maxObservedMS: Double
     ) -> Double? {
         guard frameCount > 0, quantile > 0, quantile < 1, bins.count == totalMSHistogramBinCount else { return nil }
         let n = Double(frameCount)
         let t = quantile * n
         var cum: UInt64 = 0
-        let lowers = totalMSHistogramBinLowerMs
+        let lowers = durationHistogramBinLowerMs
         for i in 0 ..< totalMSHistogramBinCount {
             let c = bins[i]
             if c == 0 { continue }
@@ -131,7 +139,7 @@ struct DMXPerformanceProfiler: Sendable {
             cum += c
             if Double(cum) >= t {
                 let lo = lowers[i]
-                let hi: Double = i < 8 ? lowers[i + 1] : max(40.000_001, maxObservedTotalMS)
+                let hi: Double = i < 8 ? lowers[i + 1] : max(40.000_001, maxObservedMS)
                 let offset = t - Double(before)
                 return lo + (offset / Double(c)) * (hi - lo)
             }
@@ -155,8 +163,10 @@ struct DMXPerformanceProfiler: Sendable {
         maxBuildMS = max(maxBuildMS, buildMS)
         maxSendMS = max(maxSendMS, sendMS)
         maxFrameMS = max(maxFrameMS, totalMS)
-        let bi = Self.totalMSHistogramBinIndex(totalMS: totalMS)
-        totalMSHistogram[bi] &+= 1
+        let biTotal = Self.durationHistogramBinIndex(totalMS)
+        totalMSHistogram[biTotal] &+= 1
+        buildMSHistogram[Self.durationHistogramBinIndex(buildMS)] &+= 1
+        sendMSHistogram[Self.durationHistogramBinIndex(sendMS)] &+= 1
         lastRigFixtureInstanceCount = rigFixtureInstanceCount
         lastRigModulatorCount = rigModulatorCount
         lastOutputLogicalUniverseCount = outputLogicalUniverseCount
@@ -167,17 +177,41 @@ struct DMXPerformanceProfiler: Sendable {
 
     func snapshot() -> DMXPerformanceSnapshot {
         let divisor = max(1.0, Double(frameCount))
-        let med = Self.approximateTotalMSQuantile(
+        let med = Self.approximateDurationQuantile(
             bins: totalMSHistogram,
             frameCount: frameCount,
             quantile: 0.5,
-            maxObservedTotalMS: maxFrameMS
+            maxObservedMS: maxFrameMS
         )
-        let p95 = Self.approximateTotalMSQuantile(
+        let p95 = Self.approximateDurationQuantile(
             bins: totalMSHistogram,
             frameCount: frameCount,
             quantile: 0.95,
-            maxObservedTotalMS: maxFrameMS
+            maxObservedMS: maxFrameMS
+        )
+        let medB = Self.approximateDurationQuantile(
+            bins: buildMSHistogram,
+            frameCount: frameCount,
+            quantile: 0.5,
+            maxObservedMS: maxBuildMS
+        )
+        let p95B = Self.approximateDurationQuantile(
+            bins: buildMSHistogram,
+            frameCount: frameCount,
+            quantile: 0.95,
+            maxObservedMS: maxBuildMS
+        )
+        let medS = Self.approximateDurationQuantile(
+            bins: sendMSHistogram,
+            frameCount: frameCount,
+            quantile: 0.5,
+            maxObservedMS: maxSendMS
+        )
+        let p95S = Self.approximateDurationQuantile(
+            bins: sendMSHistogram,
+            frameCount: frameCount,
+            quantile: 0.95,
+            maxObservedMS: maxSendMS
         )
         return DMXPerformanceSnapshot(
             frameCount: frameCount,
@@ -193,8 +227,30 @@ struct DMXPerformanceProfiler: Sendable {
             rigModulatorCount: lastRigModulatorCount,
             outputLogicalUniverseCount: lastOutputLogicalUniverseCount,
             approxMedianTotalMS: med,
-            approxP95TotalMS: p95
+            approxP95TotalMS: p95,
+            approxMedianBuildMS: medB,
+            approxP95BuildMS: p95B,
+            approxMedianSendMS: medS,
+            approxP95SendMS: p95S
         )
+    }
+
+    /// Clears all accumulated timing stats (histogram, maxima, counts). Safe to call from any thread.
+    mutating func reset() {
+        frameCount = 0
+        overBudgetFrameCount = 0
+        totalBuildMS = 0
+        totalSendMS = 0
+        totalFrameMS = 0
+        maxBuildMS = 0
+        maxSendMS = 0
+        maxFrameMS = 0
+        totalMSHistogram = [UInt64](repeating: 0, count: Self.totalMSHistogramBinCount)
+        buildMSHistogram = [UInt64](repeating: 0, count: Self.totalMSHistogramBinCount)
+        sendMSHistogram = [UInt64](repeating: 0, count: Self.totalMSHistogramBinCount)
+        lastRigFixtureInstanceCount = 0
+        lastRigModulatorCount = 0
+        lastOutputLogicalUniverseCount = 0
     }
 }
 
@@ -781,6 +837,7 @@ final class DMXOutputService: ControlBus {
     private var modulationLastSmoothed: [UUID: Float] = [:]
     private var transport: DMXTransport?
     private var performanceProfiler = DMXPerformanceProfiler()
+    private let performanceProfilerLock = NSLock()
     /// UDP packets sent in the last timer tick (1 for USB/sim; N for multi-universe Art-Net/sACN).
     private(set) var packetsLastTimerTick: Int = 1
 
@@ -844,14 +901,11 @@ final class DMXOutputService: ControlBus {
             let sendMS = max(0, (CFAbsoluteTimeGetCurrent() - sendStart) * 1000)
             let totalMS = max(0, (CFAbsoluteTimeGetCurrent() - tickStart) * 1000)
             let rig = model.dmxRigMetricsForProfiling(outputLogicalUniverseCount: map.count)
-            performanceProfiler.recordFrame(
+            recordProfilerFrame(
                 buildMS: buildMS,
                 sendMS: sendMS,
                 totalMS: totalMS,
-                budgetMS: 1000.0 / 44.0,
-                rigFixtureInstanceCount: rig.fixtureInstances,
-                rigModulatorCount: rig.modulators,
-                outputLogicalUniverseCount: rig.outputLogicalUniverses
+                rig: rig
             )
             return
         }
@@ -874,6 +928,21 @@ final class DMXOutputService: ControlBus {
         let sendMS = max(0, (CFAbsoluteTimeGetCurrent() - sendStart) * 1000)
         let totalMS = max(0, (CFAbsoluteTimeGetCurrent() - tickStart) * 1000)
         let rig = model.dmxRigMetricsForProfiling(outputLogicalUniverseCount: 1)
+        recordProfilerFrame(
+            buildMS: buildMS,
+            sendMS: sendMS,
+            totalMS: totalMS,
+            rig: rig
+        )
+    }
+
+    private func recordProfilerFrame(
+        buildMS: Double,
+        sendMS: Double,
+        totalMS: Double,
+        rig: (fixtureInstances: Int, modulators: Int, outputLogicalUniverses: Int)
+    ) {
+        performanceProfilerLock.lock()
         performanceProfiler.recordFrame(
             buildMS: buildMS,
             sendMS: sendMS,
@@ -883,6 +952,7 @@ final class DMXOutputService: ControlBus {
             rigModulatorCount: rig.modulators,
             outputLogicalUniverseCount: rig.outputLogicalUniverses
         )
+        performanceProfilerLock.unlock()
     }
 
     private func resolveTransport(model: AppModel) throws -> DMXTransport {
@@ -938,6 +1008,16 @@ final class DMXOutputService: ControlBus {
     }
 
     func performanceSnapshot() -> DMXPerformanceSnapshot {
-        performanceProfiler.snapshot()
+        performanceProfilerLock.lock()
+        let snap = performanceProfiler.snapshot()
+        performanceProfilerLock.unlock()
+        return snap
+    }
+
+    /// Clears DMX frame timing accumulators (histogram, averages, maxima). Thread-safe with the output timer.
+    func resetPerformanceProfiler() {
+        performanceProfilerLock.lock()
+        performanceProfiler.reset()
+        performanceProfilerLock.unlock()
     }
 }

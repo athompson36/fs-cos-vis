@@ -16,6 +16,18 @@ struct WebControlStateDTO: Codable, Equatable, Sendable {
         var name: String
     }
 
+    /// DMX output frame profiler (from ``AppModel/dmxPerformanceDiagnostics()``). Omitted in older payloads when decoding.
+    struct DMXPerformanceSummary: Codable, Equatable, Sendable {
+        var frameCount: UInt64
+        var overBudgetFrameCount: UInt64
+        var avgBuildMS: Double
+        var avgSendMS: Double
+        var avgTotalMS: Double
+        var maxBuildMS: Double
+        var maxSendMS: Double
+        var maxTotalMS: Double
+    }
+
     var bpm: Double
     var beatPhase: Double
     var beatConfidence: Double
@@ -61,4 +73,6 @@ struct WebControlStateDTO: Codable, Equatable, Sendable {
     var lightingModulatorCount: Int
     /// Cue library names in list order (index matches `SetActiveLightingCueIndex`).
     var lightingCueNames: [String]
+    /// Present when the host encodes profiler data; absent/`nil` when decoding legacy JSON without this field.
+    var dmxPerformance: DMXPerformanceSummary?
 }

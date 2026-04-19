@@ -41,6 +41,14 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(dto.liveOutputRecordingSource, model.liveOutputRecordingSource.rawValue)
         XCTAssertEqual(dto.liveOutputRecordingQualityPreset, model.liveOutputRecordingQualityPreset.rawValue)
         XCTAssertEqual(dto.liveOutputRecording, model.isLiveOutputRecording)
+        let perf = model.dmxPerformanceDiagnostics()
+        guard let dp = dto.dmxPerformance else {
+            XCTFail("expected dmxPerformance in web state")
+            return
+        }
+        XCTAssertEqual(dp.frameCount, perf.frameCount)
+        XCTAssertEqual(dp.avgTotalMS, perf.avgTotalMS, accuracy: 0.000_1)
+        XCTAssertEqual(dp.maxTotalMS, perf.maxTotalMS, accuracy: 0.000_1)
     }
 
     func testResolvedOverlayText_usesActiveCueBookmarkMetadata() {

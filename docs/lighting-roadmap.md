@@ -56,7 +56,7 @@ This document captures current implementation status, boundaries, and next work 
    - **RDM:** operator mock workflow; **real RDM** stack TBD
 2. **Performance profiling**
    - DMX runtime profiler records build/send/total frame timing, **max build/send/total**, a **fixed-bucket total-time histogram**, max frame duration, and over-budget frame counts
-   - Settings **Frame timing** diagnostics include **fixture instance count**, **modulator count**, and **logical output universe count** (last tick) alongside timing, plus **approx. median / p95** from the total-time histogram — extend further if you need per-subsystem splits or exact quantiles before claiming “console scale”
+   - Settings **Frame timing** diagnostics include **fixture instance count**, **modulator count**, and **logical output universe count** (last tick) alongside timing, plus **approx. median / p95** for **total**, **build**, and **send** (binned) — extend further if you need exact streaming quantiles before claiming “console scale”
 3. **Verification depth**
    - richer CV/geometric fixture localization beyond luma-only checks
    - orientation/layout validation confidence metrics

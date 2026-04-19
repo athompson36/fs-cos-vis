@@ -74,6 +74,8 @@ Send:
 
 The app replies via UDP to the sender with the same JSON payload used by web `/api/state`.
 
+The JSON includes a `dmxPerformance` object when the host encodes it (frame counts, avg/max build–send–total ms from the DMX frame profiler; zeros when no frames recorded).
+
 ## Helper script
 
 Use the included helper:

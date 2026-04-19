@@ -46,7 +46,7 @@ High-level status. Keep aligned with [`project-audit-and-feature-status.md`](pro
 ## Next up (backlog)
 
 - Inbound DMX + RDM: desk-grade merge **refinement** (beyond sACN priority + HTP/LPT) and mock RDM → real when ready ([`todo-full-implementation.md`](todo-full-implementation.md) Section I)  
-- Performance profiling under **large** rigs (timing + rig-scale counts + total-time **histogram** + **approx. median/p95** in Settings; optional per-subsystem / exact quantiles)  
+- Performance profiling under **large** rigs (timing + rig-scale counts + total-time **histogram** + **approx. median/p95** for total/build/send in Settings; optional exact streaming quantiles)  
 - **Feedback:** optional HTTPS **relay** in Settings for issue submission without a **GitHub** PAT; hosted relay still required for end-to-end automation (Section J)  
 - Cross-platform feasibility (Windows) — spike only  
 

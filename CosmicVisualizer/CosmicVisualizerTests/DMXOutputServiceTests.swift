@@ -231,6 +231,14 @@ final class DMXOutputServiceTests: XCTestCase {
         XCTAssertNotNil(snapshot.approxP95TotalMS)
         XCTAssertEqual(snapshot.approxMedianTotalMS!, 12.0, accuracy: 0.001)
         XCTAssertEqual(snapshot.approxP95TotalMS!, 38.4, accuracy: 0.001)
+        XCTAssertNotNil(snapshot.approxMedianBuildMS)
+        XCTAssertNotNil(snapshot.approxP95BuildMS)
+        XCTAssertEqual(snapshot.approxMedianBuildMS!, 6.0, accuracy: 0.001)
+        XCTAssertEqual(snapshot.approxP95BuildMS!, 11.6, accuracy: 0.001)
+        XCTAssertNotNil(snapshot.approxMedianSendMS)
+        XCTAssertNotNil(snapshot.approxP95SendMS)
+        XCTAssertEqual(snapshot.approxMedianSendMS!, 3.0, accuracy: 0.001)
+        XCTAssertEqual(snapshot.approxP95SendMS!, 3.9, accuracy: 0.001)
         XCTAssertEqual(snapshot.rigFixtureInstanceCount, 40)
         XCTAssertEqual(snapshot.rigModulatorCount, 5)
         XCTAssertEqual(snapshot.outputLogicalUniverseCount, 4)
@@ -252,12 +260,29 @@ final class DMXOutputServiceTests: XCTestCase {
         XCTAssertEqual(snapshot.approxP95TotalMS!, 5.9, accuracy: 0.02)
     }
 
-    func testDMXPerformanceProfiler_approximateTotalMSQuantile_direct() {
+    func testDMXPerformanceProfiler_approximateDurationQuantile_direct() {
         let bins: [UInt64] = [0, 0, 100, 0, 0, 0, 0, 0, 0]
-        let q = DMXPerformanceProfiler.approximateTotalMSQuantile(
-            bins: bins, frameCount: 100, quantile: 0.5, maxObservedTotalMS: 5.5
+        let q = DMXPerformanceProfiler.approximateDurationQuantile(
+            bins: bins, frameCount: 100, quantile: 0.5, maxObservedMS: 5.5
         )
         XCTAssertNotNil(q)
         XCTAssertEqual(q!, 5.0, accuracy: 0.001)
+    }
+
+    func testDMXPerformanceProfiler_resetClearsAccumulators() {
+        var profiler = DMXPerformanceProfiler()
+        profiler.recordFrame(
+            buildMS: 4.0, sendMS: 2.0, totalMS: 10.0, budgetMS: 22.7,
+            rigFixtureInstanceCount: 3, rigModulatorCount: 1, outputLogicalUniverseCount: 2
+        )
+        XCTAssertEqual(profiler.snapshot().frameCount, 1)
+        profiler.reset()
+        let cleared = profiler.snapshot()
+        XCTAssertEqual(cleared.frameCount, 0)
+        XCTAssertEqual(cleared.overBudgetFrameCount, 0)
+        XCTAssertEqual(cleared.maxTotalMS, 0, accuracy: 0.001)
+        XCTAssertEqual(cleared.totalMSHistogramBinCounts, [UInt64](repeating: 0, count: DMXPerformanceProfiler.totalMSHistogramBinCount))
+        XCTAssertNil(cleared.approxMedianBuildMS)
+        XCTAssertNil(cleared.approxMedianSendMS)
     }
 }
