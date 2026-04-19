@@ -1,8 +1,8 @@
 # UI / UX spec
 
-**Last updated:** 2026-04-17  
+**Last updated:** 2026-04-19  
 
-Describes **information architecture**, **primary screens**, interaction priorities, and **Drew Spaceman** style constraints. Further Live Show polish (if any) is tracked in [`todo-full-implementation.md`](todo-full-implementation.md) (Section C).
+Describes **information architecture**, **primary screens**, interaction priorities, and **Drew Spaceman** style constraints. Further Live Show polish (if any) is tracked in [`todo-full-implementation.md`](todo-full-implementation.md) (Section C). IA and surface naming align with [`production-readiness-checklist.md`](production-readiness-checklist.md) (Gates 0 / 4) and [`uat-checklist.md`](uat-checklist.md).
 
 ## Information architecture
 

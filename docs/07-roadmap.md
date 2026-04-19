@@ -1,6 +1,6 @@
 # Roadmap
 
-## Status snapshot (2026-04-18)
+## Status snapshot (2026-04-19)
 
 High-level status. Keep aligned with [`project-audit-and-feature-status.md`](project-audit-and-feature-status.md), [`todo-full-implementation.md`](todo-full-implementation.md), and [`03-ui-ux-spec.md`](03-ui-ux-spec.md). Installer choices: [`macOS-installer-options.md`](macOS-installer-options.md).
 
@@ -33,6 +33,7 @@ High-level status. Keep aligned with [`project-audit-and-feature-status.md`](pro
   - fixture verification (assisted camera workflow); deterministic tests for dual-camera and stage-camera overlays; scan setup wizard and report UX improvements  
   - overlay element timeout auto-hide and metadata-bound text rendering  
 - **Syphon** vendored in-repo ([`Vendor/Syphon-Framework`](../Vendor/Syphon-Framework)) for screen/texture sharing  
+- **Production readiness (documentation + automation hooks):** [`production-readiness-checklist.md`](production-readiness-checklist.md), [`uat-checklist.md`](uat-checklist.md), [`control-plane-smoke.md`](control-plane-smoke.md), transport certification in [`lighting-roadmap.md`](lighting-roadmap.md); CI — [`unit-tests-macos.yml`](../.github/workflows/unit-tests-macos.yml) + [`show-package-smoke.yml`](../.github/workflows/show-package-smoke.yml)  
 
 ## In progress
 

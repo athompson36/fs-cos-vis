@@ -1,6 +1,6 @@
 # TODO — Full Feature Implementation Backlog
 
-Last updated: 2026-04-18
+Last updated: 2026-04-19
 
 ## Audit reference
 
@@ -13,6 +13,8 @@ This backlog was originally derived from the **FS-COS-VIS audit pack** in [`docs
 3. `docs/07-roadmap.md`
 4. `docs/todo-full-implementation.md` (this file)
 5. `docs/03-ui-ux-spec.md`
+
+**Production readiness (one-pass execution):** [`production-readiness-checklist.md`](production-readiness-checklist.md) — gated checklist, lab/ops gates, doc close-out. Supporting: [`feature-surface-matrix.md`](feature-surface-matrix.md), [`control-schema-coverage.md`](control-schema-coverage.md), [`control-plane-smoke.md`](control-plane-smoke.md), [`uat-checklist.md`](uat-checklist.md), [`dmx-lab-procedures.md`](dmx-lab-procedures.md), [`historical-docs-reconciliation.md`](historical-docs-reconciliation.md). **Gate 7 (canonical doc sync):** refreshed 2026-04-19 across README → audit → this file → roadmap → `03-ui-ux-spec` → `lighting-roadmap` (see checklist).
 
 **Workspace rules** (apply when implementing UI/DMX tasks):
 
@@ -169,6 +171,8 @@ This backlog was originally derived from the **FS-COS-VIS audit pack** in [`docs
 
 ## Section I — Transport and DMX (network / desk / performance)
 
+**Lab / field (production Gate 3):** [`dmx-lab-procedures.md`](dmx-lab-procedures.md) — outbound receiver checks, competing-source log, extended sACN PDU notes.
+
 **Open — finish criteria**
 
 - [x] **Multi-universe outbound** via **Art-Net** — one UDP packet per logical fixture universe; **network universe** in Settings is an **offset** added to each logical universe (clamped to protocol limits). `DMXUniverseBuilder.buildPerUniverse`, `AppModel.buildDMXUniversesForNetwork`, `ArtNetTransport.sendUniverseMap`, `DMXOutputService.tick` for `artnet`.
@@ -195,11 +199,13 @@ This backlog was originally derived from the **FS-COS-VIS audit pack** in [`docs
 - [x] **Web / remote** live recording **start/stop/status** + **latest output path** in state — `RemoteControlCommand`, `WebControlStateDTO`, OSC `/cosmic/recording/*`.
 - [ ] **Authenticated API relay** for **feedback issue submission** without storing **GitHub** tokens locally — **partial:** `FeedbackAndLogsService.submitFeedbackIssue` + Settings **relay URL / relay bearer** (client POST); operators can leave `githubFeedbackToken` empty when a relay is configured. **Example relay (Node):** [`scripts/feedback-relay/README.md`](../scripts/feedback-relay/README.md). **Remaining:** deploy that (or equivalent) with HTTPS + server-side GitHub credentials.
 
+**Production readiness ([`production-readiness-checklist.md`](production-readiness-checklist.md) Gate 6):** A hosted relay is **optional**. Closing that gate requires either a successful relay deploy **or** an explicit **deferred** decision (e.g. beta uses local PAT, or feedback disabled) recorded in release notes / operator comms — not a code blocker.
+
 ---
 
 ## Section K — Release, installer, signing, Sparkle
 
-**Recommended beta path (audit + `macOS-installer-options.md` + [`release-runbook.md`](release-runbook.md))**
+**Recommended beta path (audit + `macOS-installer-options.md` + [`release-runbook.md`](release-runbook.md))** — Gate 5 table: [`distribution-checklist.md`](distribution-checklist.md).
 
 **Repo / CI (unsigned Release artifacts)**
 

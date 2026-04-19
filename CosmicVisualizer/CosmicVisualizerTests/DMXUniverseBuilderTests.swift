@@ -1,6 +1,7 @@
 import XCTest
 @testable import CosmicVisualizer
 
+@MainActor
 final class DMXUniverseBuilderTests: XCTestCase {
     func testDefaultPatch_includesExtendedFixtureProfiles() {
         let p = DMXPatchDocument.default()

@@ -1122,7 +1122,8 @@ final class DMXOutputService: ControlBus {
     func start() {
         guard !isRunning else { return }
         isRunning = true
-        let queue = DispatchQueue(label: "com.cosmicvisualizer.dmx", qos: .userInitiated)
+        // Main queue: `AppModel` is main-actor-isolated for output settings and universe builds.
+        let queue = DispatchQueue.main
         let t = DispatchSource.makeTimerSource(queue: queue)
         t.schedule(deadline: .now(), repeating: 1.0 / 44.0)
         t.setEventHandler { [weak self] in

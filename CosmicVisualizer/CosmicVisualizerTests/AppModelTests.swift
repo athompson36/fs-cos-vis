@@ -2,6 +2,7 @@ import Metal
 import XCTest
 @testable import CosmicVisualizer
 
+@MainActor
 final class AppModelTests: XCTestCase {
     func testDefaults() {
         let model = AppModel()

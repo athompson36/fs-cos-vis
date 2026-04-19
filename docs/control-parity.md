@@ -12,6 +12,10 @@ The bundled remote web UI is driven by `ControlSchema.cosmicDefault()` (`GET /ap
 
 See `CosmicVisualizer/Features/Web/ControlSchema.swift`. Fields map `commandType` strings to `POST /api/command` bodies. Anything not listed there is still available via raw JSON to `POST /api/command`.
 
+**Detailed diff (schema vs all implemented command types):** [`control-schema-coverage.md`](control-schema-coverage.md).
+
+**Manual smoke (OSC / HTTP / WS):** [`control-plane-smoke.md`](control-plane-smoke.md).
+
 ## MIDI
 
 Default CC → command mapping lives in `MIDIMapping.default()` (`Features/Expansion/MIDIMapping.swift`):

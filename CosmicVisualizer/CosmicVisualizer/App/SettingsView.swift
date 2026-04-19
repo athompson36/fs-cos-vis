@@ -1046,7 +1046,8 @@ private extension SettingsView {
                 NI_NUMERICHOST
             )
             if result == 0 {
-                addr = String(cString: host)
+                let len = host.prefix(while: { $0 != 0 }).count
+                addr = String(decoding: host.prefix(len).map { UInt8(bitPattern: $0) }, as: UTF8.self)
                 if name.hasPrefix("en") { break }
             }
         }

@@ -1,6 +1,7 @@
 import XCTest
 @testable import CosmicVisualizer
 
+@MainActor
 final class DMXOutputServiceTests: XCTestCase {
     func testBuildUniverse_setsSceneAndKnobs() {
         let model = AppModel()
@@ -354,6 +355,84 @@ final class DMXOutputServiceTests: XCTestCase {
         XCTAssertEqual(packet.count, 126)
         let list = SACNE131InboundClassifier.universeDiscoveryWireUniverses(packet: packet)
         XCTAssertEqual(list, [1, 2, 3])
+    }
+
+    func testDMXInboundMergeLogic_priorityRejectsLowerWhenFresh() {
+        let t0 = CFAbsoluteTime(1_000_000)
+        XCTAssertFalse(
+            DMXInboundMergeLogic.shouldStoreNewInboundFrame(
+                existingReceivedAt: t0,
+                existingPriority: 100,
+                newPriority: 50,
+                now: t0 + 1
+            )
+        )
+        XCTAssertTrue(
+            DMXInboundMergeLogic.shouldStoreNewInboundFrame(
+                existingReceivedAt: t0,
+                existingPriority: 50,
+                newPriority: 100,
+                now: t0 + 1
+            )
+        )
+    }
+
+    func testDMXInboundMergeLogic_equalOrHigherPriorityReplacesWhenFresh() {
+        let t0 = CFAbsoluteTime(2_000_000)
+        XCTAssertTrue(
+            DMXInboundMergeLogic.shouldStoreNewInboundFrame(
+                existingReceivedAt: t0,
+                existingPriority: 80,
+                newPriority: 80,
+                now: t0 + 0.5
+            )
+        )
+        XCTAssertTrue(
+            DMXInboundMergeLogic.shouldStoreNewInboundFrame(
+                existingReceivedAt: t0,
+                existingPriority: 80,
+                newPriority: 81,
+                now: t0 + 0.5
+            )
+        )
+    }
+
+    func testDMXInboundMergeLogic_staleWindowAllowsLowerPriority() {
+        let t0 = CFAbsoluteTime(3_000_000)
+        XCTAssertTrue(
+            DMXInboundMergeLogic.shouldStoreNewInboundFrame(
+                existingReceivedAt: t0,
+                existingPriority: 100,
+                newPriority: 10,
+                now: t0 + 4
+            )
+        )
+    }
+
+    func testDMXInboundMergeLogic_htpPerChannelMax() {
+        var sw = [UInt8](repeating: 0, count: 512)
+        sw[0] = 10
+        sw[1] = 200
+        let inbound = [UInt8](repeating: 0, count: 512)
+        var inc = inbound
+        inc[0] = 50
+        inc[1] = 100
+        DMXInboundMergeLogic.applyHTPMerge(software: &sw, inbound: inc)
+        XCTAssertEqual(sw[0], 50)
+        XCTAssertEqual(sw[1], 200)
+    }
+
+    func testDMXInboundMergeLogic_ltpReplacesBuffer() {
+        var sw = [UInt8](repeating: 7, count: 512)
+        let inbound = [UInt8](repeating: 9, count: 512)
+        DMXInboundMergeLogic.applyLTPMergeReplaceUniverse(software: &sw, inbound: inbound)
+        XCTAssertEqual(sw[0], 9)
+    }
+
+    func testDMXInboundMergeLogic_freshWindowMatchesDefault() {
+        let t0 = CFAbsoluteTime(4_000_000)
+        XCTAssertTrue(DMXInboundMergeLogic.isFrameFresh(receivedAt: t0, now: t0 + 2.9))
+        XCTAssertFalse(DMXInboundMergeLogic.isFrameFresh(receivedAt: t0, now: t0 + 3.1))
     }
 
     private static func bytes(fromHex hex: String) -> [UInt8] {

@@ -9,7 +9,7 @@ import SwiftUI
 import Syphon
 import UniformTypeIdentifiers
 
-final class AppModel: ObservableObject, @unchecked Sendable {
+final class AppModel: ObservableObject {
     struct SetupWizardDiagnosticsSnapshot: Codable, Sendable {
         var exportedAt: Date
         var sessionCount: Int
@@ -109,7 +109,9 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     /// Picks which `NSScreen.screens[index]` receives the fullscreen visualization.
     @Published var externalOutputScreenIndex: Int = 0 {
         didSet {
-            syncOBSStreamPipeline()
+            Task { @MainActor [weak self] in
+                self?.syncOBSStreamPipeline()
+            }
         }
     }
 
@@ -134,7 +136,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     @Published var remoteSettings: RemoteControlSettings = RemoteControlSettingsStore.load() {
         didSet {
             RemoteControlSettingsStore.save(remoteSettings)
-            DispatchQueue.main.async { [weak self] in
+            Task { @MainActor [weak self] in
                 self?.refreshAuxiliaryServices()
             }
         }
@@ -279,6 +281,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         return out
     }
 
+    @MainActor
     init() {
         metalRenderer = CompositeRenderer.create()
         if let doc = try? sceneLibrary.load(), !doc.scenes.isEmpty {
@@ -330,7 +333,10 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         sceneManager.$scenes
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.refreshScenePreviewPool()
+                guard let self else { return }
+                MainActor.assumeIsolated {
+                    self.refreshScenePreviewPool()
+                }
             }
             .store(in: &cancellables)
 
@@ -338,15 +344,17 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] features in
                 guard let self else { return }
-                self.tempoClock.ingestAudioDetection(bpm: features.estimatedBPM, confidence: features.beatConfidence)
-                self.bpm = self.tempoClock.effectiveBPM
-                self.beatConfidence = self.tempoClock.displayConfidence
-                self.refreshDeviceLabel()
-                self.updateAllVisualizationRenderers { p in
-                    p.audioLevel = min(1, features.rms * 4)
-                    p.bpm = Float(self.tempoClock.effectiveBPM)
-                    p.beatConfidence = features.beatConfidence
-                    p.beatPulse = self.tempoClock.shaderBeatPulse(audioConfidence: features.beatConfidence)
+                MainActor.assumeIsolated {
+                    self.tempoClock.ingestAudioDetection(bpm: features.estimatedBPM, confidence: features.beatConfidence)
+                    self.bpm = self.tempoClock.effectiveBPM
+                    self.beatConfidence = self.tempoClock.displayConfidence
+                    self.refreshDeviceLabel()
+                    self.updateAllVisualizationRenderers { p in
+                        p.audioLevel = min(1, features.rms * 4)
+                        p.bpm = Float(self.tempoClock.effectiveBPM)
+                        p.beatConfidence = features.beatConfidence
+                        p.beatPulse = self.tempoClock.shaderBeatPulse(audioConfidence: features.beatConfidence)
+                    }
                 }
             }
             .store(in: &cancellables)
@@ -389,9 +397,19 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         oscControl?.stop()
         dmxService?.stop()
         dmxInputService?.stop()
-        stopExternalVisualizationSession()
+        if let w = externalOutputWindow {
+            externalOutputWindow = nil
+            externalOutputRenderer = nil
+            DispatchQueue.main.async {
+                w.orderOut(nil)
+                w.contentView = nil
+            }
+        } else {
+            externalOutputRenderer = nil
+        }
     }
 
+    @MainActor
     func makeWebStateSnapshotData() -> Data {
         let scenes = sceneManager.scenes.map { WebControlStateDTO.SceneSummary(id: $0.id, name: $0.name) }
         let audioDevs = audioEngine.availableInputDevices.map {
@@ -481,6 +499,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         return try JSONEncoder().encode(doc)
     }
 
+    @MainActor
     func applyScenesDocument(_ data: Data) throws {
         let doc = try JSONDecoder().decode(SceneLibraryStore.Document.self, from: data)
         guard !doc.scenes.isEmpty else { return }
@@ -527,17 +546,20 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         return "Ch \(hit.channel + 1) · CC \(hit.controller)"
     }
 
-    /// Single mutation path for remote/MIDI/web; always runs on the main thread for `AppModel` + SwiftUI.
+    /// Single mutation path for remote/MIDI/web; hops to the main actor for `AppModel` + SwiftUI.
     func applyRemoteCommand(_ command: RemoteControlCommand) {
         if Thread.isMainThread {
-            applyRemoteCommandOnMainThread(command)
+            MainActor.assumeIsolated {
+                applyRemoteCommandOnMainThread(command)
+            }
         } else {
-            DispatchQueue.main.async { [weak self] in
+            Task { @MainActor [weak self] in
                 self?.applyRemoteCommandOnMainThread(command)
             }
         }
     }
 
+    @MainActor
     private func applyRemoteCommandOnMainThread(_ command: RemoteControlCommand) {
         let kind = command.type.trimmingCharacters(in: .whitespacesAndNewlines)
         switch kind {
@@ -747,15 +769,11 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         default:
             break
         }
-        let nextBpm = tempoClock.effectiveBPM
-        let nextBeatConf = tempoClock.displayConfidence
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.bpm = nextBpm
-            self.beatConfidence = nextBeatConf
-        }
+        bpm = tempoClock.effectiveBPM
+        beatConfidence = tempoClock.displayConfidence
     }
 
+    @MainActor
     private func mutateCurrentEdit(_ body: (inout SceneEditState) -> Void) {
         guard sceneManager.scenes.indices.contains(sceneManager.currentIndex) else { return }
         let id = sceneManager.scenes[sceneManager.currentIndex].id
@@ -767,6 +785,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     }
 
     /// Public hook for SwiftUI bindings that edit `SceneEditState.layer` for the current scene.
+    @MainActor
     func applyCurrentLayerEdit(_ body: (inout SceneEditState.LayerControls) -> Void) {
         mutateCurrentEdit { edit in body(&edit.layer) }
     }
@@ -814,6 +833,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         liquidDropperArmed = false
     }
 
+    @MainActor
     private func performReorderScenes(_ order: [UUID]) {
         var map = Dictionary(uniqueKeysWithValues: sceneManager.scenes.map { ($0.id, $0) })
         var next: [VisualizationScene] = []
@@ -831,6 +851,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         try? persistScenes()
     }
 
+    @MainActor
     private func performDuplicateScene(sourceID: UUID) {
         guard let idx = sceneManager.scenes.firstIndex(where: { $0.id == sourceID }) else { return }
         let s = sceneManager.scenes[idx]
@@ -849,6 +870,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         try? persistSceneControls()
     }
 
+    @MainActor
     private func performDeleteScene(id: UUID) {
         guard sceneManager.scenes.count > 1,
               let idx = sceneManager.scenes.firstIndex(where: { $0.id == id }) else { return }
@@ -865,6 +887,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         try? persistSceneControls()
     }
 
+    @MainActor
     private func performJumpToScene(index: Int) {
         guard sceneManager.scenes.indices.contains(index) else { return }
         let fromID = sceneManager.scenes[sceneManager.currentIndex].id
@@ -877,12 +900,14 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         try? persistScenes()
     }
 
+    @MainActor
     private func performJumpToScene(id: UUID) {
         if let idx = sceneManager.scenes.firstIndex(where: { $0.id == id }) {
             performJumpToScene(index: idx)
         }
     }
 
+    @MainActor
     private func performNextScene() {
         let fromID = sceneManager.scenes.indices.contains(sceneManager.currentIndex)
             ? sceneManager.scenes[sceneManager.currentIndex].id
@@ -898,6 +923,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         try? persistScenes()
     }
 
+    @MainActor
     private func performPreviousScene() {
         let fromID = sceneManager.scenes.indices.contains(sceneManager.currentIndex)
             ? sceneManager.scenes[sceneManager.currentIndex].id
@@ -913,6 +939,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         try? persistScenes()
     }
 
+    @MainActor
     private func performRandomScene() {
         let fromID = sceneManager.scenes.indices.contains(sceneManager.currentIndex)
             ? sceneManager.scenes[sceneManager.currentIndex].id
@@ -932,8 +959,25 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     private func wireRendererFrameLoop(_ renderer: CompositeRenderer?) {
         renderer?.onFrame = { [weak self] dt in
             guard let self else { return }
-            self.tickTempoAndBeatPulse(deltaTime: dt)
-            self.syncScenePreviewRenderers()
+            self.runFrameLoopTickOnMainActor(deltaTime: dt)
+        }
+    }
+
+    /// `MTKView.draw(in:)` runs off the main thread; avoid `Task { @MainActor }` per frame (floods the main actor and can hang the UI).
+    private nonisolated func runFrameLoopTickOnMainActor(deltaTime: TimeInterval) {
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                self.tickTempoAndBeatPulse(deltaTime: deltaTime)
+                self.syncScenePreviewRenderers()
+            }
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                MainActor.assumeIsolated {
+                    self.tickTempoAndBeatPulse(deltaTime: deltaTime)
+                    self.syncScenePreviewRenderers()
+                }
+            }
         }
     }
 
@@ -941,6 +985,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         renderer?.onFrame = nil
     }
 
+    @MainActor
     private func tickTempoAndBeatPulse(deltaTime: TimeInterval) {
         tempoClock.advanceBeatPhaseIfNeeded(deltaTime: deltaTime)
         let conf = Float(audioEngine.features.beatConfidence)
@@ -949,6 +994,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         }
     }
 
+    @MainActor
     private func refreshAuxiliaryServices() {
         applyAudioSettingsFromRemote()
         webControl.applySettings(remoteSettings)
@@ -962,7 +1008,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
 
     // MARK: - OBS (Syphon) stream
 
-    private func syncOBSStreamPipeline() {
+    @MainActor private func syncOBSStreamPipeline() {
         guard remoteSettings.obsSyphonStreamEnabled else {
             teardownOBSStream()
             return
@@ -1022,12 +1068,17 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     }
 
     private func teardownOBSStream() {
-        obsStreamRenderer?.onBeforePresent = nil
-        obsStreamMTKView?.removeFromSuperview()
-        obsStreamMTKView = nil
+        let mtk = obsStreamMTKView
+        let renderer = obsStreamRenderer
+        let syphon = obsSyphonServer
         obsStreamRenderer = nil
-        obsSyphonServer?.stop()
+        obsStreamMTKView = nil
         obsSyphonServer = nil
+        renderer?.onBeforePresent = nil
+        Task { @MainActor in
+            mtk?.removeFromSuperview()
+            syphon?.stop()
+        }
     }
 
     private func handleMidiControlChange(channel ch: Int, controller cc: Int, value val: Int) {
@@ -1099,7 +1150,9 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             self?.applyRemoteCommand(cmd)
         } onStateQuery: { [weak self] in
             guard let self else { return "{}" }
-            return String(data: self.makeWebStateSnapshotData(), encoding: .utf8) ?? "{}"
+            return MainActor.assumeIsolated {
+                String(data: self.makeWebStateSnapshotData(), encoding: .utf8) ?? "{}"
+            }
         }
         if let err, !err.isEmpty {
             oscControlStatus = err
@@ -1144,16 +1197,19 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         ) { [weak self] universe, frame, priority in
             guard let self else { return }
             let now = CFAbsoluteTimeGetCurrent()
+            // Inbound runs on the input socket thread; keep updates here under the lock (no per-packet main-queue hops).
             self.lightingDMXLock.lock()
+            defer { self.lightingDMXLock.unlock() }
             if let existing = self.inboundDMXByUniverse[universe] {
-                let fresh = now - existing.receivedAt <= 3
-                if fresh, priority < existing.priority {
-                    self.lightingDMXLock.unlock()
-                    return
-                }
+                let accept = DMXInboundMergeLogic.shouldStoreNewInboundFrame(
+                    existingReceivedAt: existing.receivedAt,
+                    existingPriority: existing.priority,
+                    newPriority: priority,
+                    now: now
+                )
+                if !accept { return }
             }
             self.inboundDMXByUniverse[universe] = (frame: frame, receivedAt: now, priority: priority)
-            self.lightingDMXLock.unlock()
         }
         dmxInputService?.start()
         if let d = dmxInputService?.diagnostics(), let err = d.lastError, !err.isEmpty {
@@ -1168,6 +1224,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         }
     }
 
+    @MainActor
     private func applyAudioSettingsFromRemote() {
         audioEngine.refreshDevices()
         if !remoteSettings.audioInputDeviceUID.isEmpty,
@@ -1205,6 +1262,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         }
     }
 
+    @MainActor
     func syncRendererFromScene() {
         guard sceneManager.scenes.indices.contains(sceneManager.currentIndex) else { return }
         let scene = sceneManager.scenes[sceneManager.currentIndex]
@@ -1295,6 +1353,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         p.paletteGlow = c3
     }
 
+    @MainActor
     func refreshScenePreviewPool() {
         guard metalRenderer != nil else {
             scenePreviewRenderers = [:]
@@ -1313,6 +1372,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         scenePreviewRenderers = next
     }
 
+    @MainActor
     private func syncScenePreviewRenderers() {
         guard !scenePreviewRenderers.isEmpty else { return }
         for scene in sceneManager.scenes {
@@ -1344,6 +1404,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     }
 
     /// Loads the first overlay image in the current scene (if any) for GPU compositing.
+    @MainActor
     func syncOverlayGPUResources() {
         guard let main = metalRenderer else { return }
         let device = main.device
@@ -1380,12 +1441,14 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         }
     }
 
+    @MainActor
     func addPalette(_ palette: ThemePalette) {
         palettes.append(palette)
         try? PaletteLibraryStore.save(palettes)
         syncRendererFromScene()
     }
 
+    @MainActor
     func updatePalette(id: UUID, with palette: ThemePalette) {
         guard let idx = palettes.firstIndex(where: { $0.id == id }) else { return }
         palettes[idx] = palette
@@ -1393,6 +1456,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         syncRendererFromScene()
     }
 
+    @MainActor
     func deletePalette(id: UUID) {
         guard palettes.count > 1, let idx = palettes.firstIndex(where: { $0.id == id }) else { return }
         palettes.remove(at: idx)
@@ -1420,6 +1484,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         try? LiquidPaletteLibraryStore.save(liquidPalettes)
     }
 
+    @MainActor
     func applyLiquidDropperPalette(id: UUID) {
         guard let palette = liquidPalettes.first(where: { $0.id == id }) else { return }
         mutateCurrentEdit { edit in
@@ -1434,6 +1499,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         }
     }
 
+    @MainActor
     private func updateAllVisualizationRenderers(_ update: (inout RenderParameters) -> Void) {
         metalRenderer?.updateParameters(update)
         externalOutputRenderer?.updateParameters(update)
@@ -1458,6 +1524,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         return Self.clampedOverlayRect(SIMD4(l.overlayRectMinX, l.overlayRectMinY, l.overlayRectWidth, l.overlayRectHeight))
     }
 
+    @MainActor
     func resetOverlayRectToFullFrame() {
         mutateCurrentEdit {
             $0.layer.overlayRectMinX = 0
@@ -1467,6 +1534,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         }
     }
 
+    @MainActor
     func applyOverlayDragFromStart(_ start: SIMD4<Float>, translation: SIMD2<Float>) {
         let x = start.x + translation.x
         let y = start.y + translation.y
@@ -1479,6 +1547,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         }
     }
 
+    @MainActor
     func applyOverlayPinchFromStart(_ start: SIMD4<Float>, scale: CGFloat) {
         let s = Float(scale)
         let cx = start.x + start.z * 0.5
@@ -1487,8 +1556,8 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         var nh = start.w * s
         nw = min(max(nw, 0.05), 1)
         nh = min(max(nh, 0.05), 1)
-        var nx = cx - nw * 0.5
-        var ny = cy - nh * 0.5
+        let nx = cx - nw * 0.5
+        let ny = cy - nh * 0.5
         let r = Self.clampedOverlayRect(SIMD4(nx, ny, nw, nh))
         mutateCurrentEdit {
             $0.layer.overlayRectMinX = r.x
@@ -1507,11 +1576,13 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     }
 
     /// Fullscreens the **main app window** only (controls stay in this window).
+    @MainActor
     func toggleMainWindowFullscreen() {
         NSApp.keyWindow?.toggleFullScreen(nil)
     }
 
     /// Borderless edge-to-edge visualization on the chosen display. Main window stays put for controls.
+    @MainActor
     func openExternalVisualizationFullscreen() {
         clampExternalScreenIndex()
         let screens = ExternalDisplayRouter.screens
@@ -1560,10 +1631,12 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         window.orderFrontRegardless()
     }
 
+    @MainActor
     func closeExternalVisualization() {
         stopExternalVisualizationSession()
     }
 
+    @MainActor
     private func stopExternalVisualizationSession() {
         externalOutputWindow?.orderOut(nil)
         externalOutputWindow?.contentView = nil
@@ -1653,6 +1726,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         try overlayLibrary.save(overlays: overlays)
     }
 
+    @MainActor
     func importOverlayAsset() {
         guard let picked = overlayLibrary.importOverlayViaOpenPanel() else { return }
         let sourceURL = URL(fileURLWithPath: picked.filePath)
@@ -1684,6 +1758,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
     }
 
     /// Pick image → save PNG with black/near-black pixels removed → optionally register as current scene overlay.
+    @MainActor
     func exportBlackBackgroundRemovedCopy() {
         let open = NSOpenPanel()
         open.allowedContentTypes = [.image]
@@ -1810,21 +1885,24 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         return (fi, mo, outputLogicalUniverseCount)
     }
 
+    @MainActor
     func startRDMDiscoveryProbe() {
         guard remoteSettings.rdmDiscoveryEnabled else {
             rdmDiscoveryStatus = "Enable RDM discovery scaffold in Settings first."
             return
         }
         rdmDiscoveryStatus = "Running RDM probe..."
-        Task { @MainActor in
+        Task {
             let result = await rdmDiscoveryService.runProbe(
                 mode: remoteSettings.rdmDiscoveryTransportMode,
                 universe: remoteSettings.rdmDiscoveryUniverse,
                 serialPath: remoteSettings.dmxSerialDevicePath,
                 artNetHost: remoteSettings.dmxArtNetHost
             )
-            rdmDiscoveryResult = result
-            rdmDiscoveryStatus = "Probe complete: \(result.devices.count) device(s) on universe \(result.universe)."
+            await MainActor.run {
+                rdmDiscoveryResult = result
+                rdmDiscoveryStatus = "Probe complete: \(result.devices.count) device(s) on universe \(result.universe)."
+            }
         }
     }
 
@@ -1883,13 +1961,11 @@ final class AppModel: ObservableObject, @unchecked Sendable {
            entry.frame.count == 512,
            remoteSettings.dmxInboundMergeMode == "htp" || remoteSettings.dmxInboundMergeMode == "lpt" {
             let now = CFAbsoluteTimeGetCurrent()
-            if now - entry.receivedAt <= 3 {
+            if DMXInboundMergeLogic.isFrameFresh(receivedAt: entry.receivedAt, now: now) {
                 if remoteSettings.dmxInboundMergeMode == "htp" {
-                    for idx in 0 ..< 512 {
-                        universe[idx] = max(universe[idx], entry.frame[idx])
-                    }
+                    DMXInboundMergeLogic.applyHTPMerge(software: &universe, inbound: entry.frame)
                 } else {
-                    universe = entry.frame
+                    DMXInboundMergeLogic.applyLTPMergeReplaceUniverse(software: &universe, inbound: entry.frame)
                 }
             }
         }
@@ -1943,13 +2019,11 @@ final class AppModel: ObservableObject, @unchecked Sendable {
             for logicalID in perU.keys {
                 guard var buf = perU[logicalID] else { continue }
                 guard let entry = inboundSnap[logicalID], entry.frame.count == 512 else { continue }
-                guard now - entry.receivedAt <= 3 else { continue }
+                guard DMXInboundMergeLogic.isFrameFresh(receivedAt: entry.receivedAt, now: now) else { continue }
                 if remoteSettings.dmxInboundMergeMode == "htp" {
-                    for idx in 0 ..< 512 {
-                        buf[idx] = max(buf[idx], entry.frame[idx])
-                    }
+                    DMXInboundMergeLogic.applyHTPMerge(software: &buf, inbound: entry.frame)
                 } else {
-                    buf = entry.frame
+                    DMXInboundMergeLogic.applyLTPMergeReplaceUniverse(software: &buf, inbound: entry.frame)
                 }
                 perU[logicalID] = buf
             }
@@ -2350,6 +2424,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         return out
     }
 
+    @MainActor
     func startLiveOutputRecording(preferredMainWindowNumber: Int?) {
         guard !isLiveOutputRecording else { return }
         let source = liveOutputRecordingSource
@@ -2395,6 +2470,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         }
     }
 
+    @MainActor
     func liveOutputRecorderHealthItems(preferredMainWindowNumber: Int?) -> [LiveOutputRecorderHealthItem] {
         var items: [LiveOutputRecorderHealthItem] = []
         let windowAvailable: Bool = {
@@ -2477,11 +2553,13 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         }
     }
 
+    @MainActor
     func revealLastRecordingInFinder() {
         guard let lastRecordingURL else { return }
         NSWorkspace.shared.activateFileViewerSelecting([lastRecordingURL])
     }
 
+    @MainActor
     func shareLastRecording() {
         guard let lastRecordingURL,
               let contentView = NSApp.keyWindow?.contentView
@@ -2725,6 +2803,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         }
     }
 
+    @MainActor
     func loadShowProject(from folder: URL) throws {
         showProjectMetadata = try ShowProjectPackage.loadProject(from: folder)
         try applyScenesDocument(try ShowProjectPackage.loadScenes(from: folder))
@@ -2753,6 +2832,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         exportAIContextNow(targetRoot: folder)
     }
 
+    @MainActor
     func presentSaveShowProjectPanel() {
         let p = NSSavePanel()
         p.title = "Save show project"
@@ -2772,6 +2852,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         }
     }
 
+    @MainActor
     func presentOpenShowProjectPanel() {
         let o = NSOpenPanel()
         o.canChooseFiles = false
@@ -2788,6 +2869,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         }
     }
 
+    @MainActor
     func presentExportShowProjectArchivePanel() {
         guard let folder = currentShowProjectFolder else {
             let a = NSAlert()
@@ -2812,6 +2894,7 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         }
     }
 
+    @MainActor
     func presentImportShowProjectArchivePanel() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
@@ -2891,3 +2974,6 @@ final class AppModel: ObservableObject, @unchecked Sendable {
         }
     }
 }
+
+/// UI-thread–owned model; `@unchecked` allows `MainActor.run` / FlyingFox `@Sendable` handlers to capture a reference safely because all mutating use is coordinated on the main actor.
+extension AppModel: @unchecked Sendable {}

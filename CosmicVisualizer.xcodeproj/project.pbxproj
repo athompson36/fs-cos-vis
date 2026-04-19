@@ -31,6 +31,7 @@
 		354A846FF3FDF1BC22A14521 /* SceneLibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E692DE31BCA0C59758B88F0 /* SceneLibraryStore.swift */; };
 		37493DA5BBC694039FD061CA /* DMXPatchStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDE86A9241FA81E61DE0C240 /* DMXPatchStore.swift */; };
 		391B4835761062318FC0C75A /* MIDIMappingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDFC693219DB314019453A01 /* MIDIMappingStore.swift */; };
+		3A3914D74D09F3F6F8CE3D9B /* FeedbackAndLogsServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 071176F296C8658089CB879A /* FeedbackAndLogsServiceTests.swift */; };
 		3E077AD257A19A58330E486D /* BPMDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7298E1795F6834290CD996C7 /* BPMDetector.swift */; };
 		417F3766209E550EFAECBF0D /* DMXUniverseBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4042557155BD74A6543C7032 /* DMXUniverseBuilder.swift */; };
 		41DD80C7530798CD7078B2DA /* LightingPreview25DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D499172580EF84F23DEE9F1 /* LightingPreview25DView.swift */; };
@@ -58,7 +59,6 @@
 		6A407A743939689A79AF5AC6 /* SceneManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97893F5884FD9F8073AF37B4 /* SceneManagerTests.swift */; };
 		6DE693B01F11A8DE4B1CEBCE /* LightingCueStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 081D99DEB1D365BDD41273FE /* LightingCueStore.swift */; };
 		70E0172B08514A34CA7A09B4 /* ModelCodableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87FE7C10F8E93D766B4C275B /* ModelCodableTests.swift */; };
-		A1F2E3D4C5B6A7988776655B /* FeedbackAndLogsServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2E3D4C5B6A7988776655440 /* FeedbackAndLogsServiceTests.swift */; };
 		731AB941660A656E9DCD9755 /* LiquidPaletteLibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84E0208560BCFA1FFD235448 /* LiquidPaletteLibraryStore.swift */; };
 		7905F2DB84848CAE782CE870 /* FixtureModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E870BA0E74F8A6BF0C0C3A4E /* FixtureModels.swift */; };
 		79AE39520F996D7863018983 /* CosmicShellBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30CAAB859911090B4FC7C7E5 /* CosmicShellBackground.swift */; };
@@ -94,6 +94,7 @@
 		BF13F662EE33DD0A0A1FBE6D /* OFLFixtureImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F9DD5991F963F7CF6A92B42 /* OFLFixtureImportService.swift */; };
 		BFBA909E42DBF6E18BFCAE93 /* ShowProjectAndContextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14DD841D2C2326E433F088E8 /* ShowProjectAndContextTests.swift */; };
 		C0C5D63DBC57C71F3A090570 /* ThemePack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A18830A7EC53B0CDB5EBCBB /* ThemePack.swift */; };
+		C1CDE5C814A9BE778775579F /* DMXInboundMergeLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5A2D0504CE556E77A985948 /* DMXInboundMergeLogic.swift */; };
 		C4A5DB11561C3408C42B553E /* ControlSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45CA5F2DEF1EAA4B84539092 /* ControlSchema.swift */; };
 		C5351B174BB17461FBB41D7A /* FixtureVerificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B959C81F91C8AB403B5F801E /* FixtureVerificationTests.swift */; };
 		C6475061234C3ED343B935CD /* AudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 359A53FDBEF3126B3549A7DE /* AudioEngine.swift */; };
@@ -176,6 +177,7 @@
 /* Begin PBXFileReference section */
 		00D7DA2B97A120C4308D92BE /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = "<group>"; };
 		0361807F986985F4E38C415A /* TransitionStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransitionStateTests.swift; sourceTree = "<group>"; };
+		071176F296C8658089CB879A /* FeedbackAndLogsServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackAndLogsServiceTests.swift; sourceTree = "<group>"; };
 		081D99DEB1D365BDD41273FE /* LightingCueStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightingCueStore.swift; sourceTree = "<group>"; };
 		0824C4341217DDCEE966F864 /* app.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = app.js; sourceTree = "<group>"; };
 		09DAA68A7740EAFAAF7D551D /* AppUpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateService.swift; sourceTree = "<group>"; };
@@ -244,7 +246,6 @@
 		7FC25B1C1A9233BD6496F2C2 /* CosmicVisualizer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CosmicVisualizer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		84E0208560BCFA1FFD235448 /* LiquidPaletteLibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidPaletteLibraryStore.swift; sourceTree = "<group>"; };
 		87FE7C10F8E93D766B4C275B /* ModelCodableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCodableTests.swift; sourceTree = "<group>"; };
-		B2E3D4C5B6A7988776655440 /* FeedbackAndLogsServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackAndLogsServiceTests.swift; sourceTree = "<group>"; };
 		8B06DE8BCD4FE7A56F61412F /* TempoClockService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TempoClockService.swift; sourceTree = "<group>"; };
 		90A048658D9FC97C9209F12F /* RemoteControlCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteControlCommand.swift; sourceTree = "<group>"; };
 		93D480873AB43DE5F5E42949 /* AspectFitLivePreviewContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AspectFitLivePreviewContainer.swift; sourceTree = "<group>"; };
@@ -269,6 +270,7 @@
 		CEECBA62F937E399ADCD715D /* SceneControlStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneControlStore.swift; sourceTree = "<group>"; };
 		D21E0B159279DE85297868F1 /* WebcamCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebcamCaptureService.swift; sourceTree = "<group>"; };
 		D2EB2F28A5D396BF3553F974 /* DMXUniverseBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DMXUniverseBuilderTests.swift; sourceTree = "<group>"; };
+		D5A2D0504CE556E77A985948 /* DMXInboundMergeLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DMXInboundMergeLogic.swift; sourceTree = "<group>"; };
 		D77BC142F183F0973DE1DCEC /* OverlayLibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayLibraryStore.swift; sourceTree = "<group>"; };
 		D78779D8859E1B923E0646C0 /* FractalRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FractalRenderer.swift; sourceTree = "<group>"; };
 		D81DA29836C046402C834924 /* FeedbackAndLogsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackAndLogsService.swift; sourceTree = "<group>"; };
@@ -334,6 +336,7 @@
 				09DAA68A7740EAFAAF7D551D /* AppUpdateService.swift */,
 				1D4517D8B330212F86F6121D /* CaptureSession.swift */,
 				23B6B7A658D31E80CD789BEF /* ControlBus.swift */,
+				D5A2D0504CE556E77A985948 /* DMXInboundMergeLogic.swift */,
 				596A77E557F9229761D5496F /* DMXOutputService.swift */,
 				3C69EE33244FB72573CE0793 /* DMXSweepCalibrationService.swift */,
 				D81DA29836C046402C834924 /* FeedbackAndLogsService.swift */,
@@ -567,9 +570,9 @@
 				6F8F27850520A35785F34A01 /* ControlBusTests.swift */,
 				4825F18C088C1C5F68445649 /* CosmicVisualizerTests.swift */,
 				9A004ECC673111DD61E2B6ED /* DMXOutputServiceTests.swift */,
-				B2E3D4C5B6A7988776655440 /* FeedbackAndLogsServiceTests.swift */,
 				D2EB2F28A5D396BF3553F974 /* DMXUniverseBuilderTests.swift */,
 				36854756015A285856196285 /* ExternalDisplayRouterTests.swift */,
+				071176F296C8658089CB879A /* FeedbackAndLogsServiceTests.swift */,
 				B959C81F91C8AB403B5F801E /* FixtureVerificationTests.swift */,
 				37D3CF9C85F689B6C07C7D33 /* MIDIMappingTests.swift */,
 				87FE7C10F8E93D766B4C275B /* ModelCodableTests.swift */,
@@ -686,10 +689,10 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					0A0F824F47B32EA22C288ADE = {
-						DevelopmentTeam = FH4FKB9AUS;
+						DevelopmentTeam = "";
 					};
 					9B69DDD1DD5A4F82C4CEDF41 = {
-						DevelopmentTeam = FH4FKB9AUS;
+						DevelopmentTeam = "";
 					};
 				};
 			};
@@ -760,9 +763,9 @@
 				B120C6B5B3BE306D8DDAC67C /* ControlBusTests.swift in Sources */,
 				B48C423B80D4695EA674D301 /* CosmicVisualizerTests.swift in Sources */,
 				2E82D35681B0B83901AD8DF1 /* DMXOutputServiceTests.swift in Sources */,
-				A1F2E3D4C5B6A7988776655B /* FeedbackAndLogsServiceTests.swift in Sources */,
 				6323229AB67AC8156E64D0BE /* DMXUniverseBuilderTests.swift in Sources */,
 				64696F952BE50222CFA43E87 /* ExternalDisplayRouterTests.swift in Sources */,
+				3A3914D74D09F3F6F8CE3D9B /* FeedbackAndLogsServiceTests.swift in Sources */,
 				C5351B174BB17461FBB41D7A /* FixtureVerificationTests.swift in Sources */,
 				46B1785E6C79703F8E4A1982 /* MIDIMappingTests.swift in Sources */,
 				70E0172B08514A34CA7A09B4 /* ModelCodableTests.swift in Sources */,
@@ -805,6 +808,7 @@
 				DF69428FC2DA7A79FA542F44 /* ControllerView.swift in Sources */,
 				79AE39520F996D7863018983 /* CosmicShellBackground.swift in Sources */,
 				0A69B9A75B23391570FDBD97 /* CosmicVisualizerApp.swift in Sources */,
+				C1CDE5C814A9BE778775579F /* DMXInboundMergeLogic.swift in Sources */,
 				BB503DCB036A7FE2BA608400 /* DMXOutputService.swift in Sources */,
 				568FE567CC2997C9970A0E6E /* DMXPatchAudit.swift in Sources */,
 				37493DA5BBC694039FD061CA /* DMXPatchStore.swift in Sources */,
@@ -953,7 +957,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = FH4FKB9AUS;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -1077,7 +1081,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = FH4FKB9AUS;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;

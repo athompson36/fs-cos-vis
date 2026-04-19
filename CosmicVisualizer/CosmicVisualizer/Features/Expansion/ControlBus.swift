@@ -195,16 +195,18 @@ final class OSCControlService: ControlBus {
     private(set) var isRunning = false
     private var socketFD: Int32 = -1
     private var readSource: DispatchSourceRead?
+    /// Queue that owns socket read callbacks; UDP replies hop here after snapshot work on the main queue (avoids `main.sync` deadlocks).
+    private var socketEventQueue: DispatchQueue?
     private var requiredToken = ""
-    private var onCommand: ((RemoteControlCommand) -> Void)?
-    private var onStateQuery: (() -> String)?
+    private var onCommand: (@Sendable (RemoteControlCommand) -> Void)?
+    private var onStateQuery: (@Sendable () -> String)?
 
     func configure(
         port: Int,
         bindLAN: Bool,
         requiredToken: String,
-        onCommand: @escaping (RemoteControlCommand) -> Void,
-        onStateQuery: @escaping () -> String
+        onCommand: @escaping @Sendable (RemoteControlCommand) -> Void,
+        onStateQuery: @escaping @Sendable () -> String
     ) -> String? {
         stop()
         self.requiredToken = requiredToken
@@ -243,6 +245,7 @@ final class OSCControlService: ControlBus {
     func start() {
         guard !isRunning, socketFD >= 0 else { return }
         let queue = DispatchQueue(label: "com.cosmicvisualizer.osc", qos: .userInitiated)
+        socketEventQueue = queue
         let source = DispatchSource.makeReadSource(fileDescriptor: socketFD, queue: queue)
         source.setEventHandler { [weak self] in
             self?.handleReadable()
@@ -262,6 +265,7 @@ final class OSCControlService: ControlBus {
     func stop() {
         readSource?.cancel()
         readSource = nil
+        socketEventQueue = nil
         if socketFD >= 0 {
             Darwin.close(socketFD)
             socketFD = -1
@@ -288,12 +292,33 @@ final class OSCControlService: ControlBus {
             onCommand?(cmd)
             return
         }
-        guard OSCControlBusStub.isStateQuery(line, requiredToken: requiredToken),
-              let payload = onStateQuery?().data(using: .utf8)
-        else { return }
-        _ = withUnsafePointer(to: &srcAddr) { ptr in
+        guard OSCControlBusStub.isStateQuery(line, requiredToken: requiredToken) else { return }
+        let destAddrCopy = srcAddr
+        let destLenCopy = srcLen
+        let onQuery = onStateQuery
+        let sendQueue = socketEventQueue
+        let fdSnapshot = socketFD
+        Task { @Sendable in
+            let json = await MainActor.run {
+                onQuery?() ?? "{}"
+            }
+            guard let payload = json.data(using: .utf8),
+                  let q = sendQueue
+            else { return }
+            let fdSend = fdSnapshot
+            guard fdSend >= 0 else { return }
+            q.async {
+                guard fdSend >= 0 else { return }
+                Self.sendOSCUDPReply(fd: fdSend, payload: payload, dest: destAddrCopy, destLen: destLenCopy)
+            }
+        }
+    }
+
+    private static func sendOSCUDPReply(fd: Int32, payload: Data, dest: sockaddr_storage, destLen: socklen_t) {
+        var mutableDest = dest
+        _ = withUnsafePointer(to: &mutableDest) { ptr in
             ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
-                sendto(socketFD, (payload as NSData).bytes, payload.count, 0, sockaddrPtr, srcLen)
+                sendto(fd, (payload as NSData).bytes, payload.count, 0, sockaddrPtr, destLen)
             }
         }
     }

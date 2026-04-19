@@ -1,6 +1,6 @@
 # Project audit and feature status
 
-**Last updated:** 2026-04-18  
+**Last updated:** 2026-04-19  
 
 Single-place summary of **what the product is today** and how documentation should talk about it. Align with [`07-roadmap.md`](07-roadmap.md), [`todo-full-implementation.md`](todo-full-implementation.md), and [`03-ui-ux-spec.md`](03-ui-ux-spec.md).
 
@@ -65,20 +65,22 @@ Single-place summary of **what the product is today** and how documentation shou
 
 - Show **project folder** save/load (JSON documents + `Media/`, `Artifacts/`, `Backups/`)  
 - **`.cosmicshow.zip`** archive export/import from Settings  
-- **CI:** `show-package-smoke` workflow + `scripts/ci/smoke-show-package.sh`  
+- **CI:** `show-package-smoke` workflow + `scripts/ci/smoke-show-package.sh`; full macOS unit tests — [`.github/workflows/unit-tests-macos.yml`](../.github/workflows/unit-tests-macos.yml)  
 - **Beta updates** (Sparkle-oriented; **feed URL / keys** still operator setup — [`release-runbook.md`](release-runbook.md)), **feedback** bundles, optional **relay URL** submission (no GitHub PAT), or direct GitHub API with token  
 
 ## Documentation and audit alignment
 
 - [`README.md`](../README.md) describes beta product, not “Cursor starter.”  
 - Roadmap, backlog, and this file should stay consistent; large releases should update [`todo-full-implementation.md`](todo-full-implementation.md) open items.  
+- **Shipping / production pass:** executable gates and checklists — [`production-readiness-checklist.md`](production-readiness-checklist.md).  
 - The folder [`fs-cos-vis-audit-and-docs-update/`](fs-cos-vis-audit-and-docs-update/README_REPLACEMENT.md) is a **historical audit pack snapshot**; **live** source-of-truth order is listed at the top of [`todo-full-implementation.md`](todo-full-implementation.md).  
 
 ## Remaining gaps (see also backlog)
 
+- **Production readiness:** executable gates and operator scripts — [`production-readiness-checklist.md`](production-readiness-checklist.md). Doc-sync and Gates **0–2** (+ transport certification write-up for Gate 3) are reflected in root `docs/`; **DMX lab sub-gates 3a–3e**, **signed/notarized release (Gate 5)**, and optional **feedback relay deploy (Gate 6)** remain open until run in your environment.  
 - **Inbound DMX:** multi-universe listener + network per-universe merge shipped; **sACN** E1.31 **priority** merge shipped; further desk-grade polish still evolving ([`todo-full-implementation.md`](todo-full-implementation.md) Section I).  
 - **sACN/E1.31:** confirm framing / sync / discovery vs field receivers where you need guarantees.  
 - **RDM** beyond mock; **large-rig** DMX profiling beyond timing + rig-scale counts + histogram + **binned** median/p95 (exact streaming quantiles / per-subsystem optional).  
 - **Feedback:** optional **HTTPS relay** in Settings (JSON POST; no GitHub PAT); hosted relay that calls GitHub remains deployer setup (Section J).  
-- **Release:** Developer ID sign, notarize, DMG/ZIP to testers, Sparkle appcast + Info.plist keys — [`release-runbook.md`](release-runbook.md).  
+- **Release:** Developer ID sign, notarize, DMG/ZIP to testers, Sparkle appcast + Info.plist keys — [`release-runbook.md`](release-runbook.md), Gate 5 worksheet [`distribution-checklist.md`](distribution-checklist.md).  
 - **Verification:** optional deeper CV / geometry beyond current confidence and heuristics if product scope demands it.  

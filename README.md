@@ -24,13 +24,25 @@ This repository is **no longer a starter scaffold**. It is a **late-stage beta**
 
 Additional references:
 
+- [`docs/production-readiness-checklist.md`](docs/production-readiness-checklist.md) — **production pass:** gates, CI/lab/ops checklist, doc sync  
+- [`docs/feature-surface-matrix.md`](docs/feature-surface-matrix.md) — feature × surface summary (Gate 0.2)  
+- [`docs/control-schema-coverage.md`](docs/control-schema-coverage.md) — web `ControlSchema` vs all remote commands (Gate 2.1)  
+- [`docs/historical-docs-reconciliation.md`](docs/historical-docs-reconciliation.md) — audit pack vs live `docs/` (Gate 0.1)  
+- [`docs/control-plane-smoke.md`](docs/control-plane-smoke.md) — OSC / HTTP / WS smoke (Gates 2.2–2.3)  
+- [`docs/uat-checklist.md`](docs/uat-checklist.md) — manual product UAT walkthrough (Gate 4)  
 - [`docs/lighting-roadmap.md`](docs/lighting-roadmap.md) — DMX/lighting detail  
+- [`docs/dmx-lab-procedures.md`](docs/dmx-lab-procedures.md) — lab/field steps for Gate 3a / 3b.2 / 3c.2  
+- [`scripts/README.md`](scripts/README.md) — operator scripts index  
 - [`docs/control-parity.md`](docs/control-parity.md) — HTTP / MIDI / OSC vs `applyRemoteCommand`  
 - [`docs/beta-0.1a-release.md`](docs/beta-0.1a-release.md) — beta packaging and validation  
 - [`docs/release-runbook.md`](docs/release-runbook.md) — Release CI, signing, notarization, Sparkle (Section K)  
+- [`docs/distribution-checklist.md`](docs/distribution-checklist.md) — Gate 5 sign / notarize / Sparkle worksheet  
+- [`.github/workflows/README.md`](.github/workflows/README.md) — CI workflow index  
 - [`docs/osc-control.md`](docs/osc-control.md) — OSC operator quickstart  
 - [`docs/macOS-installer-options.md`](docs/macOS-installer-options.md) — DMG vs ZIP vs PKG for testers  
 - [`docs/fs-cos-vis-audit-and-docs-update/`](docs/fs-cos-vis-audit-and-docs-update/README_REPLACEMENT.md) — **historical** audit pack snapshot (full narrative audit; live backlog is root `docs/`)  
+
+**How production readiness is validated (in-repo, 2026-04):** Full macOS unit tests (`xcodebuild` / [`unit-tests-macos.yml`](.github/workflows/unit-tests-macos.yml)), show-package smoke ([`show-package-smoke.yml`](.github/workflows/show-package-smoke.yml)), Release packaging path ([`release-runbook.md`](docs/release-runbook.md)), operator scripts ([`uat-checklist.md`](docs/uat-checklist.md), [`control-plane-smoke.md`](docs/control-plane-smoke.md)). **Remaining work before ship:** [`docs/production-readiness-checklist.md`](docs/production-readiness-checklist.md) § **Next items (open gates)** (UAT → signed release → optional DMX field / relay).
 
 ## Recommended stack
 
@@ -74,7 +86,7 @@ Run tests from Xcode (**Cmd-U**) or from the terminal:
 xcodebuild -scheme CosmicVisualizer -destination 'platform=macOS' test
 ```
 
-CI also includes a **show package** smoke workflow (see [`.github/workflows/show-package-smoke.yml`](.github/workflows/show-package-smoke.yml)).
+CI includes **show package** smoke ([`.github/workflows/show-package-smoke.yml`](.github/workflows/show-package-smoke.yml)) and optional **full unit tests** on macOS ([`.github/workflows/unit-tests-macos.yml`](.github/workflows/unit-tests-macos.yml)).
 
 The app requires microphone access for live audio analysis (see Info usage string in `project.yml`). If permission is denied, use the in-app **Open Microphone Settings** action to jump to macOS Privacy settings, then retry audio start.
 

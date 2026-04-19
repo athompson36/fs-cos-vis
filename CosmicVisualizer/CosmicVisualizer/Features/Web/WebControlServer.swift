@@ -108,7 +108,9 @@ final class WebControlServer: @unchecked Sendable {
             do {
                 let body = try await req.bodyData
                 let cmd = try ControlCommandHub.decode(from: body)
-                appModel.applyRemoteCommand(cmd)
+                await MainActor.run {
+                    appModel.applyRemoteCommand(cmd)
+                }
                 return HTTPResponse(statusCode: .ok, body: Data("{\"ok\":true}".utf8))
             } catch {
                 return HTTPResponse(statusCode: .badRequest, body: Data("{\"error\":\"bad_command\"}".utf8))

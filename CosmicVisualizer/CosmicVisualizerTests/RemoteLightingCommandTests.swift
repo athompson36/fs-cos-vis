@@ -1,6 +1,7 @@
 import XCTest
 @testable import CosmicVisualizer
 
+@MainActor
 final class RemoteLightingCommandTests: XCTestCase {
     func testSetActiveLightingCueIndex_remote() {
         let model = AppModel()

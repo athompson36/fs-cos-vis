@@ -2,7 +2,7 @@
 
 This document captures current implementation status, boundaries, and next work for the DMX lighting stack.
 
-## Status (2026-04-18)
+## Status (2026-04-19)
 
 ## Completed
 
@@ -34,6 +34,7 @@ This document captures current implementation status, boundaries, and next work 
 9. **Network outbound Art-Net / sACN (multi-universe)**
    - `DMXUniverseBuilder.buildPerUniverse` / `AppModel.buildDMXUniversesForNetwork`; `DMXOutputService` sends one UDP packet per logical universe; **network universe offset** in Settings; pkt/tick diagnostics
    - **Wi‑Fi / LAN:** same UDP transports on wireless or wired; inbound **sACN** joins E1.31 multicast per universe for IGMP (see `SACNMulticastAddress` / `DMXInputService` in `DMXOutputService.swift`)
+   - **Inbound merge** (HTP/LPT, sACN **priority**, 3 s staleness): shared pure logic in `DMXInboundMergeLogic.swift` (`AppModel`); unit tests in `DMXOutputServiceTests` (`testDMXInboundMergeLogic_*`).
    - See also [`todo-full-implementation.md`](todo-full-implementation.md) Section I
 
 ## In progress
@@ -70,6 +71,18 @@ This document captures current implementation status, boundaries, and next work 
 - GrandMA2/full-console parity
 - Full trigger/envelope graph editor UI
 - Production-grade **incoming** DMX + **real** RDM stack (tracked as milestones above)
+
+## Production readiness — transport certification
+
+Statements for [`production-readiness-checklist.md`](production-readiness-checklist.md) Gate 3 exit and honest operator expectations:
+
+| Area | Status | Notes |
+|------|--------|--------|
+| **Outbound** Art-Net / sACN (multi-universe, offset, pkt/tick diagnostics) | **Shipped — lab/field validation operator-dependent** | Confirm with your receivers (universe index, rate) in Gate 3a |
+| **Inbound** merge (HTP/LPT, multi-universe listen, USB vs network, **sACN priority** + staleness) | **Shipped — desk-grade parity vs large consoles TBD** | See Section I / tests in-repo; field log still valuable (3b) |
+| **sACN** extended sync/discovery PDUs | **Best-effort / diagnostic** | Counted in UI; full sync timing / discovery protocol not certified |
+| **RDM** | **Mock + roadmap** | Real RDM integration is a separate milestone |
+| **DMX frame profiler** (histogram, binned median/p95, fixture/modulator/universe counts) | **Shipped** | “Console scale” claims still require large-rig or trace evidence (3e) |
 
 ## Persistence paths (Application Support `CosmicVisualizer/`)
 

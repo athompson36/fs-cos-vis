@@ -1027,16 +1027,16 @@ struct LightingWorkspaceView: View {
             }
             syncFixtureScanSetupStep()
         }
-        .onChange(of: fixtureVerifyUseSecondaryCamera) { _ in
+        .onChange(of: fixtureVerifyUseSecondaryCamera) { _, _ in
             syncFixtureScanSetupStep()
         }
-        .onChange(of: fixtureVerifySecondaryCameraID) { _ in
+        .onChange(of: fixtureVerifySecondaryCameraID) { _, _ in
             syncFixtureScanSetupStep()
         }
-        .onChange(of: appModel.stageLayoutDocument.primaryScanCamera.isEnabled) { _ in
+        .onChange(of: appModel.stageLayoutDocument.primaryScanCamera.isEnabled) { _, _ in
             syncFixtureScanSetupStep()
         }
-        .onChange(of: appModel.stageLayoutDocument.secondaryScanCamera.isEnabled) { _ in
+        .onChange(of: appModel.stageLayoutDocument.secondaryScanCamera.isEnabled) { _, _ in
             syncFixtureScanSetupStep()
         }
     }

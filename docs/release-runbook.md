@@ -18,6 +18,20 @@ Workflow: [`.github/workflows/release-macos-beta.yml`](../.github/workflows/rele
 
 CI produces **unsigned** Release bundles suitable for internal smoke tests only. Treat **signed + notarized** builds as a maintainer step until certificate secrets are wired into Actions (optional future work).
 
+**Other workflows:** [`.github/workflows/README.md`](../.github/workflows/README.md) lists show-package smoke, full macOS unit tests, and the optional **notarize** dispatch **example** ([`notarize-macos-dispatch.yml.example`](../.github/workflows/notarize-macos-dispatch.yml.example)) — copy/rename and implement if you add signing secrets.
+
+**Gate 5 worksheet:** [`distribution-checklist.md`](distribution-checklist.md) (sign / notarize / Sparkle / clean-Mac validation).
+
+### Production checklist — Gate 1.4
+
+[`production-readiness-checklist.md`](production-readiness-checklist.md) treats the **Release packaging path** as satisfied when:
+
+1. **CI:** [`.github/workflows/release-macos-beta.yml`](../.github/workflows/release-macos-beta.yml) runs `xcodegen` (example `project.local.yml`), **Release** `xcodebuild` with `-derivedDataPath build`, then **`bash scripts/release/package-beta.sh`**, and uploads **`dist/*`** (ZIP + DMG when `hdiutil` is available).
+2. **Local:** Same packaging script after a local Release build; see **Package DMG + ZIP** below.
+3. **Signing:** Still **out of CI** by default — replace artifacts on the GitHub Release after **Developer ID + notarization** if shipping outside trusted testers.
+
+This matches the steps in **What CI does today** and does not require a green **signed** build in Actions to check the box.
+
 ## Apple Developer Team (signing)
 
 The generated Xcode project reads **`DEVELOPMENT_TEAM`** from **`project.local.yml`** (gitignored), merged via `project.yml` → `include`.
