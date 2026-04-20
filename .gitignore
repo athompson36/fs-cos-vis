@@ -4,6 +4,7 @@
 # Xcode
 project.local.yml
 build/
+dist/
 DerivedData/
 *.xcuserstate
 *.xcscmblueprint

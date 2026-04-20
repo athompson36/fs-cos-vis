@@ -14,8 +14,8 @@ xcodegen generate
 
 echo "[smoke] Running show-package smoke tests"
 xcodebuild test \
-  -project "CosmicVisualizer.xcodeproj" \
-  -scheme "CosmicVisualizer" \
+  -project "FSDMXVision.xcodeproj" \
+  -scheme "FSDMXVision" \
   -destination "platform=macOS" \
-  -only-testing:"CosmicVisualizerTests/ShowProjectAndContextTests/testShowProjectPackageRoundTrip" \
-  -only-testing:"CosmicVisualizerTests/ShowProjectAndContextTests/testShowProjectArchiveExportImportRoundTrip"
+  -only-testing:"FSDMXVisionTests/ShowProjectAndContextTests/testShowProjectPackageRoundTrip" \
+  -only-testing:"FSDMXVisionTests/ShowProjectAndContextTests/testShowProjectArchiveExportImportRoundTrip"

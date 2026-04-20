@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Minimal OSC-line helper for Cosmic Visualizer UDP control.
+Minimal OSC-line helper for FS DMX Vision UDP control.
 
 This helper sends plain-text OSC-style lines expected by OSCControlService.
 Examples:
@@ -17,7 +17,7 @@ import sys
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Send Cosmic Visualizer OSC UDP control lines.")
+    parser = argparse.ArgumentParser(description="Send FS DMX Vision OSC UDP control lines.")
     parser.add_argument("--host", default="127.0.0.1", help="OSC host (default: 127.0.0.1)")
     parser.add_argument("--port", type=int, default=9000, help="OSC port (default: 9000)")
     parser.add_argument("--token", default="", help="Optional OSC auth token")

@@ -1,5 +1,5 @@
-# Full CosmicVisualizer unit tests on macOS (Gate 1.3)
-# Complements show-package-smoke.yml (narrow tests) with the full CosmicVisualizerTests suite.
+# Full FSDMXVision unit tests on macOS (Gate 1.3)
+# Complements show-package-smoke.yml (narrow tests) with the full FSDMXVisionTests suite.
 
 name: Unit Tests (macOS)
 
@@ -26,6 +26,6 @@ jobs:
       - name: Run full test suite
         run: |
           xcodebuild test \
-            -project CosmicVisualizer.xcodeproj \
-            -scheme CosmicVisualizer \
+            -project FSDMXVision.xcodeproj \
+            -scheme FSDMXVision \
             -destination 'platform=macOS'

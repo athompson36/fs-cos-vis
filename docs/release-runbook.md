@@ -50,13 +50,13 @@ From the repo root:
 brew install xcodegen   # if project not generated
 cp -f project.local.yml.example project.local.yml   # once; then set DEVELOPMENT_TEAM in project.local.yml
 xcodegen generate
-xcodebuild -project CosmicVisualizer.xcodeproj -scheme CosmicVisualizer \
+xcodebuild -project FSDMXVision.xcodeproj -scheme FSDMXVision \
   -configuration Release -derivedDataPath build
 ```
 
 App output expected by packaging:
 
-`build/Build/Products/Release/CosmicVisualizer.app`
+`build/Build/Products/Release/FSDMXVision.app`
 
 ## Package DMG + ZIP
 
@@ -68,7 +68,7 @@ bash scripts/release/package-beta.sh
 Artifacts land in `dist/`. Override build root if you use a different `derivedDataPath` layout:
 
 ```bash
-export COSMIC_RELEASE_APP="/path/to/CosmicVisualizer.app"
+export COSMIC_RELEASE_APP="/path/to/FSDMXVision.app"
 bash scripts/release/package-beta.sh
 ```
 
@@ -85,13 +85,13 @@ Requirements:
 
 ### Command-line sketch (expert use)
 
-Exact flags depend on embedded binaries; validate with `codesign -dv --verbose=4 CosmicVisualizer.app` after each step.
+Exact flags depend on embedded binaries; validate with `codesign -dv --verbose=4 FSDMXVision.app` after each step.
 
 1. `codesign` all nested code (`.framework`, `.dylib`, helper tools) with your Developer ID identity.  
 2. Sign the `.app` bundle with `--options runtime` and your Team ID.  
-3. Zip the app for notary: `ditto -c -k --keepParent CosmicVisualizer.app CosmicVisualizer.zip`  
-4. `xcrun notarytool submit CosmicVisualizer.zip --wait --keychain-profile "AC_PASSWORD"` (or Apple API key; see `notarytool --help`)  
-5. `xcrun stapler staple CosmicVisualizer.app`  
+3. Zip the app for notary: `ditto -c -k --keepParent FSDMXVision.app FSDMXVision.zip`  
+4. `xcrun notarytool submit FSDMXVision.zip --wait --keychain-profile "AC_PASSWORD"` (or Apple API key; see `notarytool --help`)  
+5. `xcrun stapler staple FSDMXVision.app`  
 6. Re-run `package-beta.sh` **after** stapling so DMG/ZIP contain the stapled app.
 
 Until this is automated in CI, record **notarization submission ID** and ticket status for support escalations.

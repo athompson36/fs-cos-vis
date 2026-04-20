@@ -1,6 +1,8 @@
 # OSC Control Quickstart
 
-Cosmic Visualizer supports UDP OSC-style control lines in Settings under **Remote control**.
+FS DMX Vision supports UDP OSC-style control lines in Settings under **Remote control**.
+
+**Note:** OSC addresses still use the legacy `/cosmic/...` prefix for backward compatibility with existing scripts and show automation.
 
 See also: [`control-parity.md`](control-parity.md) (how OSC relates to HTTP and MIDI), [`macOS-installer-options.md`](macOS-installer-options.md) (beta handoff), [`beta-0.1a-release.md`](beta-0.1a-release.md) (post-install validation including OSC and recorder checks).
 
@@ -53,6 +55,8 @@ Messages are newline-free UTF-8 lines sent over UDP.
 - `/cosmic/composite/bloom f 0…0.85`
 - `/cosmic/composite/vignette f 0…1`
 - `/cosmic/composite/blend f 0.65`
+- `/cosmic/composite/spectrum_warp f 0…1` (audio-reactive composite UV warp)
+- `/cosmic/fractal/geometry i 0…6` (same indices as Scene Studio: 0 Julia … 6 orbit trap)
 - `/cosmic/liquid/enabled f 1`
 - `/cosmic/overlay/enabled f 1`
 - `/cosmic/performance/enabled f 0`

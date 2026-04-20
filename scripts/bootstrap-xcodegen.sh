@@ -10,4 +10,4 @@ if [[ ! -f project.local.yml ]]; then
 fi
 
 xcodegen generate
-echo "OK: CosmicVisualizer.xcodeproj generated."
+echo "OK: FSDMXVision.xcodeproj generated."

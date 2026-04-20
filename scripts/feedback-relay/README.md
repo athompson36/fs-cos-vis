@@ -2,7 +2,7 @@
 
 Small **Node** service that verifies `Authorization: Bearer` against `RELAY_SECRET`, then creates a GitHub issue with `GITHUB_TOKEN` (server-side only).
 
-Matches the CosmicVisualizer client: `POST` with JSON `{ title, body, repository, appVersion }`.
+Matches the FSDMXVision client: `POST` with JSON `{ title, body, repository, appVersion }`.
 
 ## Local run
 

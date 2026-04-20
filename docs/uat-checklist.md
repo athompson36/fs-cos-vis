@@ -33,7 +33,7 @@
 ## Controller
 
 - [ ] **MIDI learn:** assign at least one discrete CC to **Next scene** (or another command); mapping appears in UI.
-- [ ] **Persistence:** quit app and relaunch — mapping still applied (`MIDIMappingStore`). Automated coverage: `CosmicVisualizerTests/MIDIMappingTests` (JSON encode/decode, continuous CC).
+- [ ] **Persistence:** quit app and relaunch — mapping still applied (`MIDIMappingStore`). Automated coverage: `FSDMXVisionTests/MIDIMappingTests` (JSON encode/decode, continuous CC).
 - [ ] **Fader search / mapping cards** usable for continuous parameters.
 - [ ] **OSC summary** matches Settings (port, bind LAN, token if used); spot-check with [`osc-control.md`](osc-control.md).
 
@@ -65,12 +65,12 @@ Satisfies the **persistence** slice of production Gate **2.4** together with **C
 
 | Build | Date | Tester |
 |-------|------|--------|
-| | | |
+| Release `FSDMXVision.app` (DerivedData) + `dist/FSDMXVision-audit-2026-04-19.{dmg,zip}` | 2026-04-19 | Automation (full interactive pass still required) |
 
 **Blockers:** File each issue with an **area** label (`live-show`, `scene-studio`, `controller`, `settings`, `lighting`, `web`, `dmx`, `release`) and link it here.
 
 | ID | Area | Summary |
 |----|------|---------|
-| | | |
+| — | — | **None** — checklist bullets above were not individually Pass/Fail tested in the 2026-04-19 automation run; execute manually and replace this row with real issues or confirm `none` after a full walk. |
 
 *(Until blockers exist, leave the table empty or remove rows.)*

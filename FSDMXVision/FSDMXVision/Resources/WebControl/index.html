@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cosmic Control</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Cosmic Control</h1>
+      <p class="sub">Live performance surface · local only by default</p>
+    </header>
+
+    <section class="panel" id="transport">
+      <h2>Transport</h2>
+      <div class="row">
+        <div class="metric"><span class="lbl">BPM</span><span id="bpm">—</span></div>
+        <div class="metric"><span class="lbl">Phase</span><span id="phase">—</span></div>
+        <div class="metric"><span class="lbl">Source</span><span id="sync">—</span></div>
+        <div class="metric"><span class="lbl">Confidence</span><span id="conf">—</span></div>
+      </div>
+      <div class="row actions">
+        <button type="button" id="tap">Tap tempo</button>
+        <button type="button" id="prev">Prev scene</button>
+        <button type="button" id="next">Next scene</button>
+        <button type="button" id="rand">Random</button>
+      </div>
+    </section>
+
+    <section class="panel" id="scenes">
+      <h2>Scenes</h2>
+      <ol id="sceneList"></ol>
+      <div class="row actions scene-actions">
+        <button type="button" id="dup">Duplicate</button>
+        <button type="button" id="del">Delete</button>
+        <button type="button" id="saveScenes">Save to disk</button>
+      </div>
+    </section>
+
+    <section class="panel" id="layer">
+      <h2>Layer</h2>
+      <label>Fractal zoom <input type="range" id="fractalZoom" min="0.08" max="24" step="0.01" /></label>
+      <label>Liquid turbulence <input type="range" id="liqTurbo" min="0.2" max="2.5" step="0.01" /></label>
+      <label>Composite blend <input type="range" id="composite" min="0" max="1" step="0.01" /></label>
+      <label>Liquid focus <input type="range" id="liqFocus" min="0" max="1" step="0.01" /></label>
+      <label>Fractal look <input type="range" id="fractalLook" min="0" max="1" step="0.01" /></label>
+      <label>Logo fusion <input type="range" id="logoFusion" min="0" max="1" step="0.01" /></label>
+      <label>Fractal explore <input type="range" id="fractalExplore" min="0" max="1" step="0.01" /></label>
+      <label>Explore speed <input type="range" id="fractalExploreSpeed" min="0.05" max="6" step="0.01" /></label>
+      <label>Iteration boost <input type="range" id="fractalIterBoost" min="0.25" max="3" step="0.01" /></label>
+      <label>Zoom motion <input type="range" id="zoomMotion" min="0" max="2" step="1" /></label>
+      <label>Reconstitute <input type="range" id="liqReconAmt" min="0" max="1" step="0.01" /></label>
+      <label>Reconstitute rate <input type="range" id="liqReconRate" min="0.05" max="3" step="0.01" /></label>
+      <label>Dye mix <input type="range" id="dyeMix" min="0" max="1" step="0.01" /></label>
+      <label>Smooth shading <input type="range" id="fractalSmooth" min="0" max="1" step="0.01" /></label>
+      <label>Bloom <input type="range" id="bloom" min="0" max="0.5" step="0.01" /></label>
+      <label>Vignette <input type="range" id="vignette" min="0" max="0.85" step="0.01" /></label>
+      <label>Spectrum warp <input type="range" id="spectrumWarp" min="0" max="1" step="0.01" title="Milkdrop-style composite UV warp from audio spectrum" /></label>
+      <label>Fractal geometry <input type="range" id="fractalGeometry" min="0" max="6" step="1" title="0 Julia … 6 orbit trap" /></label>
+    </section>
+
+    <section class="panel" id="lighting">
+      <h2>Lighting</h2>
+      <p class="status-line"><span class="lbl">Cues</span> <span id="lightingStat">—</span></p>
+      <label class="cue-jump">Jump to <select id="cueJump" aria-label="Active lighting cue"></select></label>
+      <div class="row actions">
+        <button type="button" id="cuePrev">Previous cue</button>
+        <button type="button" id="cueNext">Next cue</button>
+        <button type="button" id="cueClear">Clear active</button>
+      </div>
+    </section>
+
+    <section class="panel" id="status">
+      <h2>Audio &amp; DMX</h2>
+      <p class="status-line"><span class="lbl">RMS</span> <span id="rms">—</span> · <span class="lbl">Peak</span> <span id="peak">—</span></p>
+      <p class="status-line" id="audioErrP" hidden><span class="lbl warn">Audio</span> <span id="audioErr"></span></p>
+      <p class="status-line"><span class="lbl">DMX</span> <span id="dmxStat">off</span> <span id="dmxErr" class="warn"></span></p>
+    </section>
+
+    <section class="panel" id="footer">
+      <p class="hint">REST: <code>GET /health</code> · <code>GET /api/schema</code> · <code>GET /api/state</code> · <code>GET /api/dmx/sim</code> · <code>/api/scenes</code> · <code>/api/settings</code> · <code>/api/midi_mapping</code> · <code>POST /api/command</code> (incl. <code>SetSpectrumWarpAmount</code>, <code>SetFractalGeometryIndex</code>, lighting/recording cues) · WS <code>/ws</code> · <code>?token=</code></p>
+    </section>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

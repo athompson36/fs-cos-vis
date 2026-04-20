@@ -48,8 +48,8 @@ This is not the repo’s current primary packaging path.
 6. keep ZIP for Sparkle/appcast
 
 ## Minimum artifacts to hand off
-- `CosmicVisualizer-<version>.dmg`
-- optionally `CosmicVisualizer-<version>.zip`
+- `FSDMXVision-<version>.dmg`
+- optionally `FSDMXVision-<version>.zip`
 
 ## Before sending to tester
 - validate install on a clean Mac without Xcode

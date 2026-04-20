@@ -20,7 +20,7 @@ jobs:
 
       - name: Build app
         run: |
-          xcodebuild -project "CosmicVisualizer.xcodeproj" -scheme "CosmicVisualizer" -configuration Release -derivedDataPath build
+          xcodebuild -project "FSDMXVision.xcodeproj" -scheme "FSDMXVision" -configuration Release -derivedDataPath build
 
       - name: Package ZIP + DMG (unsigned — see docs/release-runbook.md for signing)
         run: |
@@ -29,5 +29,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CosmicVisualizer-beta
+          name: FSDMXVision-beta
           path: dist/*

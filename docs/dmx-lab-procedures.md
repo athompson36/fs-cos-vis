@@ -57,7 +57,7 @@ Executed in-repo (no GUI, no DMX hardware):
 
 ```bash
 xcodegen generate
-xcodebuild test -project CosmicVisualizer.xcodeproj -scheme CosmicVisualizer -destination 'platform=macOS'
+xcodebuild test -project FSDMXVision.xcodeproj -scheme FSDMXVision -destination 'platform=macOS'
 ```
 
 **Outcome:** `TEST SUCCEEDED` — **152** tests, **0** failures.

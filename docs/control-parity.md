@@ -10,7 +10,7 @@ The bundled remote web UI is driven by `ControlSchema.cosmicDefault()` (`GET /ap
 
 ## Web schema (`ControlSchema`)
 
-See `CosmicVisualizer/Features/Web/ControlSchema.swift`. Fields map `commandType` strings to `POST /api/command` bodies. Anything not listed there is still available via raw JSON to `POST /api/command`.
+See `FSDMXVision/FSDMXVision/Features/Web/ControlSchema.swift`. Fields map `commandType` strings to `POST /api/command` bodies. Anything not listed there is still available via raw JSON to `POST /api/command`.
 
 **Detailed diff (schema vs all implemented command types):** [`control-schema-coverage.md`](control-schema-coverage.md).
 

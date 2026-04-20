@@ -35,8 +35,8 @@ The repository supports **ZIP** and **DMG** artifacts (see `scripts/release/pack
 
 ## Minimum artifacts
 
-- `CosmicVisualizer-<version>.dmg` (typical tester handoff)  
-- Optionally `CosmicVisualizer-<version>.zip` (updates / automation)  
+- `FSDMXVision-<version>.dmg` (typical tester handoff)  
+- Optionally `FSDMXVision-<version>.zip` (updates / automation)  
 
 ## Before sending to testers
 

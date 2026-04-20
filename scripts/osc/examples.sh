@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# OSC quick examples for Cosmic Visualizer operators.
+# OSC quick examples for FS DMX Vision operators.
 # Requires OSC UDP control enabled in-app (Settings > Remote control).
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SEND="${ROOT_DIR}/scripts/osc/send.sh"
 QUERY="${ROOT_DIR}/scripts/osc/query-state.sh"
 
-echo "== Cosmic OSC examples =="
+echo "== FS DMX Vision OSC examples (paths use legacy /cosmic/ prefix) =="
 echo "Host: ${OSC_HOST:-127.0.0.1}  Port: ${OSC_PORT:-9000}"
 if [[ -n "${OSC_TOKEN:-}" ]]; then
   echo "Token: configured"

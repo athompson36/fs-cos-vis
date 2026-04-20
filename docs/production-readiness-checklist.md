@@ -10,9 +10,9 @@
 4. [`todo-full-implementation.md`](todo-full-implementation.md)
 5. [`03-ui-ux-spec.md`](03-ui-ux-spec.md)
 
-**Supporting:** [`lighting-roadmap.md`](lighting-roadmap.md), [`control-parity.md`](control-parity.md), [`control-schema-coverage.md`](control-schema-coverage.md), [`control-plane-smoke.md`](control-plane-smoke.md), [`uat-checklist.md`](uat-checklist.md), [`dmx-lab-procedures.md`](dmx-lab-procedures.md) (Gate 3a / 3b.2 / 3c.2), [`feature-surface-matrix.md`](feature-surface-matrix.md), [`historical-docs-reconciliation.md`](historical-docs-reconciliation.md), [`osc-control.md`](osc-control.md), [`release-runbook.md`](release-runbook.md), [`distribution-checklist.md`](distribution-checklist.md) (Gate 5), [`macOS-installer-options.md`](macOS-installer-options.md), [`beta-0.1a-release.md`](beta-0.1a-release.md).
+**Supporting:** [`lighting-roadmap.md`](lighting-roadmap.md), [`control-parity.md`](control-parity.md), [`control-schema-coverage.md`](control-schema-coverage.md), [`control-plane-smoke.md`](control-plane-smoke.md), [`uat-checklist.md`](uat-checklist.md), [`ui-page-verification.md`](ui-page-verification.md), [`dmx-lab-procedures.md`](dmx-lab-procedures.md) (Gate 3a / 3b.2 / 3c.2), [`feature-surface-matrix.md`](feature-surface-matrix.md), [`historical-docs-reconciliation.md`](historical-docs-reconciliation.md), [`osc-control.md`](osc-control.md), [`release-runbook.md`](release-runbook.md), [`distribution-checklist.md`](distribution-checklist.md) (Gate 5), [`macOS-installer-options.md`](macOS-installer-options.md), [`beta-0.1a-release.md`](beta-0.1a-release.md).
 
-**Workspace rules:** [`.cursor/rules/live_show.mdc`](../.cursor/rules/live_show.mdc), [`scene_studio.mdc`](../.cursor/rules/scene_studio.mdc), [`lighting_workspace.mdc`](../.cursor/rules/lighting_workspace.mdc). Module notes: [`CosmicVisualizer/AGENTS.md`](../CosmicVisualizer/AGENTS.md).
+**Workspace rules:** [`.cursor/rules/live_show.mdc`](../.cursor/rules/live_show.mdc), [`scene_studio.mdc`](../.cursor/rules/scene_studio.mdc), [`lighting_workspace.mdc`](../.cursor/rules/lighting_workspace.mdc). Module notes: [`FSDMXVision/AGENTS.md`](../FSDMXVision/AGENTS.md).
 
 **Historical (do not treat as live requirements without reconciliation):** [`fs-cos-vis-audit-and-docs-update/`](fs-cos-vis-audit-and-docs-update/README_REPLACEMENT.md).
 
@@ -21,7 +21,7 @@
 ## Principles
 
 - [x] **Single control spine:** Automation flows through `RemoteControlCommand` → `AppModel.applyRemoteCommand` (see [`control-parity.md`](control-parity.md)).
-- [x] **Test-before-close:** Deterministic automation where possible; lab/field checklists for hardware-dependent behavior (DMX, multicast, receivers) — **Gate 1** (152 macOS unit tests + CI), **Gate 4** [`uat-checklist.md`](uat-checklist.md); **Gate 3a**, **3b.2**, **3c.2** remain lab/field.
+- [x] **Test-before-close:** Deterministic automation where possible; lab/field checklists for hardware-dependent behavior (DMX, multicast, receivers) — **Gate 1** (154 macOS unit tests + CI), **Gate 4** [`uat-checklist.md`](uat-checklist.md); **Gate 3a**, **3b.2**, **3c.2** remain lab/field.
 - [x] **Honest boundaries:** Scaffolds stay labeled; certification statements distinguish lab-proven vs best-effort vs future — see [`lighting-roadmap.md`](lighting-roadmap.md) § *Production readiness — transport certification* and Section I in [`todo-full-implementation.md`](todo-full-implementation.md).
 - [ ] **One close-out doc PR** touching only the canonical list above — *optional consolidation when cutting a release; Gate 7 content was last synced 2026-04-19.*
 
@@ -47,7 +47,7 @@ Copy to a spreadsheet; **rows** = areas from [`project-audit-and-feature-status.
 
 | # | Task | Done |
 |---|------|------|
-| 1.1 | `xcodebuild -scheme CosmicVisualizer -destination 'platform=macOS' test` — all tests green | [x] — 152 tests, 0 failures (2026-04-19 local) |
+| 1.1 | `xcodebuild -scheme FSDMXVision -destination 'platform=macOS' test` — all tests green | [x] — 154 tests, 0 failures (2026-04-19 local; see [`audit-execution-record.md`](audit-execution-record.md)) |
 | 1.2 | CI: [`show-package-smoke.yml`](../.github/workflows/show-package-smoke.yml) + `scripts/ci/smoke-show-package.sh` green | [x] — verified local run (2026-04-19) |
 | 1.3 | CI (optional): add workflow for full unit tests on macOS if cost allows — see [`todo-full-implementation.md`](todo-full-implementation.md) Section L | [x] — [`unit-tests-macos.yml`](../.github/workflows/unit-tests-macos.yml) |
 | 1.4 | Release artifact: [`release-macos-beta.yml`](../.github/workflows/release-macos-beta.yml) + `scripts/release/package-beta.sh` produces DMG/ZIP (unsigned OK for internal); document signed vs unsigned per [`release-runbook.md`](release-runbook.md) | [x] — CI + local path documented (unsigned artifact until signing secrets; see runbook § Gate 1.4) |
@@ -65,7 +65,7 @@ Copy to a spreadsheet; **rows** = areas from [`project-audit-and-feature-status.
 | 2.3 | HTTP: `GET /api/state`, `POST /api/command`, WS — light load / error behavior documented or tested | [x] — [`control-plane-smoke.md`](control-plane-smoke.md) § 2.3 + [`scripts/ci/smoke-control-plane.sh`](../scripts/ci/smoke-control-plane.sh) |
 | 2.4 | MIDI: regression on learn + `MIDIMappingStore` persistence (Controller UAT) | [x] — `MIDIMappingTests` + Controller steps in [`uat-checklist.md`](uat-checklist.md) |
 
-**Primary code:** [`WebControlServer.swift`](../CosmicVisualizer/CosmicVisualizer/Features/Web/WebControlServer.swift), [`ControlSchema.swift`](../CosmicVisualizer/CosmicVisualizer/Features/Web/ControlSchema.swift), [`ControlBus.swift`](../CosmicVisualizer/CosmicVisualizer/Features/Expansion/ControlBus.swift), [`RemoteControlCommand.swift`](../CosmicVisualizer/CosmicVisualizer/Features/Control/RemoteControlCommand.swift), [`AppModel.swift`](../CosmicVisualizer/CosmicVisualizer/App/AppModel.swift).
+**Primary code:** [`WebControlServer.swift`](../FSDMXVision/FSDMXVision/Features/Web/WebControlServer.swift), [`ControlSchema.swift`](../FSDMXVision/FSDMXVision/Features/Web/ControlSchema.swift), [`ControlBus.swift`](../FSDMXVision/FSDMXVision/Features/Expansion/ControlBus.swift), [`RemoteControlCommand.swift`](../FSDMXVision/FSDMXVision/Features/Control/RemoteControlCommand.swift), [`AppModel.swift`](../FSDMXVision/FSDMXVision/App/AppModel.swift).
 
 **Exit:** Parity documented; settings-only exceptions explicit ([`control-parity.md`](control-parity.md)).
 
@@ -132,7 +132,7 @@ Execute **in order**; each sub-gate has its own exit.
 
 - [x] UAT script stored (Markdown or checklist tool) — [`uat-checklist.md`](uat-checklist.md)
 - [x] **Process** for filing blockers (area labels + table) — [`uat-checklist.md`](uat-checklist.md)
-- [ ] **Recorded blockers** from an executed UAT pass (fill the table when you run UAT; use `none` if clean)
+- [ ] **Recorded blockers** from an executed UAT pass (fill the table when you run UAT; use `none` if clean) — *2026-04-19: sign-off row + placeholder blocker note added in [`uat-checklist.md`](uat-checklist.md); interactive Pass/Fail for each bullet still pending — see [`audit-execution-record.md`](audit-execution-record.md).*
 
 ---
 
@@ -231,4 +231,4 @@ Work in this order for a **named release** (everything above is either done or e
 
 ---
 
-**Last updated:** 2026-04-19
+**Last updated:** 2026-04-19 (Gate 1.1 test count + [`audit-execution-record.md`](audit-execution-record.md))

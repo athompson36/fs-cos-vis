@@ -74,7 +74,7 @@ Current state:
 - partially current
 - implementation bullets are much more current than the title/subtitle
 Problem:
-- still framed as “Cosmic Visualizer Cursor Starter”
+- still framed as “FS DMX Vision Cursor Starter”
 Recommendation:
 - rename positioning from starter to beta app / hybrid visualizer + show-control platform
 

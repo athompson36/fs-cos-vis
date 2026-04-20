@@ -1,4 +1,4 @@
-# Cursor Rules for Cosmic Visualizer
+# Cursor Rules for FS DMX Vision
 
 ## Mission
 
@@ -6,7 +6,7 @@ Build a polished, modular, macOS-first audio-reactive visualization app with a s
 
 ## Non-negotiables
 
-1. **When testing, fix and verify all errors and warnings before moving on to the next step.** After adding or changing tests or production code under test, run the full test action for the scheme (or `xcodebuild -scheme CosmicVisualizer -destination 'platform=macOS' test`). Resolve test failures, build errors, and compiler warnings introduced by that work—including Swift warnings and XCTest deprecations unless the project explicitly documents an exception—before starting the next task or module.
+1. **When testing, fix and verify all errors and warnings before moving on to the next step.** After adding or changing tests or production code under test, run the full test action for the scheme (or `xcodebuild -scheme FSDMXVision -destination 'platform=macOS' test`). Resolve test failures, build errors, and compiler warnings introduced by that work—including Swift warnings and XCTest deprecations unless the project explicitly documents an exception—before starting the next task or module.
 2. Do not flatten the app into a generic utility look.
 3. Do not treat BPM detection as optional decoration; it is a functional driver.
 4. Do not hardwire scene logic into view files.
@@ -16,7 +16,7 @@ Build a polished, modular, macOS-first audio-reactive visualization app with a s
 
 ## Testing
 
-- Use **XCTest** in the `CosmicVisualizerTests` target; prefer `@testable import CosmicVisualizer` for internal API.
+- Use **XCTest** in the `FSDMXVisionTests` target; prefer `@testable import FSDMXVision` for internal API.
 - Prefer **protocols and fakes** at boundaries (audio buffers, beat clock) so analysis and state stay deterministic in CI.
 - For Metal/renderers: unit-test **parameter packing, blend math, and pure Swift** helpers; use **minimal** integration tests for full frame paths when necessary.
 - Do not merge or advance milestones on a red build or a warning baseline that regressed versus the previous step.

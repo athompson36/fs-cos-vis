@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Optional manual smoke: HTTP remote control (Gate 2.3).
-# Prerequisites: CosmicVisualizer running with Remote control ON; port matches REMOTE_PORT (default 8765).
+# Prerequisites: FSDMXVision running with Remote control ON; port matches REMOTE_PORT (default 8765).
 # Does not start the app — use alongside a local run or staging machine.
 set -euo pipefail
 

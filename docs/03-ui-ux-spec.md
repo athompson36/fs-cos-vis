@@ -1,6 +1,6 @@
 # UI / UX spec
 
-**Last updated:** 2026-04-19  
+**Last updated:** 2026-04-20  
 
 Describes **information architecture**, **primary screens**, interaction priorities, and **Drew Spaceman** style constraints. Further Live Show polish (if any) is tracked in [`todo-full-implementation.md`](todo-full-implementation.md) (Section C). IA and surface naming align with [`production-readiness-checklist.md`](production-readiness-checklist.md) (Gates 0 / 4) and [`uat-checklist.md`](uat-checklist.md).
 
@@ -30,7 +30,7 @@ Primary **performance** screen. Must keep critical actions obvious and avoid blo
 - **Grouped bands:** Performance (scene + tempo + overlay file tools menu), Look / palette, Capture / output (recorder)  
 - Quick palette access; liquid toggle; overlay enable/placement toggle  
 - Haze emergency kill; live output recorder (source, quality, share/reveal)  
-- Performance toggle; cue strips (scene / lighting / backdrop as configured)  
+- Performance toggle; **scene** cue strip when not in Performance mode; **lighting + backdrop** cue panel under the preview whenever Metal is up (individual rows toggled in Settings · default **on**)  
 - Overlay import / black-removal **file tools** in a **menu** (not primary buttons)  
 
 **Optional polish** (see backlog if we add more):
@@ -39,7 +39,7 @@ Primary **performance** screen. Must keep critical actions obvious and avoid blo
 
 ### 2. Scene Studio (scene editor + consolidated authoring)
 
-Primary **creative** surface: scene list, live preview, fractal and liquid controls, overlay authoring, palette creation/selection, dropper layer editing.
+Primary **creative** surface: scene list, live preview, fractal and liquid controls, overlay authoring, palette creation/selection, dropper layer editing. **Fractal universe** includes geometry indices **0…6** (Julia through orbit trap); **composite** includes **spectrum warp** (audio-reactive UV warp). Same layer fields are exposed on the bundled web UI and via `SetSpectrumWarpAmount` / `SetFractalGeometryIndex` (`POST /api/command` · OSC — see `osc-control.md`).
 
 **Authoring sub-modes** (implemented as a **persisted section picker** in the controls column):
 
@@ -61,7 +61,9 @@ Configuration, updates, feedback, show package import/export, AI, remote HTTP/We
 
 ### 5. Lighting Workspace
 
-**Implemented:** Five tabs — **Patch** (OFL + DMX patch + rig list), **Cues** (lighting + backdrop cues), **Stage** (plan + 2.5D preview + exposure tip for camera probes), **Verify** (assisted fixture verification; amber **exposure/contrast** banner; **run + per-fixture confidence** from luma signal and category checks), **Tools** (modulation, bulk JSON import/export, copilot). Patch and cue lists support **search/filter** for larger shows.
+**Implemented:** Five workspace areas (horizontal **section chips**, same pattern as Scene Studio authoring) — **Patch** (OFL + DMX patch + rig list), **Cues** (lighting + backdrop cues), **Stage** (plan + 2.5D preview + exposure tip for camera probes), **Verify** (assisted fixture verification; amber **exposure/contrast** banner; **run + per-fixture confidence** from luma signal and category checks), **Tools** (modulation, bulk JSON import/export, copilot). Patch and cue lists support **search/filter** for larger shows.
+
+**Traceability:** [`ui-page-verification.md`](ui-page-verification.md).
 
 ## Interaction priorities
 

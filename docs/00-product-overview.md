@@ -2,7 +2,7 @@
 
 ## Working title
 
-Cosmic Visualizer
+FS DMX Vision
 
 ## What it is
 

@@ -1,12 +1,12 @@
 /**
- * Minimal HTTPS-capable feedback relay for CosmicVisualizer.
+ * Minimal HTTPS-capable feedback relay for FSDMXVision.
  *
  * Env:
  *   RELAY_SECRET   — required; must match Settings → Relay authorization (Bearer token)
  *   GITHUB_TOKEN   — fine-grained or classic PAT with Issues: write on the target repo
  *   PORT           — default 8080
  *
- * CosmicVisualizer POST body: { title, body, repository, appVersion }
+ * FSDMXVision POST body: { title, body, repository, appVersion }
  * Set Feedback relay URL to e.g. http://127.0.0.1:8080/ (local) or https://your-host/ (prod).
  */
 import express from "express";

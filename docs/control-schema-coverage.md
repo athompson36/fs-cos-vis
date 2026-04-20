@@ -1,6 +1,6 @@
 # `ControlSchema` vs `applyRemoteCommandOnMainThread` (Gate 2.1)
 
-**Sources:** [`ControlSchema.swift`](../CosmicVisualizer/CosmicVisualizer/Features/Web/ControlSchema.swift) (`cosmicDefault()`), [`AppModel.applyRemoteCommandOnMainThread`](../CosmicVisualizer/CosmicVisualizer/App/AppModel.swift).
+**Sources:** [`ControlSchema.swift`](../FSDMXVision/FSDMXVision/Features/Web/ControlSchema.swift) (`cosmicDefault()`), [`AppModel.applyRemoteCommandOnMainThread`](../FSDMXVision/FSDMXVision/App/AppModel.swift).
 
 **Rule:** `GET /api/schema` lists a **subset** of buttons/sliders for the bundled web UI. **`POST /api/command`** accepts **any** `RemoteControlCommand` string in `type` that the app implements—same as [`control-parity.md`](control-parity.md).
 
@@ -8,7 +8,9 @@
 
 These appear in the bundled schema JSON:
 
-`TapTempo`, `SetManualBPM`, `PreviousScene`, `NextScene`, `RandomScene`, `SetLiquidLightEnabled`, `SetFractalZoom`, `SetLiquidTurbulence`, `SetCompositeBlend`, `SetLiquidFocus`, `SetFractalAppearance`, `SetOverlayFractalFusion`, `SetFractalExplore`, `SetFractalExploreSpeed`, `SetFractalIterBoost`, `SetZoomEffectType`, `SetLiquidReconstituteAmount`, `SetLiquidReconstituteRate`, `SetDyeMix`, `SetFractalSmoothShading`, `SetCompositeBloomStrength`, `SetCompositeVignetteStrength`, `DuplicateScene`, `DeleteScene`, `PersistScenes`, `OpenExternalVisualization`, `CloseExternalVisualization`, `StartLiveOutputRecording`, `StopLiveOutputRecording`, `SetLiveOutputRecordingSource`, `SetLiveOutputRecordingQualityPreset`
+`TapTempo`, `SetManualBPM`, `PreviousScene`, `NextScene`, `RandomScene`, `SetLiquidLightEnabled`, `SetFractalZoom`, `SetLiquidTurbulence`, `SetCompositeBlend`, `SetLiquidFocus`, `SetFractalAppearance`, `SetOverlayFractalFusion`, `SetFractalExplore`, `SetFractalExploreSpeed`, `SetFractalIterBoost`, `SetZoomEffectType`, `SetLiquidReconstituteAmount`, `SetLiquidReconstituteRate`, `SetDyeMix`, `SetFractalSmoothShading`, `SetCompositeBloomStrength`, `SetCompositeVignetteStrength`, `SetSpectrumWarpAmount`, `SetFractalGeometryIndex`, `DuplicateScene`, `DeleteScene`, `PersistScenes`, `OpenExternalVisualization`, `CloseExternalVisualization`, `StartLiveOutputRecording`, `StopLiveOutputRecording`, `SetLiveOutputRecordingSource`, `SetLiveOutputRecordingQualityPreset`
+
+**JSON shapes:** `SetSpectrumWarpAmount` uses `{ "type": "SetSpectrumWarpAmount", "spectrumWarpAmount": 0.35 }`. `SetFractalGeometryIndex` uses `{ "type": "SetFractalGeometryIndex", "index": 5 }` (int **0…6**).
 
 **Note:** `SetLiquidReconstituteBPMSync` is implemented in `applyRemoteCommandOnMainThread` but **not** exposed in `ControlSchema` (add a field if the web UI should toggle it).
 
@@ -42,4 +44,4 @@ Use **raw** `POST /api/command` JSON (or OSC where supported—see [`osc-control
 - Schema gap is **intentional** for a compact web UI; full surface = raw `POST /api/command`.
 - Expand `ControlSchema` only when operators need specific types in the **bundled** HTML UI without raw JSON.
 
-**Last updated:** 2026-04-19
+**Last updated:** 2026-04-20

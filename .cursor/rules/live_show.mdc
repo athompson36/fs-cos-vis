@@ -3,6 +3,6 @@ description: Live Show tab — performance UX and cue strips
 globs: "**/LiveShow*.swift,**/LiveShowCueStrips*.swift"
 ---
 
-- Keep Performance mode visually quiet; optional lighting/backdrop strips respect `RemoteControlSettings.lightingPerformanceStripEnabled` / `backdropPerformanceStripEnabled`.
+- Lighting/backdrop cue strips sit under the Metal preview in both normal and Performance mode; `RemoteControlSettings.lightingPerformanceStripEnabled` / `backdropPerformanceStripEnabled` default on and toggle which rows render.
 - Scene strip uses `SceneCueStripView`; lighting/backdrop strips use `LiveShowCueStripsView` and `AppModel` cue APIs.
 - Do not block the Metal preview with heavy inspectors on this screen.

@@ -1,6 +1,6 @@
 # FS-COS-VIS
 
-## Cosmic Visualizer (beta)
+## FS DMX Vision (beta)
 
 FS-COS-VIS is a **hybrid macOS performance application**: real-time cosmic audio-reactive visualization, fractal + liquid-light scene authoring, live show controls, lighting patch/cue/modulation/stage workflows, fixture verification, and beta distribution/update support.
 
@@ -25,6 +25,8 @@ This repository is **no longer a starter scaffold**. It is a **late-stage beta**
 Additional references:
 
 - [`docs/production-readiness-checklist.md`](docs/production-readiness-checklist.md) — **production pass:** gates, CI/lab/ops checklist, doc sync  
+- [`docs/audit-execution-record.md`](docs/audit-execution-record.md) — **last full audit / verification run** (tests, packaging, manual-gate notes)  
+- [`docs/ui-page-verification.md`](docs/ui-page-verification.md) — primary UI vs `03-ui-ux-spec` / code map  
 - [`docs/feature-surface-matrix.md`](docs/feature-surface-matrix.md) — feature × surface summary (Gate 0.2)  
 - [`docs/control-schema-coverage.md`](docs/control-schema-coverage.md) — web `ControlSchema` vs all remote commands (Gate 2.1)  
 - [`docs/historical-docs-reconciliation.md`](docs/historical-docs-reconciliation.md) — audit pack vs live `docs/` (Gate 0.1)  
@@ -75,7 +77,7 @@ The Xcode project is generated from [`project.yml`](project.yml) using [XcodeGen
 cp project.local.yml.example project.local.yml
 # Edit project.local.yml — set DEVELOPMENT_TEAM to your 10-character Team ID
 xcodegen generate
-open CosmicVisualizer.xcodeproj
+open FSDMXVision.xcodeproj
 ```
 
 Or: `bash scripts/bootstrap-xcodegen.sh` creates `project.local.yml` from the example if missing.
@@ -83,7 +85,7 @@ Or: `bash scripts/bootstrap-xcodegen.sh` creates `project.local.yml` from the ex
 Run tests from Xcode (**Cmd-U**) or from the terminal:
 
 ```bash
-xcodebuild -scheme CosmicVisualizer -destination 'platform=macOS' test
+xcodebuild -scheme FSDMXVision -destination 'platform=macOS' test
 ```
 
 CI includes **show package** smoke ([`.github/workflows/show-package-smoke.yml`](.github/workflows/show-package-smoke.yml)) and optional **full unit tests** on macOS ([`.github/workflows/unit-tests-macos.yml`](.github/workflows/unit-tests-macos.yml)).
@@ -96,4 +98,4 @@ If the build fails with **missing Metal Toolchain** when compiling `.metal` file
 xcodebuild -downloadComponent MetalToolchain
 ```
 
-The generated [CosmicVisualizer.xcodeproj](CosmicVisualizer.xcodeproj) is checked in so you can open the project without running XcodeGen; regenerate it whenever `project.yml` changes.
+The generated [FSDMXVision.xcodeproj](FSDMXVision.xcodeproj) is checked in so you can open the project without running XcodeGen; regenerate it whenever `project.yml` changes.

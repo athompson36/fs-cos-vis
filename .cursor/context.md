@@ -1,8 +1,8 @@
-# Cursor Context: Cosmic Visualizer
+# Cursor Context: FS DMX Vision
 
 ## Project summary
 
-Cosmic Visualizer is a real-time macOS visualization instrument for live music, creative ambience, projection work, and immersive display output.
+FS DMX Vision is a real-time macOS visualization instrument for live music, creative ambience, projection work, and immersive display output.
 
 The app combines:
 - audio-reactive fractals
@@ -38,7 +38,7 @@ The app should be usable in four modes:
 
 Build native on macOS first.
 
-The repository includes a **buildable Xcode project** ([CosmicVisualizer.xcodeproj](CosmicVisualizer.xcodeproj)), generated from [project.yml](project.yml) via XcodeGen. Unit tests live in `CosmicVisualizer/CosmicVisualizerTests/`.
+The repository includes a **buildable Xcode project** ([FSDMXVision.xcodeproj](FSDMXVision.xcodeproj)), generated from [project.yml](project.yml) via XcodeGen. Unit tests live in `FSDMXVision/FSDMXVisionTests/`.
 
 **Rule #1 — testing discipline:** when testing or changing code under test, fix and verify all errors and warnings before moving to the next step (full scheme test or `xcodebuild test`; no new unresolved warnings).
 
@@ -109,7 +109,7 @@ When implementing:
 - preserve modular boundaries
 - keep data models explicit
 - avoid giant all-in-one files
-- prefer testable systems for audio analysis and preset state (see module tests alongside `CosmicVisualizerTests`)
+- prefer testable systems for audio analysis and preset state (see module tests alongside `FSDMXVisionTests`)
 - keep shader parameters centralized
 - document assumptions inside code
 - do not replace the aesthetic with generic sci-fi minimalism

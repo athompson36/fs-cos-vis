@@ -1,0 +1,183 @@
+import Foundation
+import simd
+
+// Visualization stack is native Metal (escape-time fractal + procedural liquid + composite). Third-party MilkDrop/projectM-style preset VMs are out of scope unless integrated as a separate renderer pass.
+
+/// GPU uniform block — must match `CosmicUniforms` in `ShaderTypes.h` / `.metal`.
+struct CosmicUniforms {
+    var resolution: SIMD2<Float>
+    var time: Float
+    var audioLevel: Float
+    var bpm: Float
+    var beatPulse: Float
+    var liquidMix: Float
+    var fractalMix: Float
+    var fractalZoom: Float
+    var liquidTurbulence: Float
+    var compositeBlend: Float
+    var palettePrimary: SIMD4<Float>
+    var paletteSecondary: SIMD4<Float>
+    var paletteAccent: SIMD4<Float>
+    var paletteGlow: SIMD4<Float>
+    var liquidFocus: Float
+    var fractalAppearance: Float
+    var overlayFractalFusion: Float
+    var overlayOpacity: Float
+    var overlayRectMinX: Float
+    var overlayRectMinY: Float
+    var overlayRectW: Float
+    var overlayRectH: Float
+    var fractalGeometryIndex: Float
+    var fractalExplore: Float
+    var fractalExploreSpeed: Float
+    var fractalPanX: Float
+    var fractalPanY: Float
+    var fractalIterBoost: Float
+    var zoomEffectType: Float
+    var liquidTiltX: Float
+    var liquidTiltY: Float
+    var dyeMix: Float
+    var liquidReconstituteAmount: Float
+    var liquidReconstituteRate: Float
+    var liquidReconstituteBPMSync: Float
+    var compositeBloomStrength: Float
+    var compositeVignetteStrength: Float
+    var fractalSmoothShading: Float
+    var spectrum0: SIMD4<Float>
+    var spectrum1: SIMD4<Float>
+    var spectrum2: SIMD4<Float>
+    var spectrum3: SIMD4<Float>
+    var spectrumWarp: SIMD4<Float>
+    var dyeViscosity0: SIMD4<Float>
+    var dyeViscosity1: SIMD4<Float>
+}
+
+enum SpectrumGPU {
+    static let binCount = 16
+
+    static func packedSpectrum(from bins: [Float]) -> (SIMD4<Float>, SIMD4<Float>, SIMD4<Float>, SIMD4<Float>) {
+        var b = bins
+        if b.count < binCount {
+            b.append(contentsOf: Array(repeating: 0, count: binCount - b.count))
+        } else if b.count > binCount {
+            b = Array(b.prefix(binCount))
+        }
+        return (
+            SIMD4(b[0], b[1], b[2], b[3]),
+            SIMD4(b[4], b[5], b[6], b[7]),
+            SIMD4(b[8], b[9], b[10], b[11]),
+            SIMD4(b[12], b[13], b[14], b[15])
+        )
+    }
+
+}
+
+/// Authoring-time render controls from scenes and audio (Swift-only).
+struct RenderParameters {
+    var time: TimeInterval = 0
+    var audioLevel: Float = 0
+    var bpm: Float = 0
+    /// Retained for diagnostics / UI; GPU pulse uses `beatPulse`.
+    var beatConfidence: Float = 0
+    var beatPulse: Float = 0
+    var liquidMix: Float = 1
+    var fractalMix: Float = 1
+    var liquidLightEnabled: Bool = true
+    var fractalZoom: Float = 1
+    var liquidTurbulence: Float = 1
+    var compositeBlend: Float = 0.65
+    /// 0 = soft blended colors, 1 = sharper, more “liquid glass” blobs.
+    var liquidFocus: Float = 0.78
+    /// 0 = full-spectrum palette-driven fractal, 1 = deep field + neon wireframe look.
+    var fractalAppearance: Float = 0
+    /// 0 = overlay reads as a flat layer; 1 = logo alpha is carved by fractal luminance (seamless dissolve).
+    var overlayFractalFusion: Float = 0.4
+    var overlayOpacity: Float = 1
+    /// Bottom-left origin, y up; default full frame.
+    var overlayRectNorm: SIMD4<Float> = SIMD4(0, 0, 1, 1)
+    /// 0–6: Julia, Mandelbrot, Burning Ship, Tricorn, Multibrot, Newton, orbit trap.
+    var fractalGeometryIndex: Float = 0
+    /// 0 = banded iteration colors, 1 = smooth iteration (escape-time).
+    var fractalSmoothShading: Float = 0.85
+    /// Animated zoom/pan exploration amount (0 = off).
+    var fractalExplore: Float = 0
+    var fractalExploreSpeed: Float = 0.35
+    var fractalPan: SIMD2<Float> = .zero
+    var fractalIterBoost: Float = 1
+    /// 0 = standard, 1 = infinite tunnel, 2 = event horizon.
+    var zoomEffectType: Float = 0
+    var liquidTilt: SIMD2<Float> = .zero
+    /// How strongly the dye texture tints the liquid (0…1).
+    var dyeMix: Float = 1
+    var liquidDissolveHold: Float = 0.65
+    var liquidReconstituteAmount: Float = 0
+    var liquidReconstituteRate: Float = 0.55
+    var liquidReconstituteBPMSync: Bool = false
+    /// Additive glow on composite (highlights).
+    var compositeBloomStrength: Float = 0.12
+    /// Edge darkening in composite pass.
+    var compositeVignetteStrength: Float = 0.15
+    var palettePrimary: SIMD4<Float> = SIMD4(0.04, 0.01, 0.09, 0)
+    var paletteSecondary: SIMD4<Float> = SIMD4(0.1, 0.04, 0.2, 0)
+    var paletteAccent: SIMD4<Float> = SIMD4(0, 0.9, 1, 0)
+    var paletteGlow: SIMD4<Float> = SIMD4(1, 0.18, 0.9, 0)
+    /// Normalized FFT bins for composite warp (length `SpectrumGPU.binCount`).
+    var spectrum16: [Float] = Array(repeating: 0, count: SpectrumGPU.binCount)
+    /// 0…1 Milkdrop-style radial warp from spectrum.
+    var spectrumWarpAmount: Float = 0.35
+    /// Per dye layer viscosity (0…1), length 8; filled from scene dropper layers.
+    var dyeLayerViscosity: SIMD8<Float> = SIMD8(repeating: 0.5)
+
+    func uniforms(drawableSize: CGSize) -> CosmicUniforms {
+        let spec = SpectrumGPU.packedSpectrum(from: spectrum16)
+        let visc = (SIMD4(dyeLayerViscosity[0], dyeLayerViscosity[1], dyeLayerViscosity[2], dyeLayerViscosity[3]),
+                    SIMD4(dyeLayerViscosity[4], dyeLayerViscosity[5], dyeLayerViscosity[6], dyeLayerViscosity[7]))
+        return CosmicUniforms(
+            resolution: SIMD2<Float>(Float(drawableSize.width), Float(drawableSize.height)),
+            time: Float(time),
+            audioLevel: audioLevel,
+            bpm: bpm,
+            beatPulse: beatPulse,
+            liquidMix: liquidLightEnabled ? liquidMix : 0,
+            fractalMix: fractalMix,
+            fractalZoom: fractalZoom,
+            liquidTurbulence: liquidTurbulence,
+            compositeBlend: compositeBlend,
+            palettePrimary: palettePrimary,
+            paletteSecondary: paletteSecondary,
+            paletteAccent: paletteAccent,
+            paletteGlow: paletteGlow,
+            liquidFocus: liquidFocus,
+            fractalAppearance: fractalAppearance,
+            overlayFractalFusion: overlayFractalFusion,
+            overlayOpacity: overlayOpacity,
+            overlayRectMinX: overlayRectNorm.x,
+            overlayRectMinY: overlayRectNorm.y,
+            overlayRectW: overlayRectNorm.z,
+            overlayRectH: overlayRectNorm.w,
+            fractalGeometryIndex: fractalGeometryIndex,
+            fractalExplore: fractalExplore,
+            fractalExploreSpeed: fractalExploreSpeed,
+            fractalPanX: fractalPan.x,
+            fractalPanY: fractalPan.y,
+            fractalIterBoost: fractalIterBoost,
+            zoomEffectType: zoomEffectType,
+            liquidTiltX: liquidTilt.x,
+            liquidTiltY: liquidTilt.y,
+            dyeMix: dyeMix,
+            liquidReconstituteAmount: liquidReconstituteAmount,
+            liquidReconstituteRate: liquidReconstituteRate,
+            liquidReconstituteBPMSync: liquidReconstituteBPMSync ? 1 : 0,
+            compositeBloomStrength: compositeBloomStrength,
+            compositeVignetteStrength: compositeVignetteStrength,
+            fractalSmoothShading: fractalSmoothShading,
+            spectrum0: spec.0,
+            spectrum1: spec.1,
+            spectrum2: spec.2,
+            spectrum3: spec.3,
+            spectrumWarp: SIMD4(spectrumWarpAmount, 0, 0, 0),
+            dyeViscosity0: visc.0,
+            dyeViscosity1: visc.1
+        )
+    }
+}

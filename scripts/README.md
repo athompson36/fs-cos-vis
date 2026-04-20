@@ -8,5 +8,6 @@
 | [`osc/`](osc/) | OSC helpers (`send.sh`, `query-state.sh`, `osc_control.py`, examples) |
 | [`feedback-relay/`](feedback-relay/) | Optional Node relay for GitHub issue submission ([`README.md`](feedback-relay/README.md)) |
 | [`bootstrap-xcodegen.sh`](bootstrap-xcodegen.sh) | Create `project.local.yml` from example if missing |
+| [`generate_app_icon.py`](generate_app_icon.py) | Build liquid-glass macOS `AppIcon` set from [`docs/icon.png`](../docs/icon.png) → `FSDMXVision/.../Assets.xcassets` (uses `build/genicon-venv` + Pillow; run `xcodegen generate` after) |
 
 CI workflows: [`.github/workflows/README.md`](../.github/workflows/README.md).

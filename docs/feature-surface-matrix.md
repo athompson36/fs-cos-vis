@@ -24,4 +24,6 @@ Rows follow [`project-audit-and-feature-status.md`](project-audit-and-feature-st
 
 **IA note:** There is **no** standalone Palette Browser or Overlay Manager app screen — consolidated in **Scene Studio** (N/A column = not a separate surface).
 
-**Last updated:** 2026-04-19 (production pass).
+**UI trace:** Primary screens vs code — [`ui-page-verification.md`](ui-page-verification.md).
+
+**Last updated:** 2026-04-20 — fractal/liquid row includes **spectrum warp** + **geometry 0…6** on native + `POST /api/command` / OSC (`SetSpectrumWarpAmount`, `SetFractalGeometryIndex`).

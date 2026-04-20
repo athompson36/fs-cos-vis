@@ -115,7 +115,7 @@ This backlog was originally derived from the **FS-COS-VIS audit pack** in [`docs
 
 ## Section D — Scene Studio (authoring UX)
 
-- [x] **Stronger sectional navigation** for dense controls (audit + spec). *(Right column: “Authoring” horizontal chip row + scrollable content in [`SceneStudioView.swift`](../CosmicVisualizer/CosmicVisualizer/App/SceneStudioView.swift).)*
+- [x] **Stronger sectional navigation** for dense controls (audit + spec). *(Right column: “Authoring” horizontal chip row + scrollable content in [`SceneStudioView.swift`](../FSDMXVision/FSDMXVision/App/SceneStudioView.swift).)*
 - [x] **Segmented or tabbed sub-mode** clarity for: **Scene · Look · Fractal · Liquid · Overlay · Palette** (audit recommends; spec recommended sub-sections). *(Persisted `SceneStudioAuthoringSection` chips + single visible section.)*
 - [x] **Collapsible cards** with **persisted expansion state** for heavy sections (audit). *(`@AppStorage` for liquid pour vs palette subsections; overlay files vs overlay cards.)*
 - [x] **Consolidation retained**: palette + overlay + fractal + liquid authoring in one surface (defensible; `scene_studio` rule: preview vs controls split).
@@ -124,7 +124,7 @@ This backlog was originally derived from the **FS-COS-VIS audit pack** in [`docs
 
 ## Section E — Controller (mapping / performance control)
 
-- [x] **Mapping summary cards** — stronger visibility of MIDI/OSC mappings (audit). *(Overview: GroupBox cards for MIDI continuous, MIDI triggers, OSC examples in [`ControllerView.swift`](../CosmicVisualizer/CosmicVisualizer/App/ControllerView.swift).)*
+- [x] **Mapping summary cards** — stronger visibility of MIDI/OSC mappings (audit). *(Overview: GroupBox cards for MIDI continuous, MIDI triggers, OSC examples in [`ControllerView.swift`](../FSDMXVision/FSDMXVision/App/ControllerView.swift).)*
 - [x] **Filter / search** for fader groups / larger rigs (audit). *(Faders tab: search field filters DMX fixture groups by title or channel label.)*
 - [x] **Planned / disabled** control labeling — unambiguous styling (audit). *(“Planned” capsule next to disabled DMX / combined learn modes.)*
 - [x] **Visual separation** of: scene parameters vs DMX fixture controls vs learned controls (audit). *(Cyan-tinted “Scene parameters” vs orange-tinted fixture cards; fader captions label MIDI vs DMX manual.)*
@@ -134,7 +134,7 @@ This backlog was originally derived from the **FS-COS-VIS audit pack** in [`docs
 
 ## Section F — Settings
 
-- [x] **Basic / Advanced** disclosure (or equivalent) for **transport-heavy** blocks: DMX output, Art-Net/sACN, inbound DMX, RDM (audit). *(Persisted `settings.transportUITier` segmented control; Basic hides scaffold blurbs, live diagnostics, frame timing, and full RDM; Advanced shows them — [`SettingsView.swift`](../CosmicVisualizer/CosmicVisualizer/App/SettingsView.swift).)*
+- [x] **Basic / Advanced** disclosure (or equivalent) for **transport-heavy** blocks: DMX output, Art-Net/sACN, inbound DMX, RDM (audit). *(Persisted `settings.transportUITier` segmented control; Basic hides scaffold blurbs, live diagnostics, frame timing, and full RDM; Advanced shows them — [`SettingsView.swift`](../FSDMXVision/FSDMXVision/App/SettingsView.swift).)*
 - [x] Consider **grouped panes or subpages** if Settings continues to grow (audit: optional). *(DMX area split into titled sub-blocks: output / inbound / RDM; nested GroupBoxes for diagnostics — further tabbing optional.)*
 - [x] **Stronger transport diagnostic grouping** (audit “Missing UI” + Settings gaps). *(Advanced: separate GroupBoxes for output stream, inbound receiver, frame timing.)*
 - [x] Broad coverage present: beta status, updates, feedback, show package archive, AI, remote, OSC, audio, DMX scaffolds (`SettingsView` / `AppModel`).
@@ -143,7 +143,7 @@ This backlog was originally derived from the **FS-COS-VIS audit pack** in [`docs
 
 ## Section G — Lighting workspace
 
-- [x] **Sub-navigation** clarity for: **Patch · Cues · Stage · Verify · Tools** (audit + spec; may exceed current two-tab layout). *(Five `TabView` tabs with SF Symbols in [`LightingWorkspaceView.swift`](../CosmicVisualizer/CosmicVisualizer/Features/Lighting/LightingWorkspaceView.swift).)*
+- [x] **Sub-navigation** clarity for: **Patch · Cues · Stage · Verify · Tools** (audit + spec; may exceed current two-tab layout). *(Five `TabView` tabs with SF Symbols in [`LightingWorkspaceView.swift`](../FSDMXVision/FSDMXVision/Features/Lighting/LightingWorkspaceView.swift).)*
 - [x] Move **JSON transport / import / export** bulk UI to **Tools** or **Advanced** area (audit). *(JSON bundle/patch/stage/cue transport editors live only on **Tools**; group title notes bulk import/export.)*
 - [x] **Verification wizard** visually isolated; **easier resume** after interrupt (audit; partial progress exists — harden UX). *(Dedicated **Verify** tab with intro card + tinted background; assisted verification block moved out of Patch; resume copy references **Resume scan**.)*
 - [x] **Search / filter** for larger patch/cue sets where practical (audit “Missing UI”). *(Patch: filter fixtures by profile name, address, or fixture index; Cues: filter cue editor list by name; selected cue stays visible when filtered out.)*
@@ -163,7 +163,7 @@ This backlog was originally derived from the **FS-COS-VIS audit pack** in [`docs
 
 **Remaining / polish (audit “still not complete enough”)**
 
-- [x] **Stronger confidence scoring** and diagnostics for verification (audit: in progress). *(`FixtureVerificationEvaluator.confidence01` / run average; per-fixture % + signal Δ in report; [`FixtureVerificationModels.swift`](../CosmicVisualizer/CosmicVisualizer/Features/Expansion/FixtureVerificationModels.swift).)*
+- [x] **Stronger confidence scoring** and diagnostics for verification (audit: in progress). *(`FixtureVerificationEvaluator.confidence01` / run average; per-fixture % + signal Δ in report; [`FixtureVerificationModels.swift`](../FSDMXVision/FSDMXVision/Features/Expansion/FixtureVerificationModels.swift).)*
 - [x] **Final operator UX polish** in stage / verification flows (audit). *(Verify tab: exposure banner + intro; Stage plan: mid-tone exposure tip.)*
 - [x] **Low-light / overexposure** scan guidance — baseline messaging done; continue refinement as needed. *(Extra **weak contrast** `exposureHint`; `fixtureVerificationExposureHint` banner on Verify; tests extended.)*
 
@@ -179,7 +179,7 @@ This backlog was originally derived from the **FS-COS-VIS audit pack** in [`docs
 - [x] **Multi-universe outbound** via **sACN** — same wiring (`SACNTransport.sendUniverseMap`, `DMXOutputService` mode `sacn`).
 - [ ] **Inbound DMX** “desk-grade” path — **multi-universe** listener + per-logical-universe merge on **network** output shipped (`DMXInputService` range, `AppModel.buildDMXUniversesForNetwork`); USB path still merges **first** configured universe into the single local buffer. **sACN:** per-packet **priority** (E1.31 framing byte): higher priority wins while the stored frame is **fresh** (~3s); stale buffer allows a lower-priority source to take over. Remaining: cross-subnet / full desk parity / field sACN hardening — see Section I notes.
 - [ ] **E1.31 / sACN** — **partial:** **outbound** uses full **E1.31** data packet layout (638 bytes, Root/Framing/DMP); **inbound** decodes standard packets and the older app scaffold; **inbound multicast** — `IP_ADD_MEMBERSHIP` / `IP_DROP_MEMBERSHIP` for `239.255.x.y` per listened universe (Wi‑Fi / IGMP); **inbound priority merge** (framing priority) **shipped**; **inbound** recognizes **extended** PDUs (root vector `0x08`) and counts **synchronization** vs **universe discovery** frames for diagnostics (no sync timing / discovery protocol handling yet); deeper field hardening — field-test vs reference receivers where you need guarantees.
-- [x] **DMX over Wi‑Fi / LAN (operator path)** — Settings + wizard copy; **inbound sACN** multicast join — [`DMXOutputService.swift`](../CosmicVisualizer/CosmicVisualizer/Features/Expansion/DMXOutputService.swift) (`SACNMulticastAddress`, `DMXInputService`).
+- [x] **DMX over Wi‑Fi / LAN (operator path)** — Settings + wizard copy; **inbound sACN** multicast join — [`DMXOutputService.swift`](../FSDMXVision/FSDMXVision/Features/Expansion/DMXOutputService.swift) (`SACNMulticastAddress`, `DMXInputService`).
 - [ ] **RDM discovery/probing** beyond **mock/scaffold** — replace or augment `RDMDiscoveryService` mock with real workflow when ready.
 - [ ] **Performance profiling** under **larger fixture counts / high modulator density** — **partial:** profiler snapshot + Settings show fixture/modulator/logical-universe counts, **max build/send/total**, **nine-bucket total-time histogram**, **approx. median / p95** for **total**, **build**, and **send** (interpolated from bins), and **Reset stats**; optional **exact streaming quantiles** or richer breakdowns still open.
 

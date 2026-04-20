@@ -1,5 +1,5 @@
 # FS-COS-VIS
-## Cosmic Visualizer Beta Application
+## FS DMX Vision Beta Application
 
 FS-COS-VIS is a hybrid macOS performance application that combines:
 - real-time cosmic audio-reactive visualization

@@ -1,8 +1,8 @@
-name: CosmicVisualizer
+name: FSDMXVision
 include:
   - project.local.yml
 options:
-  bundleIdPrefix: com.cosmicvisualizer
+  bundleIdPrefix: com.fsdmxvision
   deploymentTarget:
     macOS: "14.0"
   createIntermediateGroups: true
@@ -23,22 +23,23 @@ projectReferences:
     path: Vendor/Syphon-Framework/Syphon.xcodeproj
 
 targets:
-  CosmicVisualizer:
+  FSDMXVision:
     type: application
     platform: macOS
     sources:
-      - path: CosmicVisualizer/CosmicVisualizer
+      - path: FSDMXVision/FSDMXVision
         excludes:
           - "**/*.md"
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.cosmicvisualizer.app
-        PRODUCT_NAME: CosmicVisualizer
+        PRODUCT_BUNDLE_IDENTIFIER: com.fsdmxvision.app
+        PRODUCT_NAME: FSDMXVision
         MARKETING_VERSION: "0.1"
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_NSMicrophoneUsageDescription: Cosmic Visualizer analyzes live audio to drive visuals.
-        INFOPLIST_KEY_NSLocalNetworkUsageDescription: Cosmic Visualizer can expose an optional LAN control server when you enable it in settings.
+        INFOPLIST_KEY_CFBundleDisplayName: FS DMX Vision
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: FS DMX Vision analyzes live audio to drive visuals.
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: FS DMX Vision can expose an optional LAN control server when you enable it in settings.
         INFOPLIST_KEY_NSHumanReadableCopyright: ""
         ENABLE_HARDENED_RUNTIME: YES
         COMBINE_HIDPI_IMAGES: YES
@@ -50,26 +51,26 @@ targets:
       - target: Syphon/Syphon
         embed: true
 
-  CosmicVisualizerTests:
+  FSDMXVisionTests:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - path: CosmicVisualizer/CosmicVisualizerTests
+      - path: FSDMXVision/FSDMXVisionTests
     dependencies:
-      - target: CosmicVisualizer
+      - target: FSDMXVision
     settings:
       base:
         SWIFT_VERSION: "6.0"
-        PRODUCT_BUNDLE_IDENTIFIER: com.cosmicvisualizer.tests
-        PRODUCT_NAME: CosmicVisualizerTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.fsdmxvision.tests
+        PRODUCT_NAME: FSDMXVisionTests
         GENERATE_INFOPLIST_FILE: YES
 
 schemes:
-  CosmicVisualizer:
+  FSDMXVision:
     build:
       targets:
-        CosmicVisualizer: all
-        CosmicVisualizerTests: [test]
+        FSDMXVision: all
+        FSDMXVisionTests: [test]
     test:
       targets:
-        - name: CosmicVisualizerTests
+        - name: FSDMXVisionTests

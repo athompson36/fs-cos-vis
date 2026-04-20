@@ -6,7 +6,7 @@ Single-place summary of **what the product is today** and how documentation shou
 
 ## Product positioning
 
-- **Cosmic Visualizer** (repo: FS-COS-VIS) is a **late-stage beta** macOS application: hybrid **real-time visualization + live/show control**, not a Cursor starter template.
+- **FS DMX Vision** (repo: FS-COS-VIS) is a **late-stage beta** macOS application: hybrid **real-time visualization + live/show control**, not a Cursor starter template.
 - **Intentional IA decision:** There is **no standalone “Palette Browser” or “Overlay Manager” screen**. Palette creation/selection and overlay authoring live in **Scene Studio** by design. Documentation must describe that consolidation, not treat those as missing features.
 
 ## Implemented — core visualization and UI
@@ -73,6 +73,7 @@ Single-place summary of **what the product is today** and how documentation shou
 - [`README.md`](../README.md) describes beta product, not “Cursor starter.”  
 - Roadmap, backlog, and this file should stay consistent; large releases should update [`todo-full-implementation.md`](todo-full-implementation.md) open items.  
 - **Shipping / production pass:** executable gates and checklists — [`production-readiness-checklist.md`](production-readiness-checklist.md).  
+- **UI vs docs traceability:** [`ui-page-verification.md`](ui-page-verification.md) — primary screens vs `03-ui-ux-spec.md`.  
 - The folder [`fs-cos-vis-audit-and-docs-update/`](fs-cos-vis-audit-and-docs-update/README_REPLACEMENT.md) is a **historical audit pack snapshot**; **live** source-of-truth order is listed at the top of [`todo-full-implementation.md`](todo-full-implementation.md).  
 
 ## Remaining gaps (see also backlog)

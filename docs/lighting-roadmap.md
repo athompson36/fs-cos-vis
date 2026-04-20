@@ -84,7 +84,7 @@ Statements for [`production-readiness-checklist.md`](production-readiness-checkl
 | **RDM** | **Mock + roadmap** | Real RDM integration is a separate milestone |
 | **DMX frame profiler** (histogram, binned median/p95, fixture/modulator/universe counts) | **Shipped** | “Console scale” claims still require large-rig or trace evidence (3e) |
 
-## Persistence paths (Application Support `CosmicVisualizer/`)
+## Persistence paths (Application Support `FSDMXVision/`; legacy installs may still have `CosmicVisualizer/` until migration runs)
 
 | File | Content |
 |------|-----------|
