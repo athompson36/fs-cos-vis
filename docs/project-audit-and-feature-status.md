@@ -1,6 +1,6 @@
 # Project audit and feature status
 
-**Last updated:** 2026-04-19  
+**Last updated:** 2026-04-21  
 
 Single-place summary of **what the product is today** and how documentation should talk about it. Align with [`07-roadmap.md`](07-roadmap.md), [`todo-full-implementation.md`](todo-full-implementation.md), and [`03-ui-ux-spec.md`](03-ui-ux-spec.md).
 
@@ -36,11 +36,18 @@ Single-place summary of **what the product is today** and how documentation shou
 ## Implemented — control and integration
 
 - Native **Controller** surface; tempo, learn, faders, DMX-oriented group controls  
-- **HTTP + WebSocket** remote control; `WebControlStateDTO` / schema (includes **`dmxPerformance`** summary on `/api/state` and OSC `/cosmic/state/get`)  
+- **HTTP + WebSocket** remote control; `WebControlStateDTO` / schema (includes **`dmxPerformance`**, **inbound DMX** settings + **`dmxInboundTelemetry`** on `/api/state` when present, and OSC `/cosmic/state/get`)  
 - **MIDI** mapping store and device integration  
 - **OSC** UDP listener (port, LAN bind, optional token), expanded command mapping (layer/tempo/lighting aligned with web/MIDI where applicable), `/cosmic/state/get` JSON snapshot aligned with web state — see [`control-parity.md`](control-parity.md) and [`osc-control.md`](osc-control.md)  
 - Setup **wizard** (beta 0.1a): skippable steps, project/audio/output/DMX/AI, provider-specific AI API onboarding (e.g. OpenAI-compatible vs Anthropic)  
 - Optional **analytics** for wizard completion/skip and exportable onboarding diagnostics  
+
+## AI-assisted features
+
+- **Hybrid LLM assistant (optional):** When enabled in Settings, sends prompts to an **OpenAI-compatible** or **Anthropic** HTTP API using a **Keychain-stored** API key; replies must be **JSON tool calls** only (`AIToolRegistry` in `AIStack.swift`). Tools cover **patch/cue** edits, **active cue indices**, **context refresh** (`machine.json` / `dmx_universe.md` under the show `context/` folder).  
+- **`export_fixture_ofl_stub`:** Intentionally does not export OFL files—returns operator guidance (use Lighting workspace import).  
+- **Lighting Copilot:** **Local heuristics** (address gap-fill, etc.); not cloud ML. Placeholder **draft cues from song structure** is for layout only.  
+- **Setup wizard** includes the same provider/model/key onboarding as Settings.  
 
 ## Implemented — lighting and DMX
 
@@ -56,7 +63,8 @@ Single-place summary of **what the product is today** and how documentation shou
 ## Implemented — network DMX (honest boundaries)
 
 - **Art-Net** and **sACN outbound:** per-logical-universe UDP send (one packet per universe), **network universe offset** in Settings, output diagnostics (**pkt/tick**); same **UDP** behavior over **Ethernet or Wi‑Fi** on the LAN; see `DMXUniverseBuilder`, `AppModel.buildDMXUniversesForNetwork`, `DMXOutputService`, `ArtNetTransport` / `SACNTransport`  
-- **Inbound** Art-Net/sACN: **multi-universe** contiguous range + HTP/LPT merge; **network** path merges per matching logical universe; **USB** merges the configured first universe into the single local buffer; **sACN** joins E1.31 multicast (`239.255.*.*`) per universe in range for IGMP/Wi‑Fi  
+- **Inbound** Art-Net/sACN: **multi-universe** contiguous range + HTP/LPT merge; **network** path merges per matching logical universe; optional **second USB serial** (`dmxInboundOpenDMX*`) merges the configured universe on an Open DMX–class RX path; **sACN** joins E1.31 multicast (`239.255.*.*`) per universe in range for IGMP/Wi‑Fi  
+- **Remote HTTP:** **`GET`/`PUT /api/settings`** round-trips full **`RemoteControlSettings`** (including inbound network + USB serial keys). **`GET /api/state`** exposes the same inbound toggles plus live **`dmxInboundStatus`** and **`dmxInboundTelemetry`** (`WebControlStateDTO`) — see [`control-parity.md`](control-parity.md).  
 - **sACN / E1.31:** **outbound** full E1.31 data packets; **inbound** standard decode + legacy scaffold + **framing-priority merge** for competing sources; **extended** sync/discovery PDUs **counted** in diagnostics (no sync timing / discovery protocol); field validation vs reference receivers still recommended for your environment  
 - **RDM** discovery: operator controls + **mock/deterministic** probe for workflow; **real RDM** stack TBD  
 - **DMX performance profiler:** tick timings, **max build/send/total**, **nine-bucket** duration histogram (total), **approx. median / p95** for **total / build / send** (binned), **reset** of accumulators, over-budget frames, Settings diagnostics, plus **fixture / modulator / logical-universe** counts on the last tick (optional exact streaming quantiles: backlog)  

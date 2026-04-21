@@ -583,6 +583,10 @@ struct DMXInboundDiagnostics: Equatable, Sendable {
     var sacnLastSyncUniverse: Int?
     /// Universes from the most recent valid universe-discovery list PDU.
     var sacnLastDiscoveryUniverses: [Int]
+    /// Second-interface OpenDMX-class USB serial input (parallel to UDP).
+    var openDMXSerialRunning: Bool
+    var openDMXSerialFrames: UInt64
+    var openDMXSerialLastError: String?
 
     static let none = DMXInboundDiagnostics(
         lastError: nil,
@@ -591,7 +595,10 @@ struct DMXInboundDiagnostics: Equatable, Sendable {
         sacnSyncPackets: 0,
         sacnDiscoveryPackets: 0,
         sacnLastSyncUniverse: nil,
-        sacnLastDiscoveryUniverses: []
+        sacnLastDiscoveryUniverses: [],
+        openDMXSerialRunning: false,
+        openDMXSerialFrames: 0,
+        openDMXSerialLastError: nil
     )
 }
 
@@ -739,7 +746,10 @@ final class DMXInputService {
             sacnSyncPackets: sacnSyncPacketCount,
             sacnDiscoveryPackets: sacnDiscoveryPacketCount,
             sacnLastSyncUniverse: sacnLastSyncUniverse,
-            sacnLastDiscoveryUniverses: sacnLastDiscoveryUniverses
+            sacnLastDiscoveryUniverses: sacnLastDiscoveryUniverses,
+            openDMXSerialRunning: false,
+            openDMXSerialFrames: 0,
+            openDMXSerialLastError: nil
         )
     }
 

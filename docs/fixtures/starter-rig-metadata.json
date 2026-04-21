@@ -1,0 +1,93 @@
+{
+  "policy": "Product metadata here uses canonical manufacturer URLs and manual links only. Do not commit scraped third-party images or hotlinked thumbnails; add licensed press-kit assets under a tracked folder only when redistribution is allowed.",
+  "fixtures": [
+    {
+      "key": "chauvet-dj/hurricane-haze-1dx",
+      "productURL": "https://www.chauvetdj.com/hurricane-haze-1dx.html",
+      "notes": "OFL remote definition when available; patch hazer separately from dimmer packs."
+    },
+    {
+      "key": "elation/dp-415",
+      "productURL": "https://www.elationlighting.com/dp-415",
+      "manualURL": "https://www.elationlighting.com/wp-content/uploads/2020/01/DP-415-415R-UM-Rev6.pdf"
+    },
+    {
+      "key": "elation/dp-415r",
+      "productURL": "https://www.elationlighting.com/dp-415r",
+      "manualURL": "https://www.elationlighting.com/wp-content/uploads/2020/01/DP-415-415R-UM-Rev6.pdf",
+      "notes": "Relay model: use per-patch channel label overrides for each output (e.g. hazer power vs amount)."
+    },
+    {
+      "key": "chauvet-dj/slimpar-pro-rgba",
+      "productURL": "https://www.chauvetdj.com/slimpar-pro-rgba.html"
+    },
+    {
+      "key": "chauvet-dj/slimpar-t12-usb",
+      "productURL": "https://www.chauvetdj.com/slimpar-t12-usb.html"
+    },
+    {
+      "key": "american-dj/mega-bar-50rgb",
+      "productURL": "https://www.adj.com/mega-bar-50rgb"
+    },
+    {
+      "key": "american-dj/inno-pocket-fusion",
+      "productURL": "https://www.adj.com/inno-pocket-fusion"
+    },
+    {
+      "key": "american-dj/inno-pocket-beam-q4",
+      "productURL": "https://www.adj.com/inno-pocket-beam-q4"
+    },
+    {
+      "key": "chauvet-dj/scorpion-dual",
+      "productURL": "https://www.chauvetdj.com/scorpion-dual.html",
+      "notes": "Bundled JSON in app until upstream OFL entry exists or is verified."
+    },
+    {
+      "key": "chauvet-dj/storm-fx-rgb",
+      "productURL": "https://www.chauvetdj.com/storm-fx-rgb.html",
+      "notes": "Bundled JSON in app; verify modes against manual."
+    },
+    {
+      "key": "chauvet-dj/circus-2-0-irc",
+      "productURL": "https://www.chauvetdj.com/circus-2-0-irc.html",
+      "notes": "Bundled JSON in app; verify modes against manual."
+    },
+    {
+      "key": "chauvet-dj/slimpar-64-rgba",
+      "productURL": "https://www.chauvetdj.com/slimpar-64-rgba.html",
+      "notes": "Bundled JSON in app; verify modes against manual."
+    },
+    {
+      "key": "chauvet-dj/slimpar-56-ils",
+      "productURL": "https://www.chauvetdj.com/slimpar-56-ils.html",
+      "notes": "Bundled JSON in app; verify modes against manual."
+    },
+    {
+      "key": "american-dj/sparkle",
+      "productURL": "https://www.adj.com/sparkle",
+      "notes": "Bundled JSON in app; verify modes against manual."
+    },
+    {
+      "key": "american-dj/p64-led",
+      "productURL": "https://www.adj.com/p64-led",
+      "notes": "Bundled JSON in app; verify modes against manual."
+    },
+    {
+      "key": "american-dj/innopocket-scan",
+      "productURL": "https://www.adj.com/innopocket-scan",
+      "notes": "Bundled JSON in app; verify modes against manual."
+    },
+    {
+      "key": "blizzard/kaptivator-3d-rgb",
+      "productURL": "https://www.blizzardpro.com/products/kaptivator",
+      "notes": "11-channel DMX per Blizzard specs; bundled channel labels are placeholders—rename in profile from the manual DMX chart."
+    }
+  ],
+  "rigSystems": [
+    {
+      "id": "hurricane-haze-1dx-on-dp415r",
+      "description": "Hurricane Haze 1DX driven via Elation DP-415R dimmer outputs is a two-patch system: one profile for the hazer DMX personality and a separate patch for the dimmer pack. Use rig notes and channel label overrides on the dimmer instance to mark which output is pump/haze vs switched power.",
+      "fixtureKeys": ["chauvet-dj/hurricane-haze-1dx", "elation/dp-415r"]
+    }
+  ]
+}

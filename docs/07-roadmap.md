@@ -55,3 +55,5 @@ High-level status. Keep aligned with [`project-audit-and-feature-status.md`](pro
 
 - DMX stack: USB/OpenDMX + simulation + **network outbound multi-universe**; **label inbound/RDM scaffolds honestly** in UI and docs.  
 - Full “console parity” workflows still depend on **inbound** and **RDM** maturity, not outbound universe count alone.  
+- **Usability phases** (source clarity, remote parity, power-user efficiency, lab DMX): [`ux-roadmap.md`](ux-roadmap.md).  
+

@@ -29,6 +29,22 @@
       </div>
     </section>
 
+    <section class="panel lighting-panel" id="lighting">
+      <h2>Lighting cues</h2>
+      <p class="status-line"><span class="lbl">Rig</span> <span id="lightingStat">—</span></p>
+      <div id="cueGrid" class="cue-grid" aria-label="Lighting cue list"></div>
+      <div id="bookmarkRow" class="bookmark-row" hidden>
+        <span class="lbl bookmark-lbl">Bookmarks</span>
+        <div id="bookmarkChips" class="cue-grid cue-grid--compact"></div>
+      </div>
+      <label class="cue-jump">Jump to <select id="cueJump" aria-label="Active lighting cue"></select></label>
+      <div class="row actions lighting-actions">
+        <button type="button" id="cuePrev">Previous cue</button>
+        <button type="button" id="cueNext">Next cue</button>
+        <button type="button" id="cueClear">Clear active</button>
+      </div>
+    </section>
+
     <section class="panel" id="scenes">
       <h2>Scenes</h2>
       <ol id="sceneList"></ol>
@@ -61,26 +77,16 @@
       <label>Fractal geometry <input type="range" id="fractalGeometry" min="0" max="6" step="1" title="0 Julia … 6 orbit trap" /></label>
     </section>
 
-    <section class="panel" id="lighting">
-      <h2>Lighting</h2>
-      <p class="status-line"><span class="lbl">Cues</span> <span id="lightingStat">—</span></p>
-      <label class="cue-jump">Jump to <select id="cueJump" aria-label="Active lighting cue"></select></label>
-      <div class="row actions">
-        <button type="button" id="cuePrev">Previous cue</button>
-        <button type="button" id="cueNext">Next cue</button>
-        <button type="button" id="cueClear">Clear active</button>
-      </div>
-    </section>
-
     <section class="panel" id="status">
       <h2>Audio &amp; DMX</h2>
       <p class="status-line"><span class="lbl">RMS</span> <span id="rms">—</span> · <span class="lbl">Peak</span> <span id="peak">—</span></p>
       <p class="status-line" id="audioErrP" hidden><span class="lbl warn">Audio</span> <span id="audioErr"></span></p>
       <p class="status-line"><span class="lbl">DMX</span> <span id="dmxStat">off</span> <span id="dmxErr" class="warn"></span></p>
+      <p class="status-line"><span class="lbl">Inbound DMX</span> <span id="inboundStat">—</span></p>
     </section>
 
     <section class="panel" id="footer">
-      <p class="hint">REST: <code>GET /health</code> · <code>GET /api/schema</code> · <code>GET /api/state</code> · <code>GET /api/dmx/sim</code> · <code>/api/scenes</code> · <code>/api/settings</code> · <code>/api/midi_mapping</code> · <code>POST /api/command</code> (incl. <code>SetSpectrumWarpAmount</code>, <code>SetFractalGeometryIndex</code>, lighting/recording cues) · WS <code>/ws</code> · <code>?token=</code></p>
+      <p class="hint">REST: <code>GET /health</code> · <code>GET /api/schema</code> · <code>GET /api/state</code> · <code>GET /api/lighting_cues</code> · <code>GET /api/dmx/sim</code> · <code>/api/scenes</code> · <code>/api/settings</code> · <code>/api/midi_mapping</code> · <code>POST /api/command</code> (incl. <code>SetSpectrumWarpAmount</code>, <code>SetFractalGeometryIndex</code>, lighting/recording cues) · WS <code>/ws</code> · <code>?token=</code></p>
     </section>
   </div>
   <script src="app.js"></script>

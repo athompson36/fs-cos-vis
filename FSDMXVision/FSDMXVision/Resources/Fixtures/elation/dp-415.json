@@ -1,0 +1,24 @@
+{
+  "name": "DP-415",
+  "categories": ["Dimmer"],
+  "meta": { "authors": ["FS DMX Vision bundle"], "createDate": "2026-04-19", "lastModifyDate": "2026-04-19" },
+  "links": {
+    "manual": ["https://www.elationlighting.com/wp-content/uploads/2020/01/DP-415-415R-UM-Rev6.pdf"],
+    "productPage": ["https://www.elationlighting.com/dp-415"]
+  },
+  "physical": {
+    "dimensions": [483, 133, 88],
+    "weight": 4.5,
+    "power": 2300,
+    "DMXconnector": "3-pin and 5-pin"
+  },
+  "availableChannels": {
+    "Dimmer 1": { "capabilities": [{ "dmxRange": [0, 255], "type": "Intensity", "brightnessStart": "off", "brightnessEnd": "100%" }] },
+    "Dimmer 2": { "capabilities": [{ "dmxRange": [0, 255], "type": "Intensity", "brightnessStart": "off", "brightnessEnd": "100%" }] },
+    "Dimmer 3": { "capabilities": [{ "dmxRange": [0, 255], "type": "Intensity", "brightnessStart": "off", "brightnessEnd": "100%" }] },
+    "Dimmer 4": { "capabilities": [{ "dmxRange": [0, 255], "type": "Intensity", "brightnessStart": "off", "brightnessEnd": "100%" }] }
+  },
+  "modes": [
+    { "name": "4-channel", "shortName": "4ch", "channels": ["Dimmer 1", "Dimmer 2", "Dimmer 3", "Dimmer 4"] }
+  ]
+}

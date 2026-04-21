@@ -113,6 +113,14 @@ final class WebControlServer: @unchecked Sendable {
             return HTTPResponse(statusCode: .ok, headers: [.contentType: "application/json"], body: data)
         }
 
+        await server.appendRoute("GET /api/lighting_cues") { req in
+            guard authorized(req) else { return HTTPResponse(statusCode: .unauthorized) }
+            let data = await MainActor.run {
+                (try? JSONEncoder().encode(appModel.lightingCueDocument)) ?? Data()
+            }
+            return HTTPResponse(statusCode: .ok, headers: [.contentType: "application/json"], body: data)
+        }
+
         // DMX virtual endpoint scaffold: exposes simulated transport universe for external tooling.
         await server.appendRoute("GET /api/dmx/sim") { req in
             guard authorized(req) else { return HTTPResponse(statusCode: .unauthorized) }

@@ -58,6 +58,50 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(dp.exactP95TotalMS, perf.exactP95TotalMS)
     }
 
+    func testMakeWebStateSnapshot_includesInboundDMXFields() throws {
+        let model = AppModel()
+        var rs = model.remoteSettings
+        rs.dmxInboundEnabled = true
+        rs.dmxInboundMode = "sacn"
+        rs.dmxInboundUniverse = 2
+        rs.dmxInboundUniverseCount = 4
+        rs.dmxInboundMergeMode = "lpt"
+        rs.dmxInboundOpenDMXEnabled = true
+        rs.dmxInboundOpenDMXPath = "/dev/cu.inbound-test"
+        model.remoteSettings = rs
+        let data = model.makeWebStateSnapshotData()
+        let dto = try JSONDecoder().decode(WebControlStateDTO.self, from: data)
+        XCTAssertEqual(dto.dmxInboundEnabled, true)
+        XCTAssertEqual(dto.dmxInboundMode, "sacn")
+        XCTAssertEqual(dto.dmxInboundUniverse, 2)
+        XCTAssertEqual(dto.dmxInboundUniverseCount, 4)
+        XCTAssertEqual(dto.dmxInboundMergeMode, "lpt")
+        XCTAssertEqual(dto.dmxInboundOpenDMXEnabled, true)
+        XCTAssertEqual(dto.dmxInboundOpenDMXPath, "/dev/cu.inbound-test")
+        XCTAssertFalse(dto.dmxInboundStatus?.isEmpty ?? true)
+        let tel = try XCTUnwrap(dto.dmxInboundTelemetry)
+        XCTAssertEqual(tel.networkListenerRunning, false)
+        XCTAssertEqual(tel.openDMXSerialRunning, false)
+    }
+
+    func testWebControlStateDTO_decodeStripsInboundKeys_toNilOptionals() throws {
+        let model = AppModel()
+        let full = model.makeWebStateSnapshotData()
+        var root = try JSONSerialization.jsonObject(with: full) as! [String: Any]
+        for k in [
+            "dmxInboundEnabled", "dmxInboundMode", "dmxInboundUniverse", "dmxInboundUniverseCount",
+            "dmxInboundMergeMode", "dmxInboundOpenDMXEnabled", "dmxInboundOpenDMXPath",
+            "dmxInboundStatus", "dmxInboundTelemetry",
+        ] {
+            root.removeValue(forKey: k)
+        }
+        let legacy = try JSONSerialization.data(withJSONObject: root)
+        let dto = try JSONDecoder().decode(WebControlStateDTO.self, from: legacy)
+        XCTAssertNil(dto.dmxInboundEnabled)
+        XCTAssertNil(dto.dmxInboundTelemetry)
+        XCTAssertNil(dto.dmxInboundStatus)
+    }
+
     func testResolvedOverlayText_usesActiveCueBookmarkMetadata() {
         let model = AppModel()
         let cueID = UUID(uuidString: "00000000-0000-0000-0000-000000000301")!

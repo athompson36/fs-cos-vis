@@ -254,6 +254,24 @@ This backlog was originally derived from the **FS-COS-VIS audit pack** in [`docs
 
 ---
 
+## Appendix — Stub / honest-limit register
+
+Single place for **intentional** stubs, test doubles, and **honest** “not production” boundaries (refresh when code changes). Not every `TODO` in the repo—only items operators or integrators might hit.
+
+| Item | Kind | Where | Notes |
+|------|------|-------|-------|
+| RDM discovery / parameter fetch | Scaffold | `DMXOutputService`, `RDMDiscoveryService` | Mock/deterministic probe; full USB/RDM stack TBD. |
+| sACN sync / discovery PDUs | Counted only | `DMXInputService`, Settings copy | Extended PDUs increment diagnostics; no sync timing / discovery protocol consumer. |
+| DMX USB learn (Controller) | UI “Planned” | `ControllerView` | Use HTTP/MIDI/OSC for the same actions until learn ships. |
+| `export_fixture_ofl_stub` (LLM tool) | Intentional no-op | `AIToolRegistry` | Returns guidance string; real OFL export is Lighting workspace import flow. |
+| Lighting Copilot draft cues | Placeholder | `LightingCopilotService`, Lighting → Tools | `draftCuesFromSongStructurePlaceholder` is structural only, not ML. |
+| MIDI/OSC/DMX control **stubs** | Test harness | `ControlBus.swift` | `*Stub` types for unit tests—not missing product features. |
+| Feedback HTTPS relay | Deployer-owned | Settings, Section J | Client POST only; server that calls GitHub is out of repo. |
+
+See also: [`ui-page-verification.md`](ui-page-verification.md) (no missing primary screens by design), [`lighting-roadmap.md`](lighting-roadmap.md) (transport lab gates).
+
+---
+
 ## Appendix — Quick index of major code anchors
 
 | Area | Primary entry points |

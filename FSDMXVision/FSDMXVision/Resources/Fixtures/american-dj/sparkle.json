@@ -1,0 +1,20 @@
+{
+  "name": "Sparkle",
+  "categories": ["Effect"],
+  "meta": { "authors": ["FS DMX Vision bundle"], "createDate": "2026-04-19", "lastModifyDate": "2026-04-19" },
+  "links": {
+    "productPage": ["https://www.adj.com/sparkle"]
+  },
+  "physical": {
+    "dimensions": [300, 150, 150],
+    "weight": 2.0,
+    "power": 15,
+    "DMXconnector": "3-pin"
+  },
+  "availableChannels": {
+    "Dimmer": { "capabilities": [{ "dmxRange": [0, 255], "type": "Intensity" }] },
+    "Strobe": { "capabilities": [{ "dmxRange": [0, 255], "type": "StrobeSpeed" }] },
+    "Macro": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] }
+  },
+  "modes": [{ "name": "3-channel", "shortName": "3ch", "channels": ["Dimmer", "Strobe", "Macro"] }]
+}

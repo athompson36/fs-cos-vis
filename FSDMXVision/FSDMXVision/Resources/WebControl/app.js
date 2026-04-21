@@ -38,6 +38,31 @@
     qs("#dmxStat").textContent = dmxOn ? "on ~" + (s.dmxNominalHz || 0) + " Hz" : "off";
     qs("#dmxErr").textContent = s.dmxLastError ? " · " + s.dmxLastError : "";
 
+    const inboundEl = qs("#inboundStat");
+    if (inboundEl) {
+      if (s.dmxInboundStatus != null && String(s.dmxInboundStatus).trim() !== "") {
+        inboundEl.textContent = s.dmxInboundStatus;
+      } else if (s.dmxInboundTelemetry) {
+        const t = s.dmxInboundTelemetry;
+        inboundEl.textContent =
+          "UDP " +
+          (t.networkListenerRunning ? "on" : "off") +
+          " · USB " +
+          (t.openDMXSerialRunning ? "on" : "off") +
+          " · fr " +
+          (t.networkFrames ?? 0) +
+          " / " +
+          (t.openDMXSerialFrames ?? 0);
+      } else if (s.dmxInboundEnabled != null || s.dmxInboundOpenDMXEnabled != null) {
+        const bits = [];
+        if (s.dmxInboundEnabled) bits.push("network");
+        if (s.dmxInboundOpenDMXEnabled) bits.push("USB serial");
+        inboundEl.textContent = bits.length ? bits.join(" + ") : "off";
+      } else {
+        inboundEl.textContent = "—";
+      }
+    }
+
     const fx = s.lightingPatchFixtureCount ?? 0;
     const nCues = s.lightingCueCount ?? 0;
     const cueName = s.lightingActiveCueName;
@@ -66,6 +91,41 @@
       cueSel.value = String(ai);
     } else {
       cueSel.value = "";
+    }
+
+    const cueGrid = qs("#cueGrid");
+    if (cueGrid) {
+      cueGrid.innerHTML = "";
+      cueNames.forEach((name, i) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "cue-chip" + (ai === i ? " cue-chip--active" : "");
+        btn.textContent = name && String(name).trim() ? name : "Cue " + (i + 1);
+        btn.addEventListener("click", () => postCommand({ type: "SetActiveLightingCueIndex", index: i }));
+        cueGrid.appendChild(btn);
+      });
+    }
+
+    const br = qs("#bookmarkRow");
+    const bchips = qs("#bookmarkChips");
+    const bidx = s.lightingBookmarkCueIndices || [];
+    const bnames = s.lightingBookmarkCueNames || [];
+    if (br && bchips) {
+      bchips.innerHTML = "";
+      if (bidx.length > 0 && bidx.length === bnames.length) {
+        br.hidden = false;
+        bidx.forEach((idx, j) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "cue-chip cue-chip--bookmark" + (ai === idx ? " cue-chip--active" : "");
+          const nm = bnames[j] && String(bnames[j]).trim() ? bnames[j] : "Cue " + (idx + 1);
+          btn.textContent = nm;
+          btn.addEventListener("click", () => postCommand({ type: "SetActiveLightingCueIndex", index: idx }));
+          bchips.appendChild(btn);
+        });
+      } else {
+        br.hidden = true;
+      }
     }
 
     const list = qs("#sceneList");

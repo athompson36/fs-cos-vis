@@ -168,6 +168,8 @@ final class ModelCodableTests: XCTestCase {
         XCTAssertEqual(decoded.dmxInboundUniverse, 0)
         XCTAssertEqual(decoded.dmxInboundUniverseCount, 1)
         XCTAssertEqual(decoded.dmxInboundMergeMode, "htp")
+        XCTAssertFalse(decoded.dmxInboundOpenDMXEnabled)
+        XCTAssertEqual(decoded.dmxInboundOpenDMXPath, "")
     }
 
     func testRemoteControlSettings_decodeLegacyRDMDefaults() throws {

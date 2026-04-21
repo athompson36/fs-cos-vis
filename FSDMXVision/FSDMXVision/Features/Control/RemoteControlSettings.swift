@@ -152,6 +152,10 @@ struct RemoteControlSettings: Equatable {
     var dmxInboundUniverseCount: Int = 1
     /// Merge policy: `htp` (max) or `lpt` (latest takes precedence).
     var dmxInboundMergeMode: String = "htp"
+    /// Second USB serial device (Open DMX–class RX) feeding the same inbound merge path as Art-Net/sACN.
+    var dmxInboundOpenDMXEnabled: Bool = false
+    /// Device path (e.g. `/dev/cu.usbserial-…`) for inbound DMX; must differ from `dmxSerialDevicePath` when output uses hardware.
+    var dmxInboundOpenDMXPath: String = ""
     /// Enables RDM discovery/probing scaffold controls.
     var rdmDiscoveryEnabled: Bool = false
     /// Discovery transport path: `hardware`, `artnet`, or `sacn`.
@@ -230,6 +234,8 @@ extension RemoteControlSettings: Codable {
         case dmxInboundUniverse
         case dmxInboundUniverseCount
         case dmxInboundMergeMode
+        case dmxInboundOpenDMXEnabled
+        case dmxInboundOpenDMXPath
         case rdmDiscoveryEnabled
         case rdmDiscoveryTransportMode
         case rdmDiscoveryUniverse
@@ -287,6 +293,8 @@ extension RemoteControlSettings: Codable {
         let rawInboundCount = try c.decodeIfPresent(Int.self, forKey: .dmxInboundUniverseCount) ?? 1
         dmxInboundUniverseCount = max(1, min(64, rawInboundCount))
         dmxInboundMergeMode = try c.decodeIfPresent(String.self, forKey: .dmxInboundMergeMode) ?? "htp"
+        dmxInboundOpenDMXEnabled = try c.decodeIfPresent(Bool.self, forKey: .dmxInboundOpenDMXEnabled) ?? false
+        dmxInboundOpenDMXPath = try c.decodeIfPresent(String.self, forKey: .dmxInboundOpenDMXPath) ?? ""
         rdmDiscoveryEnabled = try c.decodeIfPresent(Bool.self, forKey: .rdmDiscoveryEnabled) ?? false
         rdmDiscoveryTransportMode = try c.decodeIfPresent(String.self, forKey: .rdmDiscoveryTransportMode) ?? "hardware"
         rdmDiscoveryUniverse = try c.decodeIfPresent(Int.self, forKey: .rdmDiscoveryUniverse) ?? 0
@@ -343,6 +351,8 @@ extension RemoteControlSettings: Codable {
         try c.encode(dmxInboundUniverse, forKey: .dmxInboundUniverse)
         try c.encode(dmxInboundUniverseCount, forKey: .dmxInboundUniverseCount)
         try c.encode(dmxInboundMergeMode, forKey: .dmxInboundMergeMode)
+        try c.encode(dmxInboundOpenDMXEnabled, forKey: .dmxInboundOpenDMXEnabled)
+        try c.encode(dmxInboundOpenDMXPath, forKey: .dmxInboundOpenDMXPath)
         try c.encode(rdmDiscoveryEnabled, forKey: .rdmDiscoveryEnabled)
         try c.encode(rdmDiscoveryTransportMode, forKey: .rdmDiscoveryTransportMode)
         try c.encode(rdmDiscoveryUniverse, forKey: .rdmDiscoveryUniverse)

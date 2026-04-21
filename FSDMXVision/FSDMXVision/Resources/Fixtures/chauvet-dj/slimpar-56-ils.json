@@ -1,0 +1,33 @@
+{
+  "name": "SlimPAR 56 ILS",
+  "categories": ["Color Changer"],
+  "meta": { "authors": ["FS DMX Vision bundle"], "createDate": "2026-04-19", "lastModifyDate": "2026-04-19" },
+  "links": {
+    "manual": ["https://www.chauvetdj.com/wp-content/uploads/2021/03/SlimPAR_56_ILS_UM_Rev1.pdf"],
+    "productPage": ["https://www.chauvetdj.com/products/slimpar-56-ils/"]
+  },
+  "physical": {
+    "dimensions": [230, 90, 250],
+    "weight": 1.7,
+    "power": 132,
+    "DMXconnector": "3-pin"
+  },
+  "availableChannels": {
+    "Dimmer": { "capabilities": [{ "dmxRange": [0, 255], "type": "Intensity" }] },
+    "Red": { "capabilities": [{ "dmxRange": [0, 255], "type": "ColorIntensity", "color": "Red" }] },
+    "Green": { "capabilities": [{ "dmxRange": [0, 255], "type": "ColorIntensity", "color": "Green" }] },
+    "Blue": { "capabilities": [{ "dmxRange": [0, 255], "type": "ColorIntensity", "color": "Blue" }] },
+    "Strobe": { "capabilities": [{ "dmxRange": [0, 255], "type": "StrobeSpeed" }] },
+    "Hue": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] },
+    "Saturation": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] },
+    "Value": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] },
+    "ILS / program": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] }
+  },
+  "modes": [
+    {
+      "name": "9-channel",
+      "shortName": "9ch",
+      "channels": ["Dimmer", "Red", "Green", "Blue", "Strobe", "Hue", "Saturation", "Value", "ILS / program"]
+    }
+  ]
+}

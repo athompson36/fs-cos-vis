@@ -505,14 +505,30 @@ struct LightingWorkspaceView: View {
                                     }
                                     .controlSize(.small)
                                 }
+                                TextField(
+                                    "Rig note (e.g. hazer + dimmer wiring)",
+                                    text: fixtureRigNoteBinding(instanceID: inst.id),
+                                    axis: .vertical
+                                )
+                                .textFieldStyle(.roundedBorder)
+                                .controlSize(.small)
+                                .font(.caption)
+                                .lineLimit(1 ... 3)
                                 if let profile = appModel.dmxPatchDocument.profile(id: inst.profileID) {
                                     ScrollView(.horizontal, showsIndicators: false) {
                                         HStack(alignment: .top, spacing: 10) {
                                             ForEach(Array(profile.channels.enumerated()), id: \.offset) { channel in
                                                 VStack(spacing: 4) {
-                                                    Text(channel.element.label)
-                                                        .font(.caption2)
-                                                        .lineLimit(1)
+                                                    TextField(
+                                                        "",
+                                                        text: channelLabelOverrideBinding(instanceID: inst.id, channelIndex: channel.offset),
+                                                        prompt: Text(channel.element.label).font(.caption2)
+                                                    )
+                                                    .textFieldStyle(.roundedBorder)
+                                                    .controlSize(.mini)
+                                                    .font(.caption2)
+                                                    .frame(width: 92)
+                                                    .lineLimit(1)
                                                     Slider(
                                                         value: manualChannelBinding(instanceID: inst.id, channelIndex: channel.offset),
                                                         in: 0 ... 255
@@ -727,7 +743,7 @@ struct LightingWorkspaceView: View {
     }
 
     private var modulationSection: some View {
-        GroupBox("Modulation") {
+        GroupBox("Modulation (sources)") {
             VStack(alignment: .leading, spacing: 10) {
                 Button("Add modulator") { addModulator() }
                 if appModel.modulationDocument.modulators.isEmpty {
@@ -748,12 +764,12 @@ struct LightingWorkspaceView: View {
                                 TextField("Name", text: modNameBinding(mod.id))
                                 Picker("Type", selection: modKindBinding(mod.id)) {
                                     ForEach(ModulatorKind.allCases, id: \.self) { kind in
-                                        Text(kind.rawValue).tag(kind)
+                                        Text(kind.displayTitle).tag(kind)
                                     }
                                 }
                                 modulatorTargetControls(for: mod)
                                 HStack {
-                                    Text("Depth")
+                                    Text(mod.kind == .hsiHueSweep ? "Hue depth" : "Depth")
                                         .font(.caption2)
                                     Slider(value: modDepthBinding(mod.id), in: 0 ... 1)
                                 }
@@ -769,6 +785,8 @@ struct LightingWorkspaceView: View {
                                             .font(.caption2)
                                         Slider(value: modTempoDivisionsBinding(mod.id), in: 0.25 ... 8)
                                     }
+                                } else if mod.kind == .hsiHueSweep {
+                                    EmptyView()
                                 } else {
                                     HStack {
                                         Text("Smoothing")
@@ -1388,7 +1406,7 @@ struct LightingWorkspaceView: View {
             guard channel >= start, channel <= end else { continue }
             let idx = channel - start
             guard profile.channels.indices.contains(idx) else { continue }
-            return ("\(profile.name) @ \(start)", inst.id, profile.channels[idx].label, profile.channels[idx].role)
+            return ("\(profile.name) @ \(start)", inst.id, inst.resolvedChannelLabel(channelIndex: idx, profile: profile), profile.channels[idx].role)
         }
         return nil
     }
@@ -1701,6 +1719,42 @@ struct LightingWorkspaceView: View {
         )
     }
 
+    private func channelLabelOverrideBinding(instanceID: UUID, channelIndex: Int) -> Binding<String> {
+        Binding(
+            get: {
+                appModel.dmxPatchDocument.instances.first(where: { $0.id == instanceID })?.channelLabelOverrides?[String(channelIndex)] ?? ""
+            },
+            set: { newVal in
+                var patch = appModel.dmxPatchDocument
+                guard let idx = patch.instances.firstIndex(where: { $0.id == instanceID }) else { return }
+                let trimmed = newVal.trimmingCharacters(in: .whitespacesAndNewlines)
+                var overrides = patch.instances[idx].channelLabelOverrides ?? [:]
+                if trimmed.isEmpty {
+                    overrides.removeValue(forKey: String(channelIndex))
+                } else {
+                    overrides[String(channelIndex)] = trimmed
+                }
+                patch.instances[idx].channelLabelOverrides = overrides.isEmpty ? nil : overrides
+                appModel.applyDMXPatchDocument(patch)
+            }
+        )
+    }
+
+    private func fixtureRigNoteBinding(instanceID: UUID) -> Binding<String> {
+        Binding(
+            get: {
+                appModel.dmxPatchDocument.instances.first(where: { $0.id == instanceID })?.rigNote ?? ""
+            },
+            set: { newVal in
+                var patch = appModel.dmxPatchDocument
+                guard let idx = patch.instances.firstIndex(where: { $0.id == instanceID }) else { return }
+                let trimmed = newVal.trimmingCharacters(in: .whitespacesAndNewlines)
+                patch.instances[idx].rigNote = trimmed.isEmpty ? nil : trimmed
+                appModel.applyDMXPatchDocument(patch)
+            }
+        )
+    }
+
     private func applyActiveCueToFixtureManuals() {
         guard let ai = appModel.lightingCueDocument.activeCueIndex,
               appModel.lightingCueDocument.cues.indices.contains(ai)
@@ -2005,12 +2059,50 @@ struct LightingWorkspaceView: View {
     @ViewBuilder
     private func modulatorTargetControls(for mod: ModulatorDefinition) -> some View {
         let patch = appModel.dmxPatchDocument
-        if patch.instances.isEmpty {
+        if mod.kind == .hsiHueSweep {
+            let rgbCandidates = patch.instances.filter { inst in
+                Self.fixtureProfileHasRGB(patch: patch, profileID: inst.profileID)
+            }
+            if rgbCandidates.isEmpty {
+                Text("Patch a fixture with red, green, and blue channels (e.g. RGB par) to use HSI hue sweep.")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    Picker("RGB fixture", selection: modHsiFixtureBinding(mod.id)) {
+                        ForEach(rgbCandidates, id: \.id) { inst in
+                            Text(modulatorFixtureMenuLabel(inst)).tag(inst.id)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    if let tri = ModulationTargetResolution.rgbDMXChannels(for: mod, patch: patch) {
+                        Text("R \(tri.0) · G \(tri.1) · B \(tri.2) · HSV-style sweep")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    HStack {
+                        Text("Saturation")
+                            .font(.caption2)
+                        Slider(value: modHsiSaturationBinding(mod.id), in: 0 ... 1)
+                    }
+                    HStack {
+                        Text("Intensity (V)")
+                            .font(.caption2)
+                        Slider(value: modHsiIntensityBinding(mod.id), in: 0 ... 1)
+                    }
+                    HStack {
+                        Text("Hue rate (Hz)")
+                            .font(.caption2)
+                        Slider(value: modRateBinding(mod.id), in: 0.05 ... 8)
+                    }
+                }
+            }
+        } else if patch.instances.isEmpty {
             Stepper("Target channel: \(mod.targetChannel)", value: modChannelBinding(mod.id), in: 1 ... 512)
             Text("Patch a fixture to choose profile channels instead of raw DMX.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
-        } else if DMXPatchAudit.fixtureAndProfileIndex(forDMXChannel: mod.targetChannel, patch: patch) != nil {
+        } else if modulatorResolvedFixture(mod) != nil {
             VStack(alignment: .leading, spacing: 6) {
                 Picker("Fixture", selection: modTargetFixtureBinding(mod.id)) {
                     ForEach(patch.instances, id: \.id) { inst in
@@ -2018,19 +2110,22 @@ struct LightingWorkspaceView: View {
                     }
                 }
                 .pickerStyle(.menu)
-                if let m = DMXPatchAudit.fixtureAndProfileIndex(forDMXChannel: mod.targetChannel, patch: patch),
-                   let profile = patch.profile(id: m.instance.profileID) {
+                if let triple = modulatorResolvedFixture(mod),
+                   let profile = patch.profile(id: triple.instance.profileID) {
                     Picker("Profile channel", selection: modTargetChannelIndexBinding(mod.id)) {
-                        ForEach(Array(profile.channels.enumerated()), id: \.offset) { idx, ch in
-                            let dmx = m.instance.startAddress + idx
-                            Text("\(ch.label) · DMX \(dmx)").tag(idx)
+                        ForEach(Array(profile.channels.enumerated()), id: \.offset) { idx, _ in
+                            let dmx = triple.instance.startAddress + idx
+                            let label = triple.instance.resolvedChannelLabel(channelIndex: idx, profile: profile)
+                            Text("\(label) · DMX \(dmx)").tag(idx)
                         }
                     }
                     .pickerStyle(.menu)
                 }
-                Text("Modulating DMX channel \(mod.targetChannel)")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                if let ch = ModulationTargetResolution.primaryDMXChannel(for: mod, patch: patch) {
+                    Text("Modulating DMX channel \(ch)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
         } else {
             VStack(alignment: .leading, spacing: 6) {
@@ -2044,6 +2139,28 @@ struct LightingWorkspaceView: View {
                 .controlSize(.small)
             }
         }
+    }
+
+    private func modulatorResolvedFixture(_ mod: ModulatorDefinition) -> (instance: FixtureInstance, channelIndex: Int)? {
+        let patch = appModel.dmxPatchDocument
+        if let fid = mod.targetFixtureInstanceID, let ci = mod.targetChannelIndexInProfile,
+           let inst = patch.instances.first(where: { $0.id == fid }),
+           let profile = patch.profile(id: inst.profileID),
+           profile.channels.indices.contains(ci)
+        {
+            return (inst, ci)
+        }
+        if let m = DMXPatchAudit.fixtureAndProfileIndex(forDMXChannel: mod.targetChannel, patch: patch) {
+            return (m.instance, m.channelIndex)
+        }
+        return nil
+    }
+
+    private static func fixtureProfileHasRGB(patch: DMXPatchDocument, profileID: UUID) -> Bool {
+        guard let p = patch.profile(id: profileID) else { return false }
+        return p.channels.contains(where: { $0.role == .red })
+            && p.channels.contains(where: { $0.role == .green })
+            && p.channels.contains(where: { $0.role == .blue })
     }
 
     private func modulatorFixtureMenuLabel(_ instance: FixtureInstance) -> String {
@@ -2062,20 +2179,30 @@ struct LightingWorkspaceView: View {
         Binding(
             get: {
                 let patch = appModel.dmxPatchDocument
+                if let mod = appModel.modulationDocument.modulators.first(where: { $0.id == modID }),
+                   let fid = mod.targetFixtureInstanceID,
+                   patch.instances.contains(where: { $0.id == fid }) {
+                    return fid
+                }
                 let ch = modulatorTargetChannel(modID)
                 if let m = DMXPatchAudit.fixtureAndProfileIndex(forDMXChannel: ch, patch: patch) {
                     return m.instance.id
                 }
-                return patch.instances.first!.id
+                return patch.instances.first?.id ?? UUID()
             },
             set: { instID in
                 guard let inst = appModel.dmxPatchDocument.instances.first(where: { $0.id == instID }),
                       let profile = appModel.dmxPatchDocument.profile(id: inst.profileID),
                       !profile.channels.isEmpty else { return }
-                let oldCh = modulatorTargetChannel(modID)
-                let oldIdx = DMXPatchAudit.fixtureAndProfileIndex(forDMXChannel: oldCh, patch: appModel.dmxPatchDocument)?.channelIndex ?? 0
-                let safeIdx = min(oldIdx, profile.channels.count - 1)
-                updateModulator(modID) { $0.targetChannel = inst.startAddress + safeIdx }
+                updateModulator(modID) { m in
+                    let oldIdx = m.targetChannelIndexInProfile
+                        ?? DMXPatchAudit.fixtureAndProfileIndex(forDMXChannel: m.targetChannel, patch: appModel.dmxPatchDocument)?.channelIndex
+                        ?? 0
+                    let safeIdx = min(oldIdx, profile.channels.count - 1)
+                    m.targetFixtureInstanceID = inst.id
+                    m.targetChannelIndexInProfile = safeIdx
+                    m.targetChannel = inst.startAddress + safeIdx
+                }
             }
         )
     }
@@ -2083,16 +2210,78 @@ struct LightingWorkspaceView: View {
     private func modTargetChannelIndexBinding(_ modID: UUID) -> Binding<Int> {
         Binding(
             get: {
+                let patch = appModel.dmxPatchDocument
+                if let mod = appModel.modulationDocument.modulators.first(where: { $0.id == modID }),
+                   let fid = mod.targetFixtureInstanceID, let ci = mod.targetChannelIndexInProfile,
+                   let inst = patch.instances.first(where: { $0.id == fid }),
+                   let profile = patch.profile(id: inst.profileID),
+                   profile.channels.indices.contains(ci) {
+                    return ci
+                }
                 let ch = modulatorTargetChannel(modID)
-                return DMXPatchAudit.fixtureAndProfileIndex(forDMXChannel: ch, patch: appModel.dmxPatchDocument)?.channelIndex ?? 0
+                return DMXPatchAudit.fixtureAndProfileIndex(forDMXChannel: ch, patch: patch)?.channelIndex ?? 0
             },
             set: { idx in
-                let ch = modulatorTargetChannel(modID)
-                guard let m = DMXPatchAudit.fixtureAndProfileIndex(forDMXChannel: ch, patch: appModel.dmxPatchDocument),
-                      let profile = appModel.dmxPatchDocument.profile(id: m.instance.profileID),
-                      profile.channels.indices.contains(idx) else { return }
-                updateModulator(modID) { $0.targetChannel = m.instance.startAddress + idx }
+                updateModulator(modID) { m in
+                    let patch = appModel.dmxPatchDocument
+                    if let fid = m.targetFixtureInstanceID,
+                       let inst = patch.instances.first(where: { $0.id == fid }),
+                       let profile = patch.profile(id: inst.profileID),
+                       profile.channels.indices.contains(idx) {
+                        m.targetFixtureInstanceID = inst.id
+                        m.targetChannelIndexInProfile = idx
+                        m.targetChannel = inst.startAddress + idx
+                        return
+                    }
+                    if let audit = DMXPatchAudit.fixtureAndProfileIndex(forDMXChannel: m.targetChannel, patch: patch) {
+                        let inst = audit.instance
+                        guard let profile = patch.profile(id: inst.profileID), profile.channels.indices.contains(idx) else { return }
+                        m.targetFixtureInstanceID = inst.id
+                        m.targetChannelIndexInProfile = idx
+                        m.targetChannel = inst.startAddress + idx
+                    }
+                }
             }
+        )
+    }
+
+    private func modHsiFixtureBinding(_ modID: UUID) -> Binding<UUID> {
+        Binding(
+            get: {
+                let patch = appModel.dmxPatchDocument
+                let rgb = patch.instances.filter { Self.fixtureProfileHasRGB(patch: patch, profileID: $0.profileID) }
+                guard let first = rgb.first else { return UUID() }
+                if let mod = appModel.modulationDocument.modulators.first(where: { $0.id == modID }),
+                   let fid = mod.targetFixtureInstanceID,
+                   rgb.contains(where: { $0.id == fid }) {
+                    return fid
+                }
+                return first.id
+            },
+            set: { fid in
+                guard let inst = appModel.dmxPatchDocument.instances.first(where: { $0.id == fid }),
+                      let p = appModel.dmxPatchDocument.profile(id: inst.profileID),
+                      let ri = p.channels.firstIndex(where: { $0.role == .red }) else { return }
+                updateModulator(modID) { m in
+                    m.targetFixtureInstanceID = inst.id
+                    m.targetChannelIndexInProfile = nil
+                    m.targetChannel = inst.startAddress + ri
+                }
+            }
+        )
+    }
+
+    private func modHsiSaturationBinding(_ id: UUID) -> Binding<Float> {
+        Binding(
+            get: { appModel.modulationDocument.modulators.first(where: { $0.id == id })?.hsiSaturation ?? 1 },
+            set: { v in updateModulator(id) { $0.hsiSaturation = max(0, min(1, v)) } }
+        )
+    }
+
+    private func modHsiIntensityBinding(_ id: UUID) -> Binding<Float> {
+        Binding(
+            get: { appModel.modulationDocument.modulators.first(where: { $0.id == id })?.hsiIntensity ?? 1 },
+            set: { v in updateModulator(id) { $0.hsiIntensity = max(0, min(1, v)) } }
         )
     }
 
@@ -2100,7 +2289,11 @@ struct LightingWorkspaceView: View {
         guard let inst = appModel.dmxPatchDocument.instances.first,
               let profile = appModel.dmxPatchDocument.profile(id: inst.profileID),
               !profile.channels.isEmpty else { return }
-        updateModulator(modID) { $0.targetChannel = inst.startAddress }
+        updateModulator(modID) { m in
+            m.targetChannel = inst.startAddress
+            m.targetFixtureInstanceID = inst.id
+            m.targetChannelIndexInProfile = 0
+        }
     }
 
     private func deleteModulator(_ id: UUID) {
@@ -2133,14 +2326,43 @@ struct LightingWorkspaceView: View {
     private func modKindBinding(_ id: UUID) -> Binding<ModulatorKind> {
         Binding(
             get: { appModel.modulationDocument.modulators.first(where: { $0.id == id })?.kind ?? .lfoSine },
-            set: { kind in updateModulator(id) { $0.kind = kind } }
+            set: { kind in
+                updateModulator(id) { m in
+                    let wasHsi = m.kind == .hsiHueSweep
+                    m.kind = kind
+                    let patch = appModel.dmxPatchDocument
+                    if kind == .hsiHueSweep {
+                        m.targetChannelIndexInProfile = nil
+                        if let inst = patch.instances.first(where: { Self.fixtureProfileHasRGB(patch: patch, profileID: $0.profileID) }) {
+                            m.targetFixtureInstanceID = inst.id
+                            if let p = patch.profile(id: inst.profileID), let ri = p.channels.firstIndex(where: { $0.role == .red }) {
+                                m.targetChannel = inst.startAddress + ri
+                            }
+                        }
+                    } else if wasHsi {
+                        m.targetChannelIndexInProfile = 0
+                        if let inst = patch.instances.first(where: { $0.id == m.targetFixtureInstanceID }) ?? patch.instances.first,
+                           let profile = patch.profile(id: inst.profileID), !profile.channels.isEmpty {
+                            m.targetFixtureInstanceID = inst.id
+                            m.targetChannel = inst.startAddress
+                        }
+                    }
+                }
+            }
         )
     }
 
     private func modChannelBinding(_ id: UUID) -> Binding<Int> {
         Binding(
             get: { appModel.modulationDocument.modulators.first(where: { $0.id == id })?.targetChannel ?? 1 },
-            set: { v in updateModulator(id) { $0.targetChannel = max(1, min(512, v)) } }
+            set: { v in
+                updateModulator(id) { m in
+                    m.targetChannel = max(1, min(512, v))
+                    if m.kind != .hsiHueSweep {
+                        ModulationTargetResolution.syncFixtureFieldsFromAbsoluteChannel(mod: &m, patch: appModel.dmxPatchDocument)
+                    }
+                }
+            }
         )
     }
 

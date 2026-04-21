@@ -23,6 +23,14 @@ body {
   max-width: 920px;
   margin: 0 auto;
   padding: 28px 20px 48px;
+  padding-bottom: max(48px, env(safe-area-inset-bottom));
+}
+
+@media (max-width: 900px) {
+  .wrap {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
 }
 
 header h1 {
@@ -170,4 +178,88 @@ input[type="range"] {
 
 code {
   color: var(--accent);
+}
+
+/* Lighting cues — touch-first (iPad Safari) */
+.lighting-panel .lighting-actions button {
+  min-height: 48px;
+  padding: 12px 18px;
+  font-size: 1rem;
+}
+
+.cue-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0 8px;
+}
+
+.cue-grid--compact {
+  margin: 6px 0 0;
+  gap: 8px;
+}
+
+.cue-chip {
+  flex: 1 1 auto;
+  min-width: min(160px, 100%);
+  min-height: 48px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(79, 209, 197, 0.1);
+  color: var(--fg);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  text-align: center;
+}
+
+.cue-chip:hover {
+  background: rgba(79, 209, 197, 0.2);
+}
+
+.cue-chip--active {
+  border-color: var(--accent);
+  background: rgba(79, 209, 197, 0.32);
+  box-shadow: 0 0 0 1px rgba(79, 209, 197, 0.35);
+}
+
+.cue-chip--bookmark {
+  background: rgba(244, 114, 182, 0.12);
+}
+
+.cue-chip--bookmark.cue-chip--active {
+  border-color: var(--accent2);
+  background: rgba(244, 114, 182, 0.28);
+}
+
+.bookmark-row {
+  margin: 10px 0 4px;
+}
+
+.bookmark-lbl {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+@media (max-width: 900px) {
+  .lighting-panel {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    margin-top: 8px;
+    padding-top: 16px;
+    background: linear-gradient(180deg, rgba(5, 3, 12, 0.97) 0%, rgba(5, 3, 12, 0.88) 100%);
+    backdrop-filter: blur(8px);
+    border-radius: 14px;
+  }
+
+  .cue-chip {
+    min-width: calc(50% - 6px);
+    font-size: 1.02rem;
+  }
 }

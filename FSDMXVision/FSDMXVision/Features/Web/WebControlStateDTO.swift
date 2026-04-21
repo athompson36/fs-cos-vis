@@ -80,6 +80,56 @@ struct WebControlStateDTO: Codable, Equatable, Sendable {
     var lightingModulatorCount: Int
     /// Cue library names in list order (index matches `SetActiveLightingCueIndex`).
     var lightingCueNames: [String]
+    /// Bookmark order: each entry is a cue **list index** (same as `SetActiveLightingCueIndex`); parallel names for display.
+    var lightingBookmarkCueIndices: [Int]?
+    var lightingBookmarkCueNames: [String]?
     /// Present when the host encodes profiler data; absent/`nil` when decoding legacy JSON without this field.
     var dmxPerformance: DMXPerformanceSummary?
+
+    // MARK: - Inbound DMX (Art-Net/sACN + optional USB serial)
+
+    /// Mirrors Settings inbound merge toggles; `nil` when decoding legacy `/api/state` JSON without these keys.
+    var dmxInboundEnabled: Bool?
+    var dmxInboundMode: String?
+    var dmxInboundUniverse: Int?
+    var dmxInboundUniverseCount: Int?
+    var dmxInboundMergeMode: String?
+    var dmxInboundOpenDMXEnabled: Bool?
+    /// Inbound-only serial path (may match output path in misconfiguration; see status line).
+    var dmxInboundOpenDMXPath: String?
+
+    /// Human-readable inbound line (same family as Settings diagnostics).
+    var dmxInboundStatus: String?
+
+    /// Live counters from the UDP listener + OpenDMX USB input service; `nil` for legacy payloads.
+    var dmxInboundTelemetry: DMXInboundTelemetry?
+}
+
+/// Compact inbound diagnostics for remote `/api/state` (optional for backward-compatible decode).
+struct DMXInboundTelemetry: Codable, Equatable, Sendable {
+    var lastError: String?
+    var networkListenerRunning: Bool
+    var networkFrames: UInt64
+    var sacnSyncPackets: UInt64
+    var sacnDiscoveryPackets: UInt64
+    var sacnLastSyncUniverse: Int?
+    var sacnLastDiscoveryUniverses: [Int]
+    var openDMXSerialRunning: Bool
+    var openDMXSerialFrames: UInt64
+    var openDMXSerialLastError: String?
+}
+
+extension DMXInboundTelemetry {
+    init(_ d: DMXInboundDiagnostics) {
+        lastError = d.lastError
+        networkListenerRunning = d.running
+        networkFrames = d.frames
+        sacnSyncPackets = d.sacnSyncPackets
+        sacnDiscoveryPackets = d.sacnDiscoveryPackets
+        sacnLastSyncUniverse = d.sacnLastSyncUniverse
+        sacnLastDiscoveryUniverses = d.sacnLastDiscoveryUniverses
+        openDMXSerialRunning = d.openDMXSerialRunning
+        openDMXSerialFrames = d.openDMXSerialFrames
+        openDMXSerialLastError = d.openDMXSerialLastError
+    }
 }

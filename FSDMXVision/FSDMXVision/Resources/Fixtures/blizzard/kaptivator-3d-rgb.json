@@ -1,0 +1,50 @@
+{
+  "name": "Kaptivator 3D RGB Laser",
+  "categories": ["Effect"],
+  "meta": {
+    "authors": ["FS DMX Vision bundle"],
+    "createDate": "2026-04-20",
+    "lastModifyDate": "2026-04-20"
+  },
+  "links": {
+    "productPage": ["https://www.blizzardpro.com/products/kaptivator"]
+  },
+  "physical": {
+    "dimensions": [203, 102, 260],
+    "weight": 2.5,
+    "power": 50,
+    "DMXconnector": "3-pin"
+  },
+  "availableChannels": {
+    "Channel 1": { "capabilities": [{ "dmxRange": [0, 255], "type": "Intensity" }] },
+    "Channel 2": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] },
+    "Channel 3": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] },
+    "Channel 4": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] },
+    "Channel 5": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] },
+    "Channel 6": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] },
+    "Channel 7": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] },
+    "Channel 8": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] },
+    "Channel 9": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] },
+    "Channel 10": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] },
+    "Channel 11": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] }
+  },
+  "modes": [
+    {
+      "name": "11-channel",
+      "shortName": "11ch",
+      "channels": [
+        "Channel 1",
+        "Channel 2",
+        "Channel 3",
+        "Channel 4",
+        "Channel 5",
+        "Channel 6",
+        "Channel 7",
+        "Channel 8",
+        "Channel 9",
+        "Channel 10",
+        "Channel 11"
+      ]
+    }
+  ]
+}

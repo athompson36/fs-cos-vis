@@ -81,6 +81,7 @@
 |--------------------------|---------------|--------|
 | Single-page Cosmic Control | `index.html` + `app.js`; served by `WebControlServer` `GET *` | ✓ |
 | Layer sliders incl. spectrum warp + fractal geometry | `spectrumWarp`, `fractalGeometry` inputs → `SetSpectrumWarpAmount`, `SetFractalGeometryIndex` | ✓ |
+| Inbound DMX status (`dmxInboundStatus` / telemetry) | `#inboundStat` in `index.html` + `applyState` in `app.js` | ✓ |
 | Footer lists main REST/WS (`/health`, `/api/schema`, `/api/dmx/sim`, …) | `index.html` hint | ✓ |
 
 ---

@@ -26,9 +26,12 @@
 		1BDA5C57B6A66CA455ACC9C0 /* MIDIControlService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D71CF48F17BC654D6F6FEA5 /* MIDIControlService.swift */; };
 		1C0225D63C894A012EDAD549 /* SetupWizardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1E6BB8F47A96315F4BEC87 /* SetupWizardView.swift */; };
 		1C8C2AC75982FA6DFB3289D1 /* index.html in Resources */ = {isa = PBXBuildFile; fileRef = 02211992ED68AB0EEC192D37 /* index.html */; };
+		B1A5908E2D3F4C5B6A7988776655002 /* Fixtures in Resources */ = {isa = PBXBuildFile; fileRef = B1A5908E2D3F4C5B6A7988776655001 /* Fixtures */; };
 		1E75D7CCAE80B50398B98EC8 /* SceneManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E6337970E1191402751C5F /* SceneManager.swift */; };
 		216CCDC4F9E0FA000A82115D /* OpenDMXUSBWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49174E42808254CD5D057648 /* OpenDMXUSBWriter.swift */; };
+		B2A3401F2D3C4E5F60718296 /* OpenDMXUSBInputService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A3401E2D3C4E5F60718295 /* OpenDMXUSBInputService.swift */; };
 		219B561B7FDA096C5FC9C19D /* ModulationRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = D88D4759A93842328E752312 /* ModulationRuntime.swift */; };
+		E7F2A1B02D3C4E5F60718293 /* ModulationTargetResolution.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F2A1B12D3C4E5F60718294 /* ModulationTargetResolution.swift */; };
 		21AC04BF62BD371A3394302B /* FlyingFox in Frameworks */ = {isa = PBXBuildFile; productRef = AA9ADD3BCD35AF8AF25CDD72 /* FlyingFox */; };
 		222ACECFA449714E4DA8CE34 /* OverlayCardModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C14FAC71737D91774A6D94FD /* OverlayCardModels.swift */; };
 		233B629E30545DA4097199CD /* PaletteLibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A077EBA4C26AF95D584292BC /* PaletteLibraryStore.swift */; };
@@ -182,6 +185,7 @@
 /* Begin PBXFileReference section */
 		00FD3CABA99ACE29DDDF50AD /* CompositeRendererTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositeRendererTests.swift; sourceTree = "<group>"; };
 		02211992ED68AB0EEC192D37 /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = "<group>"; };
+		B1A5908E2D3F4C5B6A7988776655001 /* Fixtures */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Fixtures; sourceTree = "<group>"; };
 		067D8DE55061DB206E8AFD4B /* TransitionStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransitionStateTests.swift; sourceTree = "<group>"; };
 		069EDAEA009BD1944A553499 /* LightingCueStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightingCueStore.swift; sourceTree = "<group>"; };
 		0884FB8F03C8F1092ADE2772 /* RemoteLightingCommandTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteLightingCommandTests.swift; sourceTree = "<group>"; };
@@ -223,6 +227,7 @@
 		466FBC2CD58A26827A0D2C41 /* LiquidLightRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidLightRenderer.swift; sourceTree = "<group>"; };
 		46B4BC2AB8E133DFB06C45DD /* RemoteControlSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteControlSettings.swift; sourceTree = "<group>"; };
 		49174E42808254CD5D057648 /* OpenDMXUSBWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenDMXUSBWriter.swift; sourceTree = "<group>"; };
+		B2A3401E2D3C4E5F60718295 /* OpenDMXUSBInputService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenDMXUSBInputService.swift; sourceTree = "<group>"; };
 		4A1E6BB8F47A96315F4BEC87 /* SetupWizardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupWizardView.swift; sourceTree = "<group>"; };
 		4B8A2DDBEB2CAD1362EDB976 /* FeedbackAndLogsServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackAndLogsServiceTests.swift; sourceTree = "<group>"; };
 		4BB20DCBBC03E884BA41AC69 /* CaptureSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureSession.swift; sourceTree = "<group>"; };
@@ -295,6 +300,7 @@
 		CD7C63BC5F77863A8F322920 /* CompositePass.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = CompositePass.metal; sourceTree = "<group>"; };
 		D165CE0E145980A6EEFAD503 /* LiveShowCueStripsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveShowCueStripsView.swift; sourceTree = "<group>"; };
 		D88D4759A93842328E752312 /* ModulationRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModulationRuntime.swift; sourceTree = "<group>"; };
+		E7F2A1B12D3C4E5F60718294 /* ModulationTargetResolution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModulationTargetResolution.swift; sourceTree = "<group>"; };
 		D8DC397A44EE2B51A5DA936C /* SceneManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneManagerTests.swift; sourceTree = "<group>"; };
 		DCECC79369FF0FE03FC84B48 /* OverlayAsset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayAsset.swift; sourceTree = "<group>"; };
 		DF246909019EBF7D1849C910 /* DMXUniverseMonitorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DMXUniverseMonitorView.swift; sourceTree = "<group>"; };
@@ -344,6 +350,7 @@
 			isa = PBXGroup;
 			children = (
 				F7D36FF391A8523833EF7CDF /* Assets.xcassets */,
+				B1A5908E2D3F4C5B6A7988776655001 /* Fixtures */,
 				D1519C824FF237F5337961EA /* Shaders */,
 				390885156298015A596C267C /* WebControl */,
 			);
@@ -501,6 +508,7 @@
 				733004F330CB341318E69888 /* MIDIMapping.swift */,
 				5193DCF577805F55C696C735 /* MIDIMappingStore.swift */,
 				49174E42808254CD5D057648 /* OpenDMXUSBWriter.swift */,
+				B2A3401E2D3C4E5F60718295 /* OpenDMXUSBInputService.swift */,
 				3504F838D5A868075528E6F7 /* WebcamCaptureService.swift */,
 			);
 			path = Expansion;
@@ -607,6 +615,7 @@
 				394450C41B17688BD3A456DC /* LightingWorkspaceView.swift */,
 				B599222F5A653487BCB22B44 /* ModulationModels.swift */,
 				D88D4759A93842328E752312 /* ModulationRuntime.swift */,
+				E7F2A1B12D3C4E5F60718294 /* ModulationTargetResolution.swift */,
 				7126E3A16B7DA06F190838D8 /* OFLFixtureImportService.swift */,
 				65FB464522B8761492DEFB5C /* StageLayoutModels.swift */,
 				6F8CA6CC74C5B9FAC6ED9D8C /* StagePlanView.swift */,
@@ -757,6 +766,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				511E5B740B38291257E9B203 /* Assets.xcassets in Resources */,
+				B1A5908E2D3F4C5B6A7988776655002 /* Fixtures in Resources */,
 				F45B34D3B5636D188DFCA7F6 /* app.js in Resources */,
 				1C8C2AC75982FA6DFB3289D1 /* index.html in Resources */,
 				28AE44ACB77BFD37FFC3EFA4 /* style.css in Resources */,
@@ -864,8 +874,10 @@
 				2E2E9DCB691E0C1552CC7283 /* MIDIMappingStore.swift in Sources */,
 				A03D3702F4C12130A872A809 /* ModulationModels.swift in Sources */,
 				219B561B7FDA096C5FC9C19D /* ModulationRuntime.swift in Sources */,
+				E7F2A1B02D3C4E5F60718293 /* ModulationTargetResolution.swift in Sources */,
 				6C075519001C467D409B34D0 /* OFLFixtureImportService.swift in Sources */,
 				216CCDC4F9E0FA000A82115D /* OpenDMXUSBWriter.swift in Sources */,
+				B2A3401F2D3C4E5F60718296 /* OpenDMXUSBInputService.swift in Sources */,
 				4BD9B7DA60738C75DDDF0C1C /* OverlayAsset.swift in Sources */,
 				E293E957607DB029B2CA5203 /* OverlayBlendMode.swift in Sources */,
 				297951C42007DAC1F4C8FACC /* OverlayCardAuthoringView.swift in Sources */,

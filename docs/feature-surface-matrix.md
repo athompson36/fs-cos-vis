@@ -18,7 +18,8 @@ Rows follow [`project-audit-and-feature-status.md`](project-audit-and-feature-st
 | MIDI mapping | ● | REST midi map | ● | — | ● | (T) | Controller |
 | OSC | Settings on | raw same as HTTP | — | ● | ○ state query | (T) ControlBus | `osc-control.md` |
 | DMX patch / cues / stage | ● | ○ mostly Settings | ○ DMX faders | ○ | ○ | (T) | Lighting WS |
-| DMX network Art-Net/sACN | ● Settings | ○ settings via PUT | — | — | ○ | (T) partial | **Lab Gate 3a–b** |
+| DMX network Art-Net/sACN | ● Settings | ○ settings via PUT | — | — | ○ output diag | (T) partial | **Lab Gate 3a–b** |
+| Inbound DMX merge (Art-Net/sACN + USB serial OpenDMX-class) | ● Settings | — | — | — | ● `GET/PUT /api/settings` + inbound fields / telemetry on `/api/state` | (T) | Lab / [`control-parity.md`](control-parity.md) |
 | Show project / zip | ● | REST + archive | — | — | ○ | (T) show package | — |
 | Updates / feedback / wizard | ● | — | — | — | ○ | partial | beta docs |
 
@@ -26,4 +27,4 @@ Rows follow [`project-audit-and-feature-status.md`](project-audit-and-feature-st
 
 **UI trace:** Primary screens vs code — [`ui-page-verification.md`](ui-page-verification.md).
 
-**Last updated:** 2026-04-20 — fractal/liquid row includes **spectrum warp** + **geometry 0…6** on native + `POST /api/command` / OSC (`SetSpectrumWarpAmount`, `SetFractalGeometryIndex`).
+**Last updated:** 2026-04-21 — inbound DMX row: Settings + REST settings + `/api/state` telemetry; fractal/liquid row includes **spectrum warp** + **geometry 0…6** on native + `POST /api/command` / OSC (`SetSpectrumWarpAmount`, `SetFractalGeometryIndex`).

@@ -87,6 +87,7 @@ enum OFLFixtureImportService {
             ManufacturerSeed(slug: "adj", displayName: "ADJ"),
             ManufacturerSeed(slug: "chauvet-dj", displayName: "Chauvet DJ"),
             ManufacturerSeed(slug: "american-dj", displayName: "American DJ"),
+            ManufacturerSeed(slug: "blizzard", displayName: "Blizzard"),
             ManufacturerSeed(slug: "martin", displayName: "Martin"),
             ManufacturerSeed(slug: "robe", displayName: "Robe"),
             ManufacturerSeed(slug: "ayrton", displayName: "Ayrton"),
@@ -113,6 +114,9 @@ enum OFLFixtureImportService {
     }
 
     static func fetchRawFixture(manufacturer: String, fixture: String) async throws -> Data {
+        if let bundled = Bundle.main.url(forResource: fixture, withExtension: "json", subdirectory: "Fixtures/\(manufacturer)") {
+            return try Data(contentsOf: bundled)
+        }
         let local = cacheURL(manufacturer: manufacturer, fixture: fixture)
         if FileManager.default.fileExists(atPath: local.path) {
             return try Data(contentsOf: local)
@@ -321,6 +325,25 @@ enum OFLFixtureImportService {
         CuratedFallbackFixture(manufacturerSlug: "look-solutions", manufacturerName: "Look Solutions", fixtureSlug: "unique-2-1", fixtureName: "Unique 2.1 Hazer", categories: ["Effect"]),
         CuratedFallbackFixture(manufacturerSlug: "magicfx", manufacturerName: "MAGICFX", fixtureSlug: "stadium-shot-ii", fixtureName: "Stadium Shot II", categories: ["Effect"]),
         CuratedFallbackFixture(manufacturerSlug: "ultratec", manufacturerName: "Ultratec", fixtureSlug: "radiance-hazer", fixtureName: "Radiance Hazer", categories: ["Effect"]),
+        // Starter rig — Chauvet / American DJ (OFL remote when present; see docs/fixture-source-provenance.md)
+        CuratedFallbackFixture(manufacturerSlug: "chauvet-dj", manufacturerName: "Chauvet DJ", fixtureSlug: "hurricane-haze-1dx", fixtureName: "Hurricane Haze 1DX", categories: ["Effect"]),
+        CuratedFallbackFixture(manufacturerSlug: "chauvet-dj", manufacturerName: "Chauvet DJ", fixtureSlug: "slimpar-pro-rgba", fixtureName: "SlimPAR Pro RGBA", categories: ["Color Changer"]),
+        CuratedFallbackFixture(manufacturerSlug: "chauvet-dj", manufacturerName: "Chauvet DJ", fixtureSlug: "slimpar-t12-usb", fixtureName: "SlimPAR T12 USB", categories: ["Color Changer"]),
+        CuratedFallbackFixture(manufacturerSlug: "american-dj", manufacturerName: "American DJ", fixtureSlug: "mega-bar-50rgb", fixtureName: "Mega Bar 50RGB", categories: ["Color Changer"]),
+        CuratedFallbackFixture(manufacturerSlug: "american-dj", manufacturerName: "American DJ", fixtureSlug: "inno-pocket-fusion", fixtureName: "Inno Pocket Fusion", categories: ["Moving Head"]),
+        CuratedFallbackFixture(manufacturerSlug: "american-dj", manufacturerName: "American DJ", fixtureSlug: "inno-pocket-beam-q4", fixtureName: "Inno Pocket Beam Q4", categories: ["Moving Head"]),
+        // Bundled OFL-shaped JSON (app Resources); used when remote OFL fetch is unavailable
+        CuratedFallbackFixture(manufacturerSlug: "elation", manufacturerName: "Elation", fixtureSlug: "dp-415", fixtureName: "DP-415", categories: ["Dimmer"]),
+        CuratedFallbackFixture(manufacturerSlug: "elation", manufacturerName: "Elation", fixtureSlug: "dp-415r", fixtureName: "DP-415R", categories: ["Dimmer"]),
+        CuratedFallbackFixture(manufacturerSlug: "chauvet-dj", manufacturerName: "Chauvet DJ", fixtureSlug: "scorpion-dual", fixtureName: "Scorpion Dual", categories: ["Effect"]),
+        CuratedFallbackFixture(manufacturerSlug: "chauvet-dj", manufacturerName: "Chauvet DJ", fixtureSlug: "storm-fx-rgb", fixtureName: "Storm FX RGB", categories: ["Effect"]),
+        CuratedFallbackFixture(manufacturerSlug: "chauvet-dj", manufacturerName: "Chauvet DJ", fixtureSlug: "circus-2-0-irc", fixtureName: "Circus 2.0 IRC", categories: ["Effect"]),
+        CuratedFallbackFixture(manufacturerSlug: "chauvet-dj", manufacturerName: "Chauvet DJ", fixtureSlug: "slimpar-64-rgba", fixtureName: "SlimPAR 64 RGBA", categories: ["Color Changer"]),
+        CuratedFallbackFixture(manufacturerSlug: "chauvet-dj", manufacturerName: "Chauvet DJ", fixtureSlug: "slimpar-56-ils", fixtureName: "SlimPAR 56 ILS", categories: ["Color Changer"]),
+        CuratedFallbackFixture(manufacturerSlug: "american-dj", manufacturerName: "American DJ", fixtureSlug: "sparkle", fixtureName: "Sparkle", categories: ["Effect"]),
+        CuratedFallbackFixture(manufacturerSlug: "american-dj", manufacturerName: "American DJ", fixtureSlug: "p64-led", fixtureName: "P64 LED", categories: ["Color Changer"]),
+        CuratedFallbackFixture(manufacturerSlug: "american-dj", manufacturerName: "American DJ", fixtureSlug: "innopocket-scan", fixtureName: "Inno Pocket Scan", categories: ["Moving Head"]),
+        CuratedFallbackFixture(manufacturerSlug: "blizzard", manufacturerName: "Blizzard", fixtureSlug: "kaptivator-3d-rgb", fixtureName: "Kaptivator 3D RGB Laser", categories: ["Effect"]),
     ]
 
     private static func fetchFixtureRegister() async throws -> FixtureRegister {

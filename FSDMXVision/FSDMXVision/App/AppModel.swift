@@ -208,8 +208,9 @@ final class AppModel: ObservableObject {
     private var oscControl: OSCControlService?
     private var dmxService: DMXOutputService?
     private var dmxInputService: DMXInputService?
+    private var dmxOpenDMXInputService: OpenDMXUSBInputService?
     private let rdmDiscoveryService = RDMDiscoveryService()
-    /// Latest inbound frame per wire universe (Art-Net / sACN index), with receive time for merge staleness.
+    /// Latest inbound frame per wire universe (Art-Net / sACN / OpenDMX USB serial), with receive time for merge staleness.
     private var inboundDMXByUniverse: [Int: (frame: [UInt8], receivedAt: CFAbsoluteTime, priority: UInt8)] = [:]
     /// Published so Controller UI can show current MIDI assignments.
     @Published private(set) var midiMapping: MIDIMapping = MIDIMappingStore.loadOrDefault()
@@ -394,6 +395,13 @@ final class AppModel: ObservableObject {
             }
             .store(in: &cancellables)
 
+        NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handleAppDidBecomeActiveForMicrophonePermission()
+            }
+            .store(in: &cancellables)
+
         scheduleAIContextRefresh()
     }
 
@@ -433,6 +441,12 @@ final class AppModel: ObservableObject {
             lcSnap.cues.indices.contains(i) ? lcSnap.cues[i].name : nil
         }
         let lightingCueNames = lcSnap.cues.map(\.name)
+        let bookmarkPairs: [(Int, String)] = lcSnap.bookmarkedCueIds.compactMap { bid in
+            guard let idx = lcSnap.cues.firstIndex(where: { $0.id == bid }) else { return nil }
+            return (idx, lcSnap.cues[idx].name)
+        }
+        let lightingBookmarkCueIndices = bookmarkPairs.map(\.0)
+        let lightingBookmarkCueNames = bookmarkPairs.map(\.1)
         let perf = dmxPerformanceDiagnostics()
         let dmxPerf = WebControlStateDTO.DMXPerformanceSummary(
             frameCount: perf.frameCount,
@@ -450,6 +464,9 @@ final class AppModel: ObservableObject {
             exactMedianSendMS: perf.exactMedianSendMS,
             exactP95SendMS: perf.exactP95SendMS
         )
+        let (inboundDiags, inboundStatusLine) = dmxInboundDiagnostics()
+        let inboundTel = DMXInboundTelemetry(inboundDiags)
+        let rs = remoteSettings
         let dto = WebControlStateDTO(
             bpm: tempoClock.effectiveBPM,
             beatPhase: tempoClock.beatPhase,
@@ -491,7 +508,18 @@ final class AppModel: ObservableObject {
             lightingActiveCueName: activeCueName,
             lightingModulatorCount: modSnapCount,
             lightingCueNames: lightingCueNames,
-            dmxPerformance: dmxPerf
+            lightingBookmarkCueIndices: lightingBookmarkCueIndices.isEmpty ? nil : lightingBookmarkCueIndices,
+            lightingBookmarkCueNames: lightingBookmarkCueNames.isEmpty ? nil : lightingBookmarkCueNames,
+            dmxPerformance: dmxPerf,
+            dmxInboundEnabled: rs.dmxInboundEnabled,
+            dmxInboundMode: rs.dmxInboundMode,
+            dmxInboundUniverse: rs.dmxInboundUniverse,
+            dmxInboundUniverseCount: rs.dmxInboundUniverseCount,
+            dmxInboundMergeMode: rs.dmxInboundMergeMode,
+            dmxInboundOpenDMXEnabled: rs.dmxInboundOpenDMXEnabled,
+            dmxInboundOpenDMXPath: rs.dmxInboundOpenDMXPath,
+            dmxInboundStatus: inboundStatusLine,
+            dmxInboundTelemetry: inboundTel
         )
         return (try? JSONEncoder().encode(dto)) ?? Data()
     }
@@ -1223,31 +1251,26 @@ final class AppModel: ObservableObject {
     }
 
     private func configureDMXInputService() {
-        guard remoteSettings.dmxInboundEnabled else {
-            dmxInputService?.stop()
-            lightingDMXLock.lock()
-            inboundDMXByUniverse.removeAll()
-            lightingDMXLock.unlock()
-            dmxInboundStatus = "Inbound DMX disabled"
-            return
-        }
-        if dmxInputService == nil {
-            dmxInputService = DMXInputService()
-        }
         dmxInputService?.stop()
+        dmxOpenDMXInputService?.stop()
+        dmxOpenDMXInputService = nil
         lightingDMXLock.lock()
         inboundDMXByUniverse.removeAll()
         lightingDMXLock.unlock()
-        let start = remoteSettings.dmxInboundUniverse
-        let count = max(1, min(64, remoteSettings.dmxInboundUniverseCount))
-        dmxInputService?.configure(
-            mode: remoteSettings.dmxInboundMode,
-            universeStart: start,
-            universeCount: count
-        ) { [weak self] universe, frame, priority in
+
+        let net = remoteSettings.dmxInboundEnabled
+        let serial = remoteSettings.dmxInboundOpenDMXEnabled
+        guard net || serial else {
+            dmxInboundStatus = "Inbound DMX disabled"
+            return
+        }
+
+        let outPath = remoteSettings.dmxSerialDevicePath.trimmingCharacters(in: .whitespacesAndNewlines)
+        let inPath = remoteSettings.dmxInboundOpenDMXPath.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let frameHandler: (Int, [UInt8], UInt8) -> Void = { [weak self] universe, frame, priority in
             guard let self else { return }
             let now = CFAbsoluteTimeGetCurrent()
-            // Inbound runs on the input socket thread; keep updates here under the lock (no per-packet main-queue hops).
             self.lightingDMXLock.lock()
             defer { self.lightingDMXLock.unlock() }
             if let existing = self.inboundDMXByUniverse[universe] {
@@ -1261,16 +1284,57 @@ final class AppModel: ObservableObject {
             }
             self.inboundDMXByUniverse[universe] = (frame: frame, receivedAt: now, priority: priority)
         }
-        dmxInputService?.start()
-        if let d = dmxInputService?.diagnostics(), let err = d.lastError, !err.isEmpty {
-            dmxInboundStatus = err
-        } else {
-            let mode = remoteSettings.dmxInboundMode.uppercased()
-            if count <= 1 {
-                dmxInboundStatus = "Listening for \(mode) universe \(start)"
-            } else {
-                dmxInboundStatus = "Listening for \(mode) universes \(start)–\(start + count - 1)"
+
+        if net {
+            if dmxInputService == nil {
+                dmxInputService = DMXInputService()
             }
+            dmxInputService?.stop()
+            let start = remoteSettings.dmxInboundUniverse
+            let count = max(1, min(64, remoteSettings.dmxInboundUniverseCount))
+            dmxInputService?.configure(
+                mode: remoteSettings.dmxInboundMode,
+                universeStart: start,
+                universeCount: count,
+                onFrame: frameHandler
+            )
+            dmxInputService?.start()
+        }
+
+        var serialNote = ""
+        if serial {
+            if inPath.isEmpty {
+                serialNote = "OpenDMX USB input path is empty."
+            } else if remoteSettings.dmxOutputMode == "hardware", !outPath.isEmpty, inPath == outPath {
+                serialNote = "OpenDMX input path must differ from the DMX output device path."
+            } else {
+                let svc = OpenDMXUSBInputService()
+                svc.configure(path: inPath, wireUniverse: remoteSettings.dmxInboundUniverse, onFrame: frameHandler)
+                svc.start()
+                dmxOpenDMXInputService = svc
+                if let err = svc.lastError, !err.isEmpty {
+                    serialNote = err
+                } else {
+                    serialNote = "OpenDMX serial \(inPath) → universe \(remoteSettings.dmxInboundUniverse)"
+                }
+            }
+        }
+
+        if net, let d = dmxInputService?.diagnostics(), let err = d.lastError, !err.isEmpty {
+            dmxInboundStatus = err + (serialNote.isEmpty ? "" : " · \(serialNote)")
+            return
+        }
+
+        if net {
+            let mode = remoteSettings.dmxInboundMode.uppercased()
+            let start = remoteSettings.dmxInboundUniverse
+            let count = max(1, min(64, remoteSettings.dmxInboundUniverseCount))
+            let netStr = count <= 1
+                ? "Listening for \(mode) universe \(start)"
+                : "Listening for \(mode) universes \(start)–\(start + count - 1)"
+            dmxInboundStatus = netStr + (serialNote.isEmpty ? "" : " · \(serialNote)")
+        } else {
+            dmxInboundStatus = serialNote.isEmpty ? "USB serial inbound" : serialNote
         }
     }
 
@@ -1725,6 +1789,18 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// macOS persists microphone consent per app (bundle id) in System Settings until revoked. When the user enables access there, pick it up without requiring a manual retry.
+    @MainActor
+    private func handleAppDidBecomeActiveForMicrophonePermission() {
+        guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else { return }
+        if audioError != nil {
+            audioError = nil
+        }
+        if !audioEngine.isAudioInputRunning {
+            startAudio()
+        }
+    }
+
     func stopAudio() {
         audioEngine.stop()
     }
@@ -1743,17 +1819,22 @@ final class AppModel: ObservableObject {
     }
 
     @MainActor
+    private func requestMicrophoneAccessFromSystem() async -> Bool {
+        await withCheckedContinuation { continuation in
+            AVCaptureDevice.requestAccess(for: .audio) { allowed in
+                continuation.resume(returning: allowed)
+            }
+        }
+    }
+
+    @MainActor
     private func ensureMicrophonePermissionForAudioStart() async -> Bool {
         let status = AVCaptureDevice.authorizationStatus(for: .audio)
         switch status {
         case .authorized:
             return true
         case .notDetermined:
-            let granted = await withCheckedContinuation { continuation in
-                AVCaptureDevice.requestAccess(for: .audio) { allowed in
-                    continuation.resume(returning: allowed)
-                }
-            }
+            let granted = await requestMicrophoneAccessFromSystem()
             if !granted {
                 audioError = "Microphone permission is required for audio-reactive visuals. Enable access in System Settings > Privacy & Security > Microphone."
             }
@@ -1903,7 +1984,12 @@ final class AppModel: ObservableObject {
     }
 
     func dmxInboundDiagnostics() -> (diagnostics: DMXInboundDiagnostics, status: String) {
-        let d = dmxInputService?.diagnostics() ?? .none
+        var d = dmxInputService?.diagnostics() ?? .none
+        if let s = dmxOpenDMXInputService {
+            d.openDMXSerialRunning = s.isRunning
+            d.openDMXSerialFrames = s.receivedFrameCount
+            d.openDMXSerialLastError = s.lastError
+        }
         return (d, dmxInboundStatus)
     }
 
@@ -2007,6 +2093,7 @@ final class AppModel: ObservableObject {
         )
         let offsets = ModulationRuntime.offsets(
             document: modDoc,
+            patch: patch,
             time: time,
             bpm: bpm,
             beatPhase: beatPhase,
@@ -2021,7 +2108,7 @@ final class AppModel: ObservableObject {
             hazeEmergencyKill: hazeEmergencyKillActive
         )
         // Single-universe (USB) output: merge inbound for the configured **start** universe into local universe 0.
-        if remoteSettings.dmxInboundEnabled,
+        if remoteSettings.dmxInboundEnabled || remoteSettings.dmxInboundOpenDMXEnabled,
            let entry = inboundSnap[remoteSettings.dmxInboundUniverse],
            entry.frame.count == 512,
            remoteSettings.dmxInboundMergeMode == "htp" || remoteSettings.dmxInboundMergeMode == "lpt" {
@@ -2065,6 +2152,7 @@ final class AppModel: ObservableObject {
         )
         let offsets = ModulationRuntime.offsets(
             document: modDoc,
+            patch: patch,
             time: time,
             bpm: bpm,
             beatPhase: beatPhase,
@@ -2078,7 +2166,7 @@ final class AppModel: ObservableObject {
             modulationOffsets: offsets,
             hazeEmergencyKill: hazeEmergencyKillActive
         )
-        if remoteSettings.dmxInboundEnabled,
+        if remoteSettings.dmxInboundEnabled || remoteSettings.dmxInboundOpenDMXEnabled,
            remoteSettings.dmxInboundMergeMode == "htp" || remoteSettings.dmxInboundMergeMode == "lpt" {
             let now = CFAbsoluteTimeGetCurrent()
             for logicalID in perU.keys {

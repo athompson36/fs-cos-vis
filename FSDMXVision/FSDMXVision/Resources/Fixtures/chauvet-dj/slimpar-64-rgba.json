@@ -1,0 +1,32 @@
+{
+  "name": "SlimPAR 64 RGBA",
+  "categories": ["Color Changer"],
+  "meta": { "authors": ["FS DMX Vision bundle"], "createDate": "2026-04-19", "lastModifyDate": "2026-04-19" },
+  "links": {
+    "manual": ["https://www.chauvetdj.com/wp-content/uploads/2016/12/SlimPAR_64_RGBA_UM_Rev5.pdf"],
+    "productPage": ["https://www.chauvetdj.com/products/slimpar-64-rgba/"]
+  },
+  "physical": {
+    "dimensions": [215, 65, 230],
+    "weight": 1.6,
+    "power": 123,
+    "DMXconnector": "3-pin"
+  },
+  "availableChannels": {
+    "Dimmer": { "capabilities": [{ "dmxRange": [0, 255], "type": "Intensity" }] },
+    "Red": { "capabilities": [{ "dmxRange": [0, 255], "type": "ColorIntensity", "color": "Red" }] },
+    "Green": { "capabilities": [{ "dmxRange": [0, 255], "type": "ColorIntensity", "color": "Green" }] },
+    "Blue": { "capabilities": [{ "dmxRange": [0, 255], "type": "ColorIntensity", "color": "Blue" }] },
+    "Amber": { "capabilities": [{ "dmxRange": [0, 255], "type": "ColorIntensity", "color": "Amber" }] },
+    "Strobe": { "capabilities": [{ "dmxRange": [0, 255], "type": "StrobeSpeed" }] },
+    "Color macro": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] },
+    "Programs": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] }
+  },
+  "modes": [
+    {
+      "name": "8-channel",
+      "shortName": "8ch",
+      "channels": ["Dimmer", "Red", "Green", "Blue", "Amber", "Strobe", "Color macro", "Programs"]
+    }
+  ]
+}

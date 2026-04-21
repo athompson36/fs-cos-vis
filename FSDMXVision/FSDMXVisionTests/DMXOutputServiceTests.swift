@@ -67,6 +67,48 @@ final class DMXOutputServiceTests: XCTestCase {
         XCTAssertTrue(cache.entries.contains(where: { $0.fixtureSlug == "intimidator-spot-260x" }))
     }
 
+    func testBundledFallbackCatalog_includesStarterRigKeys() {
+        let entries = OFLFixtureImportService.bundledCuratedFallbackCatalog()
+        XCTAssertTrue(entries.contains(where: { $0.id == "chauvet-dj/hurricane-haze-1dx" }))
+        XCTAssertTrue(entries.contains(where: { $0.id == "elation/dp-415r" }))
+        XCTAssertTrue(entries.contains(where: { $0.id == "american-dj/mega-bar-50rgb" }))
+        XCTAssertTrue(entries.contains(where: { $0.id == "blizzard/kaptivator-3d-rgb" }))
+    }
+
+    func testBuildProfile_dimPackFromJSON() throws {
+        let json = """
+        {
+          "name": "DP-415",
+          "availableChannels": {
+            "Dimmer 1": { "type": "Intensity" }
+          },
+          "modes": [
+            { "name": "4-channel", "channels": ["Dimmer 1", "Dimmer 2", "Dimmer 3", "Dimmer 4"] }
+          ]
+        }
+        """.data(using: .utf8)!
+        let profile = try OFLFixtureImportService.buildProfile(manufacturer: "elation", fixture: "dp-415", data: json, modeIndex: 0)
+        XCTAssertEqual(profile.channels.count, 4)
+        XCTAssertEqual(profile.channels[0].label, "Dimmer 1")
+        XCTAssertEqual(profile.oflFixtureKey, "elation/dp-415")
+    }
+
+    func testFixtureInstance_resolvedChannelLabel_honorsOverrides() {
+        let pid = UUID()
+        let profile = FixtureProfile(
+            name: "Test",
+            channels: [
+                FixtureChannelDef(label: "Dimmer 1", role: .intensity),
+                FixtureChannelDef(label: "Dimmer 2", role: .intensity),
+            ]
+        )
+        var inst = FixtureInstance(profileID: pid, startAddress: 1)
+        XCTAssertEqual(inst.resolvedChannelLabel(channelIndex: 0, profile: profile), "Dimmer 1")
+        inst.channelLabelOverrides = ["0": "Haze AC"]
+        XCTAssertEqual(inst.resolvedChannelLabel(channelIndex: 0, profile: profile), "Haze AC")
+        XCTAssertEqual(inst.resolvedChannelLabel(channelIndex: 1, profile: profile), "Dimmer 2")
+    }
+
     func testCuratedCatalog_decodesLegacyEntriesWithoutSource() throws {
         let json = """
         {
@@ -433,6 +475,37 @@ final class DMXOutputServiceTests: XCTestCase {
         let t0 = CFAbsoluteTime(4_000_000)
         XCTAssertTrue(DMXInboundMergeLogic.isFrameFresh(receivedAt: t0, now: t0 + 2.9))
         XCTAssertFalse(DMXInboundMergeLogic.isFrameFresh(receivedAt: t0, now: t0 + 3.1))
+    }
+
+    func testOpenDMXFrameAssembler_pullFrames_oneFrame() {
+        var buf: [UInt8] = [0x00] + [UInt8](repeating: 17, count: 512)
+        var frames: [[UInt8]] = []
+        OpenDMXFrameAssembler.pullFrames(buffer: &buf) { frames.append($0) }
+        XCTAssertEqual(frames.count, 1)
+        XCTAssertEqual(frames[0].count, 512)
+        XCTAssertTrue(frames[0].allSatisfy { $0 == 17 })
+        XCTAssertTrue(buf.isEmpty)
+    }
+
+    /// Gap-aligned path: start `0x00` plus 512 zero slots — no false sync on zeros inside the frame.
+    func testOpenDMXFrameAssembler_gapAligned_allZeroSlots_emitsOneFrame() {
+        var buf: [UInt8] = [0x00] + [UInt8](repeating: 0, count: 512)
+        var frames: [[UInt8]] = []
+        OpenDMXFrameAssembler.pullFrames(buffer: &buf, leadingPacketAlignedAfterIdle: true) { frames.append($0) }
+        XCTAssertEqual(frames.count, 1)
+        XCTAssertEqual(frames[0].count, 512)
+        XCTAssertTrue(frames[0].allSatisfy { $0 == 0 })
+        XCTAssertTrue(buf.isEmpty)
+    }
+
+    /// Two back-to-back frames without gap hint: legacy scan still extracts both when aligned on `0x00`.
+    func testOpenDMXFrameAssembler_legacyScan_twoFramesAllZeros() {
+        let frame = [0x00] + [UInt8](repeating: 0, count: 512)
+        var buf = frame + frame
+        var frames: [[UInt8]] = []
+        OpenDMXFrameAssembler.pullFrames(buffer: &buf) { frames.append($0) }
+        XCTAssertEqual(frames.count, 2)
+        XCTAssertTrue(buf.isEmpty)
     }
 
     private static func bytes(fromHex hex: String) -> [UInt8] {

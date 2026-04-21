@@ -44,6 +44,28 @@ final class OpenDMXUSBWriter {
     }
 
     private func configure250k8N2() throws {
+        try OpenDMXSerialPort.configure250k8N2(fd: fd)
+    }
+
+    func send(universe: [UInt8]) throws {
+        guard fd >= 0 else { throw OpenDMXError.openFailed }
+        precondition(universe.count == 512)
+        _ = ioctl(fd, TIOCSBRK, 0)
+        usleep(120)
+        _ = ioctl(fd, TIOCCBRK, 0)
+        usleep(16)
+
+        var payload = [UInt8(0)] + universe
+        let wrote = payload.withUnsafeBytes { raw -> ssize_t in
+            Darwin.write(fd, raw.baseAddress!, raw.count)
+        }
+        guard wrote == payload.count else { throw OpenDMXError.writeFailed }
+    }
+}
+
+/// Shared 250k 8N2 termios setup for Open DMX–class USB-UART devices (TX or RX).
+enum OpenDMXSerialPort {
+    static func configure250k8N2(fd: Int32) throws {
         var t = termios()
         guard tcgetattr(fd, &t) == 0 else { throw OpenDMXError.configureFailed }
         cfmakeraw(&t)
@@ -69,20 +91,5 @@ final class OpenDMXUSBWriter {
         cfsetspeed(&t2, speed_t(B230400))
         guard tcsetattr(fd, TCSANOW, &t2) == 0 else { throw OpenDMXError.configureFailed }
         #endif
-    }
-
-    func send(universe: [UInt8]) throws {
-        guard fd >= 0 else { throw OpenDMXError.openFailed }
-        precondition(universe.count == 512)
-        _ = ioctl(fd, TIOCSBRK, 0)
-        usleep(120)
-        _ = ioctl(fd, TIOCCBRK, 0)
-        usleep(16)
-
-        var payload = [UInt8(0)] + universe
-        let wrote = payload.withUnsafeBytes { raw -> ssize_t in
-            Darwin.write(fd, raw.baseAddress!, raw.count)
-        }
-        guard wrote == payload.count else { throw OpenDMXError.writeFailed }
     }
 }

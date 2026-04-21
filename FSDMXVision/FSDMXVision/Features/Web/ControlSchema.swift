@@ -33,6 +33,17 @@ struct ControlSchema: Codable, Equatable, Sendable {
                 ]
             ),
             Section(
+                id: "lighting",
+                title: "Lighting cues",
+                fields: [
+                    Field(id: "cueNext", label: "Next lighting cue", kind: "command", commandType: "NextLightingCue"),
+                    Field(id: "cuePrev", label: "Previous lighting cue", kind: "command", commandType: "PreviousLightingCue"),
+                    Field(id: "cueClear", label: "Clear active lighting cue", kind: "command", commandType: "SetActiveLightingCueIndex"),
+                    Field(id: "cueIndex", label: "Set active cue by list index (0-based)", kind: "int", min: 0, max: 511, commandType: "SetActiveLightingCueIndex"),
+                    Field(id: "getLightingCues", label: "GET /api/lighting_cues (export JSON)", kind: "string", commandType: nil),
+                ]
+            ),
+            Section(
                 id: "scene",
                 title: "Scene",
                 fields: [

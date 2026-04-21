@@ -688,16 +688,21 @@ private extension SettingsView {
         }
     }
 
+    /// True when any inbound source (network or USB serial) is enabled.
+    private var dmxInboundSourcesEnabled: Bool {
+        appModel.remoteSettings.dmxInboundEnabled || appModel.remoteSettings.dmxInboundOpenDMXEnabled
+    }
+
     private var dmxInboundCoreBlock: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Inbound DMX merge")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-            Text("Listener accepts a contiguous range of Art-Net or sACN universes over **UDP** (Ethernet or Wi‑Fi on the same LAN). sACN joins E1.31 multicast groups per universe in the range (helps on Wi‑Fi); if reception fails, check AP multicast/IGMP or send unicast from the desk. Network output merges inbound per matching logical universe; USB merges the **first** universe in the range into the local single-universe buffer.")
+            Text("Merge **traditional desk** data into the same buffers as the app’s cues/modulation, then out Art-Net/sACN/USB. **Network:** Art-Net or sACN over UDP (multicast-friendly on Wi‑Fi for sACN). **USB serial:** a **second** Open DMX–class interface on a different `/dev/cu.*` than DMX output; requires an adapter that exposes a 250k raw RX stream (classic Enttec Open DMX is often TX-only). Both sources target the **first inbound universe** below; serial uses priority 110 vs network 100 when both are fresh.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .fixedSize(horizontal: false, vertical: true)
-            Toggle("Enable inbound DMX merge", isOn: boolBinding(\.dmxInboundEnabled))
+            Toggle("Network inbound (Art-Net / sACN)", isOn: boolBinding(\.dmxInboundEnabled))
             Picker("Inbound mode", selection: stringBinding(\.dmxInboundMode)) {
                 Text("Art-Net").tag("artnet")
                 Text("sACN").tag("sacn")
@@ -705,15 +710,20 @@ private extension SettingsView {
             .pickerStyle(.menu)
             .frame(maxWidth: 320, alignment: .leading)
             .disabled(!appModel.remoteSettings.dmxInboundEnabled)
+            Toggle("USB serial inbound (2nd OpenDMX-class path)", isOn: boolBinding(\.dmxInboundOpenDMXEnabled))
+            TextField("Inbound USB device path (must differ from output)", text: stringBinding(\.dmxInboundOpenDMXPath))
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: 420, alignment: .leading)
+                .disabled(!appModel.remoteSettings.dmxInboundOpenDMXEnabled)
             Stepper(
                 "First inbound universe: \(max(0, appModel.remoteSettings.dmxInboundUniverse))",
                 value: intBinding(\.dmxInboundUniverse),
                 in: 0 ... 63999
             )
             .frame(maxWidth: 320, alignment: .leading)
-            .disabled(!appModel.remoteSettings.dmxInboundEnabled)
+            .disabled(!dmxInboundSourcesEnabled)
             Stepper(
-                "Universe count: \(max(1, min(64, appModel.remoteSettings.dmxInboundUniverseCount)))",
+                "Network universe count: \(max(1, min(64, appModel.remoteSettings.dmxInboundUniverseCount)))",
                 value: intBinding(\.dmxInboundUniverseCount),
                 in: 1 ... 64
             )
@@ -725,7 +735,7 @@ private extension SettingsView {
             }
             .pickerStyle(.menu)
             .frame(maxWidth: 320, alignment: .leading)
-            .disabled(!appModel.remoteSettings.dmxInboundEnabled)
+            .disabled(!dmxInboundSourcesEnabled)
         }
     }
 
@@ -746,10 +756,20 @@ private extension SettingsView {
                         }()
                         return " · sACN sync pkts: \(d.sacnSyncPackets) (\(syncU)) · discovery pkts: \(d.sacnDiscoveryPackets) (\(discU))"
                     }()
+                    let openDMXExtra: String = {
+                        guard d.openDMXSerialRunning || (d.openDMXSerialLastError?.isEmpty == false) else { return "" }
+                        let fr = "USB serial frames: \(d.openDMXSerialFrames)"
+                        if let e = d.openDMXSerialLastError, !e.isEmpty { return " · \(fr) (\(e))" }
+                        return " · \(fr)"
+                    }()
                     HStack(alignment: .top, spacing: 8) {
                         Text("Receiver")
                             .font(.caption.weight(.semibold))
-                        Text(d.running ? "\(inbound.status) · frames: \(d.frames)\(sacnExtra)" : inbound.status)
+                        Text(
+                            (d.running || d.openDMXSerialRunning)
+                                ? "\(inbound.status) · UDP frames: \(d.frames)\(sacnExtra)\(openDMXExtra)"
+                                : inbound.status
+                        )
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         if let err = d.lastError, !err.isEmpty {

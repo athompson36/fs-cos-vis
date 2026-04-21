@@ -90,7 +90,7 @@ xcodebuild -scheme FSDMXVision -destination 'platform=macOS' test
 
 CI includes **show package** smoke ([`.github/workflows/show-package-smoke.yml`](.github/workflows/show-package-smoke.yml)) and optional **full unit tests** on macOS ([`.github/workflows/unit-tests-macos.yml`](.github/workflows/unit-tests-macos.yml)).
 
-The app requires microphone access for live audio analysis (see Info usage string in `project.yml`). If permission is denied, use the in-app **Open Microphone Settings** action to jump to macOS Privacy settings, then retry audio start.
+The app requires microphone access for live audio analysis (see Info usage string in `project.yml`). macOS remembers microphone consent per app in **System Settings → Privacy & Security → Microphone** until you revoke it. If you enable access there, the app picks it up when it becomes active again—no need to restart. If permission is denied, use the in-app **Open Microphone Settings** action to jump to Privacy settings, then return to the app or use **Retry audio start**.
 
 If the build fails with **missing Metal Toolchain** when compiling `.metal` files:
 

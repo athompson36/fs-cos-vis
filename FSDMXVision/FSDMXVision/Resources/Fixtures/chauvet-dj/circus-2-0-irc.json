@@ -1,0 +1,26 @@
+{
+  "name": "Circus 2.0 IRC",
+  "categories": ["Effect"],
+  "meta": { "authors": ["FS DMX Vision bundle"], "createDate": "2026-04-19", "lastModifyDate": "2026-04-19" },
+  "links": {
+    "manual": ["https://www.chauvetdj.com/wp-content/uploads/2019/07/Circus_2.0_IRC_UM_Rev4_ML.pdf"],
+    "productPage": ["https://www.chauvetdj.com/products/circus-2-0-irc/"]
+  },
+  "physical": {
+    "dimensions": [280, 280, 330],
+    "weight": 3.8,
+    "power": 105,
+    "DMXconnector": "3-pin"
+  },
+  "availableChannels": {
+    "Channel 1": { "capabilities": [{ "dmxRange": [0, 255], "type": "Intensity" }] },
+    "Channel 2": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] },
+    "Channel 3": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] },
+    "Channel 4": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] },
+    "Channel 5": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] },
+    "Channel 6": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] }
+  },
+  "modes": [
+    { "name": "6-channel", "shortName": "6ch", "channels": ["Channel 1", "Channel 2", "Channel 3", "Channel 4", "Channel 5", "Channel 6"] }
+  ]
+}

@@ -12,9 +12,33 @@ The bundled remote web UI is driven by `ControlSchema.cosmicDefault()` (`GET /ap
 
 See `FSDMXVision/FSDMXVision/Features/Web/ControlSchema.swift`. Fields map `commandType` strings to `POST /api/command` bodies. Anything not listed there is still available via raw JSON to `POST /api/command`.
 
+**How lighting layers stack (cues vs modulation vs inbound DMX):** [`lighting-control-strategies.md`](lighting-control-strategies.md).
+
 **Detailed diff (schema vs all implemented command types):** [`control-schema-coverage.md`](control-schema-coverage.md).
 
 **Manual smoke (OSC / HTTP / WS):** [`control-plane-smoke.md`](control-plane-smoke.md).
+
+## HTTP — Settings document (`GET` / `PUT /api/settings`)
+
+The body is JSON for **`RemoteControlSettings`** (see `FSDMXVision/FSDMXVision/Features/Control/RemoteControlSettings.swift`, `CodingKeys`). **PUT** replaces the entire document; clients should **GET** first, merge fields, then **PUT** if they only change a subset.
+
+**Inbound DMX (merge with app output)** — field names are **camelCase** in JSON:
+
+| Key | Meaning |
+|-----|---------|
+| `dmxInboundEnabled` | Accept Art-Net/sACN on the UDP listener. |
+| `dmxInboundMode` | `"artnet"` or `"sacn"`. |
+| `dmxInboundUniverse` | First wire universe in the inbound range. |
+| `dmxInboundUniverseCount` | Contiguous universe count (1…64). |
+| `dmxInboundMergeMode` | `"htp"` or `"lpt"`. |
+| `dmxInboundOpenDMXEnabled` | Second USB serial path (Open DMX–class RX), separate from DMX **output** path. |
+| `dmxInboundOpenDMXPath` | e.g. `/dev/cu.usbserial-…` (must differ from `dmxSerialDevicePath` when output uses that hardware path). |
+
+All other settings (DMX output, OSC, audio, AI, etc.) use the same encoding as the native app’s saved defaults.
+
+## HTTP — Live state (`GET /api/state`, WebSocket snapshots)
+
+**`WebControlStateDTO`** (`FSDMXVision/FSDMXVision/Features/Web/WebControlStateDTO.swift`) includes transport readouts plus optional **inbound** fields for remote dashboards: the same inbound keys as above (as optionals for backward-compatible decoding), **`dmxInboundStatus`** (human-readable summary), and **`dmxInboundTelemetry`** (UDP listener + OpenDMX USB frame counters and running flags). Older JSON payloads without these keys still decode.
 
 ## MIDI
 

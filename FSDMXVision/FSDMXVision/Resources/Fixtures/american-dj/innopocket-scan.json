@@ -1,0 +1,25 @@
+{
+  "name": "Inno Pocket Scan",
+  "categories": ["Scanner"],
+  "meta": { "authors": ["FS DMX Vision bundle"], "createDate": "2026-04-19", "lastModifyDate": "2026-04-19" },
+  "links": {
+    "productPage": ["https://www.adj.com/innopocket-scan"]
+  },
+  "physical": {
+    "dimensions": [235, 155, 285],
+    "weight": 3.0,
+    "power": 35,
+    "DMXconnector": "3-pin"
+  },
+  "availableChannels": {
+    "Pan": { "capabilities": [{ "dmxRange": [0, 255], "type": "Pan", "angleStart": "0deg", "angleEnd": "max" }] },
+    "Tilt": { "capabilities": [{ "dmxRange": [0, 255], "type": "Tilt", "angleStart": "0deg", "angleEnd": "max" }] },
+    "Color": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] },
+    "Gobo": { "capabilities": [{ "dmxRange": [0, 255], "type": "NoFunction" }] },
+    "Dimmer": { "capabilities": [{ "dmxRange": [0, 255], "type": "Intensity" }] },
+    "Strobe": { "capabilities": [{ "dmxRange": [0, 255], "type": "StrobeSpeed" }] }
+  },
+  "modes": [
+    { "name": "6-channel", "shortName": "6ch", "channels": ["Pan", "Tilt", "Color", "Gobo", "Dimmer", "Strobe"] }
+  ]
+}

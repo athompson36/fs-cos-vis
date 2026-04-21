@@ -44,6 +44,9 @@ final class AudioEngine: ObservableObject, @unchecked Sendable {
     private var fftAccumulator: [Float] = []
     private var previousMagnitudes: [Float]?
     private var isRunning = false
+
+    /// True while the input tap / engine is capturing (for permission + lifecycle sync).
+    var isAudioInputRunning: Bool { isRunning }
     private var spectrumSmooth: [Float] = Array(repeating: 0, count: 16)
     private var lastSpectrum16: [Float] = Array(repeating: 0, count: 16)
 

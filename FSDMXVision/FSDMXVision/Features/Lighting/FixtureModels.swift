@@ -114,19 +114,36 @@ struct FixtureInstance: Codable, Equatable, Identifiable, Hashable, Sendable {
     var startAddress: Int
     /// Channel index in profile (0-based) -> DMX value.
     var manualValues: [String: UInt8]
+    /// Optional per-patch labels (keys `"0"`…`"n"`) overriding `FixtureProfile` channel names for this rig instance (e.g. dimmer pack output usage).
+    var channelLabelOverrides: [String: String]?
+    /// Free-text rig note for this patch row (e.g. Hurricane Haze + DP-415R wiring).
+    var rigNote: String?
 
     init(
         id: UUID = UUID(),
         profileID: UUID,
         universe: UInt8 = 0,
         startAddress: Int,
-        manualValues: [String: UInt8] = [:]
+        manualValues: [String: UInt8] = [:],
+        channelLabelOverrides: [String: String]? = nil,
+        rigNote: String? = nil
     ) {
         self.id = id
         self.profileID = profileID
         self.universe = universe
         self.startAddress = startAddress
         self.manualValues = manualValues
+        self.channelLabelOverrides = channelLabelOverrides
+        self.rigNote = rigNote
+    }
+
+    /// Effective UI label for a profile channel, honoring optional per-instance overrides.
+    func resolvedChannelLabel(channelIndex idx: Int, profile: FixtureProfile) -> String {
+        if let o = channelLabelOverrides?[String(idx)]?.trimmingCharacters(in: .whitespacesAndNewlines), !o.isEmpty {
+            return o
+        }
+        guard profile.channels.indices.contains(idx) else { return "Ch \(idx)" }
+        return profile.channels[idx].label
     }
 
     func manual(forChannelIndex idx: Int) -> UInt8 {
