@@ -1,59 +1,98 @@
 # Roadmap
 
-## Status snapshot (2026-04-19)
+**Status snapshot:** 2026-07-16
 
-High-level status. Keep aligned with [`project-audit-and-feature-status.md`](project-audit-and-feature-status.md), [`todo-full-implementation.md`](todo-full-implementation.md), and [`03-ui-ux-spec.md`](03-ui-ux-spec.md). Installer choices: [`macOS-installer-options.md`](macOS-installer-options.md).
+Keep aligned with [`project-audit-and-feature-status.md`](project-audit-and-feature-status.md), [`todo-full-implementation.md`](todo-full-implementation.md), [`03-ui-ux-spec.md`](03-ui-ux-spec.md), and the Unified Show Director documents.
 
 ## Completed foundation
 
-- Audio input picker, live analysis metrics, FFT/BPM feeds  
-- Fractal + liquid render stack with compositing and palette controls  
-  - Extended fractal zoom motion modes (Standard / Infinite Tunnel / Event Horizon) with higher modulation range  
-- Live and studio control surfaces with external display routing  
-  - Live output recorder with source picker, project-folder recording destination, and share/reveal flow  
-  - First-run setup wizard with skippable steps (project/audio/output/DMX/AI)  
-  - Beta update and operator feedback/reporting controls in Settings  
-- Scene persistence, overlays, transitions, and performance workflow refinements  
-- **Live Show performance UX:** grouped action bands (Performance / Look / Capture), audio RMS/peak meter, beat-phase ring, **Active** summary strip, overlay file tools in menu — see [`todo-full-implementation.md`](todo-full-implementation.md) Section C  
-- **Scene Studio** persisted sectional chips (Scene · Look · Fractal · Liquid · Overlay · Palette) and collapsible cards  
-- **Settings** Basic/Advanced transport tier for DMX blocks  
-- MIDI mapping baseline and remote/web control API foundation  
-- **Control parity documentation:** [`control-parity.md`](control-parity.md); expanded **OSC** routes for layer/tempo/scene/lighting (`ControlBus.swift`); web `POST /api/command` remains the broadest command surface  
-- **Show package** `.cosmicshow.zip` import/export in Settings; CI smoke workflow for package roundtrip (`show-package-smoke`)  
-- **Network DMX outbound:** Art-Net/sACN **multi-universe** send (per logical universe + offset), diagnostics — see [`todo-full-implementation.md`](todo-full-implementation.md) Section I  
-- **DMX over Wi‑Fi / LAN:** Art-Net and sACN use **UDP** on the local network (same behavior on Wi‑Fi or Ethernet); **inbound sACN** joins E1.31 multicast groups per listened universe (`IP_ADD_MEMBERSHIP`) for IGMP-friendly reception — see Section I  
-- DMX/lighting vertical slice:  
-  - fixture library and patching  
-  - cues and crossfades  
-  - cue bookmark metadata for dynamic song/artist overlay values  
-  - modulation runtime  
-  - stage layout + 2.5D preview  
-  - fog/haze learn and safety controls  
-  - OFL import and enriched catalog (OFL sync + bundled curated fallback)  
-  - fixture verification (assisted camera workflow); deterministic tests for dual-camera and stage-camera overlays; scan setup wizard and report UX improvements  
-  - overlay element timeout auto-hide and metadata-bound text rendering  
-- **Syphon** vendored in-repo ([`Vendor/Syphon-Framework`](../Vendor/Syphon-Framework)) for screen/texture sharing  
-- **Production readiness (documentation + automation hooks):** [`production-readiness-checklist.md`](production-readiness-checklist.md), [`uat-checklist.md`](uat-checklist.md), [`control-plane-smoke.md`](control-plane-smoke.md), transport certification in [`lighting-roadmap.md`](lighting-roadmap.md); CI — [`unit-tests-macos.yml`](../.github/workflows/unit-tests-macos.yml) + [`show-package-smoke.yml`](../.github/workflows/show-package-smoke.yml)  
+- Audio input picker, channel selection, live FFT/RMS/peak/flux, BPM, beat confidence, tap tempo, manual tempo, and MIDI clock
+- Fractal + liquid-light Metal render stack with compositing and palette controls
+- Extended fractal zoom modes and audio-reactive parameter system
+- Live Show and Scene Studio with external display routing
+- Live output recorder with source and quality controls
+- Scene persistence, overlays, transitions, palettes, and performance workflow refinements
+- Setup wizard, beta update, feedback, and project import/export support
+- MIDI mapping, HTTP/WebSocket control, OSC listener, state snapshots, and control-parity documentation
+- Show project folder and `.cosmicshow.zip` archive support
+- Lighting vertical slice:
+  - fixture library and patching
+  - lighting cues and crossfades
+  - bookmark metadata and overlay substitution
+  - modulation runtime
+  - stage layout and 2.5D preview
+  - fog/haze learn and emergency kill
+  - OFL import and curated fallback catalog
+  - fixture verification workflow
+  - USB/OpenDMX, Art-Net, sACN outbound and inbound foundations
+- Syphon output for OBS/VJ interoperability
+- CI definitions, packaging scripts, UAT/control-plane/DMX lab procedures, and release runbooks
 
-## In progress
+## Existing-beta hardening still open
 
-- Fixture verification **quality** pass: optional deeper CV / geometry beyond current confidence where scope requires it  
-- Stage plot UX: ongoing polish (camera guidance, editing, scan/correction loops)  
-- **Authoring consolidation (documented):** Palette Browser and Overlay Manager are **not** separate app screens — they live in **Scene Studio**; Live Show includes quick palette access  
-- Network DMX: **inbound** multi-universe listener + per-universe merge (network); **RDM** beyond mock; **sACN** framing **priority** merge shipped; extended **sync/discovery** PDUs recognized + counted (no full protocol handling); field hardening where needed  
-- Capture/recording hardening, Sparkle publication, **signed/notarized** pipeline proof on real artifacts ([`release-runbook.md`](release-runbook.md))  
-- Optional: navigation model spike (sidebar vs TabView) — see [`03-ui-ux-spec.md`](03-ui-ux-spec.md)  
+- Real signed and notarized distribution proof on a clean Mac
+- Operator UAT in the intended performance environment
+- DMX field/lab gates where hardware certification matters
+- RDM beyond the current mock/scaffold
+- deeper sACN synchronization/discovery behavior and field hardening
+- optional hosted feedback relay
+- optional larger-rig profiling and expanded CI smoke coverage
 
-## Next up (backlog)
+These items remain separate from the new Show Director scope and must not be obscured by new feature development.
 
-- Inbound DMX + RDM: desk-grade merge **refinement** (beyond sACN priority + HTP/LPT) and mock RDM → real when ready ([`todo-full-implementation.md`](todo-full-implementation.md) Section I)  
-- Performance profiling under **large** rigs (timing + rig-scale counts + total-time **histogram** + **approx. median/p95** for total/build/send in Settings; optional exact streaming quantiles)  
-- **Feedback:** optional HTTPS **relay** in Settings for issue submission without a **GitHub** PAT; hosted relay still required for end-to-end automation (Section J)  
-- Cross-platform feasibility (Windows) — spike only  
+## Next major initiative — Unified Show Director
 
-## Notes
+The product will evolve from related visual/lighting control surfaces into one endpoint-neutral show runtime supporting DJ/original-performance and FOH/live-band operation.
 
-- DMX stack: USB/OpenDMX + simulation + **network outbound multi-universe**; **label inbound/RDM scaffolds honestly** in UI and docs.  
-- Full “console parity” workflows still depend on **inbound** and **RDM** maturity, not outbound universe count alone.  
-- **Usability phases** (source clarity, remote parity, power-user efficiency, lab DMX): [`ux-roadmap.md`](ux-roadmap.md).  
+Authoritative documents:
 
+- [`show-director-product-spec.md`](show-director-product-spec.md)
+- [`show-director-architecture.md`](show-director-architecture.md)
+- [`show-director-implementation-roadmap.md`](show-director-implementation-roadmap.md)
+- [`show-director-integrations.md`](show-director-integrations.md)
+- [`show-control-json-examples.md`](show-control-json-examples.md)
+
+### Phase order
+
+1. **Contracts and migrations** — typed setlist, song score, show cue, action, preset, runtime, override, and log models.
+2. **Cue runtime** — deterministic reducer, actor-isolated execution engine, idempotency, undo, endpoint adapters, project persistence.
+3. **macOS Setlist** — Guided-mode FOH workflow, current/next cue, GO, hold, jump, park, preset overrides, rehearsal timing.
+4. **Multimedia endpoints** — backdrop video, named overlay packages, OBS WebSocket control.
+5. **Versioned remote protocol** — v2 HTTP/WebSocket, OSC/MIDI semantic show commands, bundled web client.
+6. **iPhone companion** — full remote operation and authoritative state resync.
+7. **Apple Watch companion** — minimal cue/safety surface with host acknowledgement.
+8. **DJ integration** — normalized Traktor/Maschine/clock/track events and track-aware song scores.
+9. **Audio routing coordinator** — guided Core Audio routing presets around installed virtual/physical devices.
+10. **Assisted authoring** — reviewed song-section suggestions, rehearsal learning, typed AI draft tools.
+
+## Immediate implementation milestone
+
+The first coding slice should include only:
+
+- typed models and migration tests
+- deterministic reducer
+- fake endpoint adapters
+- serialized cue engine
+- visual, palette, lighting, overlay, and backdrop adapters using existing APIs
+- new project package files
+- simple macOS Guided-mode Setlist operator view
+- v2 show state and GO endpoint
+- full test and documentation sync
+
+Do not begin with Watch, autonomous AI, or a custom virtual audio driver.
+
+## Product boundaries
+
+- The app coordinates Traktor and Maschine; it does not replace them.
+- The app may guide or manage routing around Core Audio devices; it does not provide a virtual audio driver unless one is actually shipped.
+- Syphon output and OBS control are complementary; controlling OBS does not replace OBS composition.
+- Audio-derived track/section inference is lower-confidence fallback, not equivalent to deterministic metadata.
+- Fully automatic FOH behavior is appropriate only for deterministic playback/timecode workflows; Guided mode is the live-band default.
+
+## Long-range options
+
+- deeper CV/geometry fixture verification
+- cross-platform feasibility spike
+- plugin or bridge components for richer host metadata
+- PTZ/camera, audio-console, and generic show-control endpoint adapters
+- AI-assisted show draft generation and post-show analysis
