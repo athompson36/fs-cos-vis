@@ -1,95 +1,148 @@
 # Project audit and feature status
 
-**Last updated:** 2026-04-21  
+**Last updated:** 2026-07-16
 
-Single-place summary of **what the product is today** and how documentation should talk about it. Align with [`07-roadmap.md`](07-roadmap.md), [`todo-full-implementation.md`](todo-full-implementation.md), and [`03-ui-ux-spec.md`](03-ui-ux-spec.md).
+Single-place summary of what the product is today, what remains open in the existing beta, and what belongs to the new Unified Show Director roadmap.
 
 ## Product positioning
 
-- **FS DMX Vision** (repo: FS-COS-VIS) is a **late-stage beta** macOS application: hybrid **real-time visualization + live/show control**, not a Cursor starter template.
-- **Intentional IA decision:** There is **no standalone “Palette Browser” or “Overlay Manager” screen**. Palette creation/selection and overlay authoring live in **Scene Studio** by design. Documentation must describe that consolidation, not treat those as missing features.
+- **FS DMX Vision** (repo: FS-COS-VIS) is a **late-stage beta native macOS application**: hybrid real-time visualization, lighting, and live/show control.
+- It is not a Cursor starter template.
+- Palette creation/selection and overlay authoring live in **Scene Studio** by design; they are not missing standalone screens.
+- Unified Show Director is the approved next architecture phase, not a shipped feature set.
 
-## Implemented — core visualization and UI
+## Implemented — visualization and UI
 
-- Scene library, scene editing, scene cue strip, transitions  
-- Fractal + liquid-light rendering, composite pass, palette/theme systems  
-- **Live Show** and **Scene Studio** with scalable previews; performance vs authoring split (grouped action bands, audio meter, beat-phase ring, active summary strip — see [`todo-full-implementation.md`](todo-full-implementation.md) Section C)  
-- External display routing and fullscreen presentation  
-- **Syphon** integration: **vendored in-repo** at [`Vendor/Syphon-Framework`](../Vendor/Syphon-Framework) (full tree; not a git submodule) for `import Syphon` / Metal-OBS style paths  
-- **Infinite zoom** motion modes (Standard, Infinite Tunnel, Event Horizon) with expanded zoom modulation  
-- Overlay cards, import flows, black-background removal tooling (authoring-adjacent; some actions also reachable from Live Show)  
+- Scene library, scene editing, cue strips, and transitions
+- Fractal, liquid-light, and hybrid Metal rendering
+- Palette/theme systems and infinite zoom motion modes
+- Live Show and Scene Studio operator/authoring split
+- External display routing and fullscreen presentation
+- Vendored Syphon integration
+- Overlay asset/card authoring and black-background removal tools
 
-## Implemented — audio
+## Implemented — audio and tempo
 
-- Input device enumeration and selection  
-- **Input channel modes:** stereo pairs, mono, mix-all  
-- FFT / RMS / peak / flux, BPM and beat-confidence feeds  
-- Microphone permission: explicit request on audio start + **Open Microphone Settings** / retry flows (important after new installs/builds)  
-- OBS / forwarding-oriented audio path documentation in Settings  
+- Input device enumeration and selection
+- stereo-pair, mono, and mix-all channel modes
+- FFT, RMS, peak, flux, band energies, BPM, and beat confidence
+- manual BPM, tap tempo, audio detection, and MIDI-clock tempo sources
+- microphone permission recovery flows
+- optional forwarding of selected input to a selected Core Audio output
+
+The current audio engine is not a general application-to-application virtual patch bay and does not provide a virtual audio driver.
 
 ## Implemented — live output and capture
 
-- **Live output recorder:** main preview or external output, quality presets (fps/bitrate), project-local `Media/Recordings` when a show folder is active  
-- Share/reveal recording; health indicators for window availability and screen/microphone permissions  
-- **Remote/OSS parity:** recorder start/stop, source, quality; status and latest path exposed via web `/api/state` and OSC (`/cosmic/recording/*`)  
+- main-preview or external-output recording
+- performance/balanced/archival quality presets
+- project-local recording paths
+- share/reveal and permission/health indicators
+- recording control/status over web and OSC
+- Syphon output for OBS/VJ consumption
 
 ## Implemented — control and integration
 
-- Native **Controller** surface; tempo, learn, faders, DMX-oriented group controls  
-- **HTTP + WebSocket** remote control; `WebControlStateDTO` / schema (includes **`dmxPerformance`**, **inbound DMX** settings + **`dmxInboundTelemetry`** on `/api/state` when present, and OSC `/cosmic/state/get`)  
-- **MIDI** mapping store and device integration  
-- **OSC** UDP listener (port, LAN bind, optional token), expanded command mapping (layer/tempo/lighting aligned with web/MIDI where applicable), `/cosmic/state/get` JSON snapshot aligned with web state — see [`control-parity.md`](control-parity.md) and [`osc-control.md`](osc-control.md)  
-- Setup **wizard** (beta 0.1a): skippable steps, project/audio/output/DMX/AI, provider-specific AI API onboarding (e.g. OpenAI-compatible vs Anthropic)  
-- Optional **analytics** for wizard completion/skip and exportable onboarding diagnostics  
+- native Controller surface
+- authenticated local HTTP and WebSocket control
+- web state/schema and bundled web client
+- MIDI mappings and device integration
+- OSC UDP control and state query
+- setup wizard and provider-aware optional AI onboarding
+- remote port scanning/persistence
 
-## AI-assisted features
+The current control protocol is a flat command DTO suitable for existing commands. It does not yet provide versioned setlist/show-control commands, command idempotency, companion pairing, or state-version conflict handling.
 
-- **Hybrid LLM assistant (optional):** When enabled in Settings, sends prompts to an **OpenAI-compatible** or **Anthropic** HTTP API using a **Keychain-stored** API key; replies must be **JSON tool calls** only (`AIToolRegistry` in `AIStack.swift`). Tools cover **patch/cue** edits, **active cue indices**, **context refresh** (`machine.json` / `dmx_universe.md` under the show `context/` folder).  
-- **`export_fixture_ofl_stub`:** Intentionally does not export OFL files—returns operator guidance (use Lighting workspace import).  
-- **Lighting Copilot:** **Local heuristics** (address gap-fill, etc.); not cloud ML. Placeholder **draft cues from song structure** is for layout only.  
-- **Setup wizard** includes the same provider/model/key onboarding as Settings.  
+## Implemented — AI-assisted features
+
+- optional OpenAI-compatible or Anthropic JSON tool-call assistant with Keychain-stored key
+- typed tool registry for selected patch/cue/context operations
+- local heuristic Lighting Copilot functions
+
+The current song-structure cue drafting path is a placeholder and must not be described as production ML or automatic show scoring.
 
 ## Implemented — lighting and DMX
 
-- Fixture profiles/instances, patch document, conflict audit, persistence  
-- Cues, crossfade, bookmark metadata for overlay text substitution; overlay element timeouts  
-- Modulation runtime merged into DMX build  
-- Stage layout, 2D editor, 2.5D preview, backdrop cues, gear objects, scan-camera overlays (primary + optional secondary / continuity-style path)  
-- Fog/haze learn, emergency kill, cue envelopes  
-- **OFL import** and **curated catalog** sync; **merged fallback fixture list** for offline coverage (`ofl_curated` vs `curated_local` catalog sources)  
-- **Fixture verification** workflow, reports, scan wizard steps, severity filters, correction shortcuts  
-- **JSON** import/export helpers in Lighting workspace (power user)  
+- fixture profiles/instances, patch persistence, and conflict audit
+- lighting cues and crossfades
+- cue bookmark metadata and overlay text substitution
+- modulation runtime and fixture/role target resolution
+- stage layout, 2D editing, 2.5D preview, backdrop cues, and stage objects
+- fog/haze learn, cue envelopes, and emergency kill
+- OFL import, curated catalog, and fallback fixtures
+- fixture verification workflow and reports
+- JSON import/export tools
+- USB/OpenDMX output and optional inbound serial path
+- Art-Net and sACN multi-universe outbound
+- Art-Net/sACN inbound listener and merge foundations
+- DMX runtime profiling and diagnostics
 
-## Implemented — network DMX (honest boundaries)
+Honest limits remain: RDM is mock/scaffold; deeper sACN sync/discovery protocol behavior and field hardening remain open; hardware claims require lab/field evidence.
 
-- **Art-Net** and **sACN outbound:** per-logical-universe UDP send (one packet per universe), **network universe offset** in Settings, output diagnostics (**pkt/tick**); same **UDP** behavior over **Ethernet or Wi‑Fi** on the LAN; see `DMXUniverseBuilder`, `AppModel.buildDMXUniversesForNetwork`, `DMXOutputService`, `ArtNetTransport` / `SACNTransport`  
-- **Inbound** Art-Net/sACN: **multi-universe** contiguous range + HTP/LPT merge; **network** path merges per matching logical universe; optional **second USB serial** (`dmxInboundOpenDMX*`) merges the configured universe on an Open DMX–class RX path; **sACN** joins E1.31 multicast (`239.255.*.*`) per universe in range for IGMP/Wi‑Fi  
-- **Remote HTTP:** **`GET`/`PUT /api/settings`** round-trips full **`RemoteControlSettings`** (including inbound network + USB serial keys). **`GET /api/state`** exposes the same inbound toggles plus live **`dmxInboundStatus`** and **`dmxInboundTelemetry`** (`WebControlStateDTO`) — see [`control-parity.md`](control-parity.md).  
-- **sACN / E1.31:** **outbound** full E1.31 data packets; **inbound** standard decode + legacy scaffold + **framing-priority merge** for competing sources; **extended** sync/discovery PDUs **counted** in diagnostics (no sync timing / discovery protocol); field validation vs reference receivers still recommended for your environment  
-- **RDM** discovery: operator controls + **mock/deterministic** probe for workflow; **real RDM** stack TBD  
-- **DMX performance profiler:** tick timings, **max build/send/total**, **nine-bucket** duration histogram (total), **approx. median / p95** for **total / build / send** (binned), **reset** of accumulators, over-budget frames, Settings diagnostics, plus **fixture / modulator / logical-universe** counts on the last tick (optional exact streaming quantiles: backlog)  
+## Implemented — projects, packaging, and release infrastructure
 
-## Implemented — project packaging and ops
+- show project folders with project/scenes/controls/patch/cues/backdrop/modulation/stage/overlay JSON and Media directory
+- `.cosmicshow.zip` import/export
+- show-package smoke workflow and macOS unit-test workflow definitions
+- release packaging, signing/notarization runbooks, Sparkle-oriented update support, and feedback bundles
 
-- Show **project folder** save/load (JSON documents + `Media/`, `Artifacts/`, `Backups/`)  
-- **`.cosmicshow.zip`** archive export/import from Settings  
-- **CI:** `show-package-smoke` workflow + `scripts/ci/smoke-show-package.sh`; full macOS unit tests — [`.github/workflows/unit-tests-macos.yml`](../.github/workflows/unit-tests-macos.yml)  
-- **Beta updates** (Sparkle-oriented; **feed URL / keys** still operator setup — [`release-runbook.md`](release-runbook.md)), **feedback** bundles, optional **relay URL** submission (no GitHub PAT), or direct GitHub API with token  
+Workflow definitions and documentation do not prove that every workflow, clean-Mac release, or hardware gate has been run successfully in the current environment.
 
-## Documentation and audit alignment
+## Existing beta gaps
 
-- [`README.md`](../README.md) describes beta product, not “Cursor starter.”  
-- Roadmap, backlog, and this file should stay consistent; large releases should update [`todo-full-implementation.md`](todo-full-implementation.md) open items.  
-- **Shipping / production pass:** executable gates and checklists — [`production-readiness-checklist.md`](production-readiness-checklist.md).  
-- **UI vs docs traceability:** [`ui-page-verification.md`](ui-page-verification.md) — primary screens vs `03-ui-ux-spec.md`.  
-- The folder [`fs-cos-vis-audit-and-docs-update/`](fs-cos-vis-audit-and-docs-update/README_REPLACEMENT.md) is a **historical audit pack snapshot**; **live** source-of-truth order is listed at the top of [`todo-full-implementation.md`](todo-full-implementation.md).  
+- complete operator UAT in the intended environment
+- signed/notarized clean-Mac distribution proof
+- DMX field/lab gates where required
+- RDM beyond mock
+- deeper sACN synchronization/discovery and reference-receiver validation
+- optional hosted feedback relay
+- optional larger-rig profiling and broader CI smoke coverage
+- optional deeper CV/geometry verification
 
-## Remaining gaps (see also backlog)
+## New requested expansion — Unified Show Director
 
-- **Production readiness:** executable gates and operator scripts — [`production-readiness-checklist.md`](production-readiness-checklist.md). Doc-sync and Gates **0–2** (+ transport certification write-up for Gate 3) are reflected in root `docs/`; **DMX lab sub-gates 3a–3e**, **signed/notarized release (Gate 5)**, and optional **feedback relay deploy (Gate 6)** remain open until run in your environment.  
-- **Inbound DMX:** multi-universe listener + network per-universe merge shipped; **sACN** E1.31 **priority** merge shipped; further desk-grade polish still evolving ([`todo-full-implementation.md`](todo-full-implementation.md) Section I).  
-- **sACN/E1.31:** confirm framing / sync / discovery vs field receivers where you need guarantees.  
-- **RDM** beyond mock; **large-rig** DMX profiling beyond timing + rig-scale counts + histogram + **binned** median/p95 (exact streaming quantiles / per-subsystem optional).  
-- **Feedback:** optional **HTTPS relay** in Settings (JSON POST; no GitHub PAT); hosted relay that calls GitHub remains deployer setup (Section J).  
-- **Release:** Developer ID sign, notarize, DMG/ZIP to testers, Sparkle appcast + Info.plist keys — [`release-runbook.md`](release-runbook.md), Gate 5 worksheet [`distribution-checklist.md`](distribution-checklist.md).  
-- **Verification:** optional deeper CV / geometry beyond current confidence and heuristics if product scope demands it.  
+The following are **not implemented yet** and are tracked in the dedicated roadmap:
+
+- endpoint-neutral typed show cues and actions
+- deterministic show-state reducer and serialized execution engine
+- setlist, song-score, section, preset, runtime-override, and execution-log documents
+- macOS Setlist workspace with Guided/manual/timed/track-aware modes
+- one cue coordinating lighting, visual scene, palette, backdrop video, overlay, OBS, and utilities
+- true backdrop video transport
+- OBS WebSocket control
+- versioned v2 show-control HTTP/WebSocket protocol
+- command idempotency and state-version conflict handling
+- iPhone companion
+- Apple Watch companion
+- normalized Traktor and Maschine event adapters
+- Ableton Link clock-source investigation
+- general audio-routing coordinator around installed Core Audio devices
+- rehearsal timing capture and reviewed assisted section/cue authoring
+
+Authoritative new-scope documents:
+
+- [`show-director-product-spec.md`](show-director-product-spec.md)
+- [`show-director-architecture.md`](show-director-architecture.md)
+- [`show-director-implementation-roadmap.md`](show-director-implementation-roadmap.md)
+- [`show-director-integrations.md`](show-director-integrations.md)
+- [`show-control-json-examples.md`](show-control-json-examples.md)
+- [`.cursor/rules/show_director.mdc`](../.cursor/rules/show_director.mdc)
+
+## Architectural audit conclusion
+
+The correct strategy is an extension, not a rewrite. Existing scenes, lighting cues, palettes, backdrop cues, overlays, project packages, tempo state, HTTP/WebSocket, OSC, MIDI, external output, recording, Syphon, and DMX systems are usable endpoint foundations.
+
+The principal architectural gap is that those systems are coordinated independently and several current cues are domain-specific. The project needs a typed show-control layer that:
+
+- separates cue sources from endpoint destinations,
+- uses stable UUID references,
+- owns deterministic runtime state,
+- serializes effects through adapters,
+- distinguishes authored state from runtime overrides,
+- logs every run,
+- preserves backward compatibility,
+- and remains authoritative when companion clients disconnect or reconnect.
+
+## Documentation alignment rule
+
+For current shipped status use this file. For implementation sequence use `07-roadmap.md` and `show-director-implementation-roadmap.md`. For detailed architecture use `show-director-architecture.md`. Historical audit packs remain snapshots and must not override root documentation.
