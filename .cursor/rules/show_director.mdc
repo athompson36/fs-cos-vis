@@ -1,0 +1,126 @@
+---
+description: Rules for Unified Show Director, setlist, cue runtime, multimedia endpoints, DJ integrations, and companion controls
+globs:
+  - "FSDMXVision/FSDMXVision/Features/ShowControl/**/*.swift"
+  - "FSDMXVision/FSDMXVision/Features/OBS/**/*.swift"
+  - "FSDMXVision/FSDMXVision/Features/Companion/**/*.swift"
+  - "FSDMXVision/FSDMXVision/App/Setlist*.swift"
+  - "FSDMXVision/FSDMXVisionTests/*Show*.swift"
+  - "FSDMXVision/FSDMXVisionTests/*Setlist*.swift"
+alwaysApply: false
+---
+
+# Unified Show Director implementation rules
+
+## Source of truth
+
+Read these before implementing Show Director work:
+
+1. `docs/show-director-product-spec.md`
+2. `docs/show-director-architecture.md`
+3. `docs/show-director-implementation-roadmap.md`
+4. `docs/show-director-integrations.md`
+5. `docs/show-control-json-examples.md`
+6. `docs/project-audit-and-feature-status.md`
+7. `.cursor/rules.md`
+
+Do not infer that planned features are already implemented.
+
+## Architectural non-negotiables
+
+1. Cue sources and endpoint destinations are decoupled.
+2. Show behavior is represented by typed, versioned Codable models.
+3. Do not use arbitrary string dictionaries as the canonical executable action model.
+4. `ShowStateReducer` is deterministic and performs no I/O.
+5. `ShowDirectorEngine` serializes execution and owns command idempotency.
+6. Endpoint protocols live behind adapters.
+7. Views issue semantic intents; they do not call DMX, OBS, AVPlayer, sockets, or project-file APIs directly.
+8. Avoid adding more unrelated responsibilities to `AppModel`; expose narrow integration methods or a dedicated coordinator.
+9. Existing scenes, lighting cues, palettes, overlays, backdrop cues, project packages, HTTP, OSC, MIDI, and Syphon behavior must remain backward compatible.
+10. Never block Metal rendering or create per-frame Tasks for show-control work.
+
+## Runtime state
+
+- The Mac host is authoritative.
+- Every accepted mutation increments `stateVersion`.
+- Remote commands carry command ID, client ID, sequence, and optional expected state version.
+- Duplicate command IDs return the original acknowledgement and never execute effects twice.
+- Runtime overrides are separate from authored show documents.
+- Undo restores a complete prior show state, not only the last lighting cue.
+- A show run has a unique run ID and append-only execution log.
+
+## Cue execution
+
+- Resolve and validate all references before changing live state where practical.
+- Apply explicit action failure policies: required, best-effort, or deferred.
+- Do not defer safety-critical actions.
+- Preserve deterministic action order.
+- Return structured endpoint results and warnings.
+- Cue activation APIs should use stable UUIDs; list indexes are compatibility/UI details.
+
+## Safety
+
+- Haze emergency kill is a final override and cannot be bypassed by a show cue.
+- Lighting blackout and video blackout are separate semantic actions.
+- Strobe kill, movement stop, park, and restore-safe-state remain accessible during endpoint failures.
+- High-risk remote actions require explicit enablement and acknowledgement.
+- Never report a remote action successful before the authoritative host accepts it.
+
+## Persistence and migrations
+
+- New show documents are versioned.
+- Older projects with missing show-control files load with defaults.
+- Unknown executable action types must not be silently ignored and executed partially without a warning/error policy.
+- Store media as validated project-relative paths.
+- Store secrets only in Keychain; project JSON may contain non-secret endpoint references.
+- Extend show-package save/load/archive tests whenever package contents change.
+
+## Integrations
+
+- Traktor, Maschine, OBS, and Apple companion code stays in adapters/services.
+- Do not rely on undocumented vendor APIs without an explicit experimental boundary.
+- Audio-derived track/section inference includes confidence and is visibly distinguished from deterministic metadata.
+- Ableton Link, MIDI clock, manual tempo, and audio detection are clock sources, not cue-model concepts.
+- The existing `AudioEngine` remains analysis/capture focused. A general routing UI belongs in `AudioRoutingCoordinator`.
+- Do not claim virtual application-to-application audio routing unless a suitable installed/supplied audio driver provides it.
+
+## Companion clients
+
+- Clients cache summaries only and resync from the host after reconnect.
+- Never merge stale speculative client state into the host.
+- Apple Watch remains a small cue/safety surface, not an authoring UI.
+- Destructive actions require confirmation or press-and-hold behavior.
+
+## Concurrency
+
+- Publish SwiftUI observable state on `MainActor`.
+- Serialize cue execution in one actor.
+- Network, media, and external endpoint calls run off the main actor.
+- Adapter results are immutable `Sendable` values.
+- Never hold the lighting lock across an `await`.
+
+## Testing requirements
+
+After each production change, run the full `FSDMXVision` test action and fix all introduced failures and warnings before moving on.
+
+At minimum add tests for:
+
+- Codable round-trip and migration
+- reducer transitions
+- GO/previous/next/hold/resume/undo/park
+- runtime override precedence
+- action ordering and failure policy
+- duplicate commands and state-version conflicts
+- reconnect/resync
+- old project-package compatibility
+- endpoint adapter failure behavior
+
+Use fake clocks and fake endpoint adapters. Hardware validation belongs in documented lab/field procedures and must not be represented as CI proof.
+
+## UX rules
+
+- Setlist Run mode prioritizes current cue, next cue, GO, hold, endpoint health, and safe recovery.
+- Dense authoring belongs in editor mode/sheets, not the live operator surface.
+- Manual preset actions must clearly distinguish Fire now, Insert next, and Replace upcoming.
+- Always show whether automation is manual, guided, timed, track-aware, or automatic.
+- Always show confidence when track/section state is inferred.
