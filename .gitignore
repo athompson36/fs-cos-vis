@@ -32,3 +32,6 @@ Carthage/Build/
 .env
 .env.*
 fs-cos-vis-cursor-context-pack-updated.zip
+
+# Local brainstorm / companion session state
+.superpowers/

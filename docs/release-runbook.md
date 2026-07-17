@@ -42,6 +42,28 @@ The generated Xcode project reads **`DEVELOPMENT_TEAM`** from **`project.local.y
 
 CI copies the example file (empty team) before `xcodegen` so automation keeps ad-hoc signing until you sign release artifacts locally.
 
+## Show Director package layout (SD-M0)
+
+Approved foundation contract: [`docs/superpowers/specs/2026-07-16-show-director-foundation-design.md`](superpowers/specs/2026-07-16-show-director-foundation-design.md).
+
+Inside an existing show package (marker: `project.json`):
+
+```text
+show-director/
+  show.json
+  setlists/<id>.json
+  songs/<id>.json
+  cue-packages/<id>.json
+  presets/<id>.json
+  logs/execution.jsonl
+Media/
+  video/
+  images/
+  overlays/
+```
+
+`schemaVersion` is required on Show Director root documents. Missing media under `Media/` is a validation **warning**; structural graph errors block installing a new graph.
+
 ## Version numbers (marketing vs build)
 
 Set both in [`project.yml`](../project.yml) (then `xcodegen generate`):

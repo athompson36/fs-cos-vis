@@ -1,0 +1,82 @@
+---
+description: Unified Show Director implementation rules for FS COS VIS
+globs:
+  - "FSDMXVision/FSDMXVision/Features/ShowDirector/**/*.swift"
+  - "FSDMXVision/FSDMXVisionTests/ShowDirector*.swift"
+  - "docs/superpowers/specs/*show-director*"
+  - "docs/fs-cos-vis-show-director-context/**/*.md"
+alwaysApply: false
+---
+
+# Unified Show Director Rules
+
+Use these rules when editing or adding Show Director features.
+
+Canonical design contract: `docs/superpowers/specs/2026-07-16-show-director-foundation-design.md`.
+Live tracking backlog: `docs/production-and-show-director-todo.md`.
+Context-pack docs under `docs/fs-cos-vis-show-director-context/` are reference inputs, not competing live status.
+
+## Core Boundary
+
+The Show Director is a typed orchestration layer above existing systems. It does not replace visualization rendering, DMX output, recording, protocol handling, or project packaging.
+
+## Required Shape
+
+- Define stable Codable models for shows, setlists, songs, sections, cues, endpoint actions, presets, runtime state, endpoint health, and execution logs.
+- Keep the timeline endpoint-neutral.
+- Keep cue source separate from cue execution.
+- Use a pure reducer for state transitions.
+- Use an actor-isolated execution engine for endpoint I/O.
+- Use endpoint adapters to call existing app services.
+
+## Reducer Constraints
+
+Reducers must not:
+
+- Call DMX output.
+- Start video playback.
+- Touch OBS WebSocket.
+- Read or write files.
+- Send MIDI or OSC.
+- Depend on clocks except through injected values.
+- Depend on SwiftUI view state.
+
+Reducers may:
+
+- Validate IDs and references.
+- Advance setlist/song/section position.
+- Queue manual overrides.
+- Emit declarative effects for the engine to execute.
+
+## Engine Constraints
+
+The engine must:
+
+- Serialize cue execution.
+- Validate cue packages before dispatch.
+- Support partial failure without corrupting show state.
+- Write durable execution logs.
+- Publish authoritative runtime state for remotes.
+- Deduplicate repeated command IDs.
+- Apply per-action timeouts.
+
+## Adapter Constraints
+
+- Adapters wrap existing services; they do not own timeline state.
+- Missing services return `unsupported` or `failed` with a clear message.
+- Safety actions (park, blackout lighting/video, restore safe look) remain distinct.
+
+## Persistence
+
+- Persist Show Director files inside the existing package under `show-director/`.
+- Keep `Media/` (uppercase) and add `video/`, `images/`, `overlays/` beneath it.
+- Use split files for setlists, songs, cue-packages, and presets.
+- Prefer package-relative media references and warn when files are missing.
+- Preserve existing package formats; migrate explicitly when changing them.
+
+## Remote Control
+
+- Remotes send semantic commands.
+- Remotes receive state events.
+- Remotes do not become authoritative during a show.
+- Emergency commands must be explicit and distinguishable.

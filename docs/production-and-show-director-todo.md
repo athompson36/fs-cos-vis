@@ -3,7 +3,7 @@
 **Created:** 2026-07-16
 **Scope:** Single tracked backlog from current state to production, covering (A) production readiness for the existing app and (B) the Unified Show Director program.
 
-**Audit basis:** Verified locally — project builds and the full unit suite passes (`xcodebuild -scheme FSDMXVision -destination 'platform=macOS' test` → **TEST SUCCEEDED, 169 tests, 0 failures**). Docs cross-checked against code; findings below. Sources: `docs/production-readiness-checklist.md`, `docs/todo-full-implementation.md`, `docs/07-roadmap.md`, `docs/lighting-roadmap.md`, and `docs/fs-cos-vis-show-director-context/`.
+**Audit basis:** Verified locally — project builds and the full unit suite passes (`xcodebuild -scheme FSDMXVision -destination 'platform=macOS' test` → **TEST SUCCEEDED, 199 tests, 0 failures**). Docs cross-checked against code; findings below. Sources: `docs/production-readiness-checklist.md`, `docs/todo-full-implementation.md`, `docs/07-roadmap.md`, `docs/lighting-roadmap.md`, and `docs/fs-cos-vis-show-director-context/`.
 
 **Legend:** `[ ]` open · `[~]` partial · `[x]` done. Priorities: **P0** ship blocker · **P1** validation gate · **P2** correctness/cleanup · **P3** deferred/optional.
 
@@ -70,38 +70,39 @@
 Source: `docs/fs-cos-vis-show-director-context/`. Build strictly bottom-up. Reducer stays pure (no I/O); endpoint I/O only inside the actor engine via adapters; the Mac host is authoritative; remotes send semantic commands and never own runtime state.
 
 **Codebase reality-check:**
-- Adapters that wrap existing services: lighting cues, palette, visual scene (`SceneManager`), recording (`CaptureSession`), overlay cards — present today.
-- **Net-new (no code exists):** backdrop **video playback** (`BackdropCue` is a static image/stage snapshot; no `AVPlayer` anywhere), **OBS** WebSocket, **Traktor/Maschine/Ableton Link**, **iPhone/Apple Watch** companions, **audio-routing profiles**, and the entire show-timeline layer.
+- **Foundation shipped (SD-M0–M3):** typed models, validation/migration, `show-director/` package store, pure reducer, actor engine, fake adapters, execution JSONL — see `Features/ShowDirector/` and the foundation design spec.
+- Adapters that wrap existing services: lighting cues, palette, visual scene (`SceneManager`), recording (`CaptureSession`), overlay cards — present today as app services; **real Show Director adapters are SD-M4**.
+- **Net-new remaining:** backdrop **video playback**, **OBS** WebSocket, **Traktor/Maschine/Ableton Link**, **iPhone/Apple Watch** companions, **audio-routing profiles**, Guided Setlist UI (SD-M5), remote protocol v2 (SD-M6).
 
 ### SD-M0 — Persistence & cross-cutting
 
-- [ ] SD-0.1 Extend `.cosmicshow` package: `show-director/{show.json,setlists/,songs/,presets/,logs/}` + `media/{video/,images/,overlays/}`; versioned JSON inside the existing package system.
-- [ ] SD-0.2 Package validation warns on missing referenced media.
-- [ ] SD-0.3 Phase 0 stabilization: add tests around any touched persistence/runtime services; no regressions to rendering/DMX/packaging.
-- [ ] SD-0.4 Add `.cursor/rules/show_director.mdc` to live `.cursor/rules/` (currently only in the context pack).
-- [ ] SD-0.5 Reconcile the pack's `07-roadmap.md` / `project-audit-and-feature-status.md` / `01-cursor-context.md` with live root docs; decide canonical order and merge or mark superseded.
+- [x] SD-0.1 Extend package with `show-director/{show.json,setlists/,songs/,cue-packages/,presets/,logs/}` + `Media/{video/,images/,overlays/}`. **Done** (2026-07-16): `ShowDirectorPackageStore`; existing `Media/` retained.
+- [x] SD-0.2 Package validation warns on missing referenced media. **Done** (`ShowDirectorValidator` severity `.warning`).
+- [x] SD-0.3 Phase 0 stabilization tests around persistence/runtime. **Done**: package/archive/log/acceptance tests; full suite green.
+- [x] SD-0.4 Add `.cursor/rules/show_director.mdc` to live `.cursor/rules/`. **Done**.
+- [x] SD-0.5 Reconcile pack vs live docs. **Done**: live SoT is root docs + `docs/superpowers/specs/2026-07-16-show-director-foundation-design.md`; context pack marked reference-only.
 
 ### SD-M1 — Models & schema
 
-- [ ] SD-1.1 Codable, versioned, stable-ID models: `ShowDocument`, `ShowMetadata`, `Setlist`, `SetlistItem`, `SongScore`, `SongSection`, `CuePackage`, `EndpointAction`, `PresetReference`, `RuntimeOverride`, `ShowRuntimeState`, `EndpointHealth`, `ExecutionLogEntry`.
-- [ ] SD-1.2 Typed enums for `SongSection` types (intro/verse/chorus/solo/breakdown/drop/outro/applause/intermission/custom) and `EndpointKind`/action types — no stringly-typed actions.
-- [ ] SD-1.3 `schemaVersion` field + migration entry point.
-- [ ] SD-1.4 Validation: stable IDs, missing references, duplicate cue IDs, unsupported actions, missing media.
-- [ ] SD-1.5 Round-trip encode/decode tests from `show-control-json-examples.md`; invalid references produce useful errors.
+- [x] SD-1.1 Codable, versioned, stable-ID models. **Done** under `Features/ShowDirector/Models/` (`ShowDirectorMetadata` avoids colliding with project `ShowMetadata`).
+- [x] SD-1.2 Typed enums for section types and endpoint/action types. **Done** (`EndpointAction` custom Codable).
+- [x] SD-1.3 `schemaVersion` + migration entry point. **Done** (`ShowDirectorMigrator`).
+- [x] SD-1.4 Validation for IDs/refs/duplicates/unsupported actions/missing media. **Done**.
+- [x] SD-1.5 Round-trip encode/decode tests + useful invalid errors. **Done** (`ShowDirectorModelTests`, `ShowDirectorValidationTests`).
 
 ### SD-M2 — Pure reducer
 
-- [ ] SD-2.1 Reducer `(state, command) -> (newState, effects)`; no DMX/video/OBS/file/network/clock/SwiftUI access.
-- [ ] SD-2.2 Commands: `loadShow`, `selectSetlistItem`, `go`, `previous`, `next`, `hold`, `resume`, `repeatSection`, `jumpToSection`, `firePresetNow`, `insertPresetNext`, `replaceUpcomingCue`, `undo`, `park`, `blackout`, `restoreSafeLook`, `endpointHealthChanged`, `cueExecutionFinished`.
-- [ ] SD-2.3 Runtime snapshots for UI + remotes; `undo` restores prior endpoint targets where possible.
-- [ ] SD-2.4 Deterministic-transition unit tests; reducer references no endpoint service.
+- [x] SD-2.1 Pure reducer `(state, command) -> ShowDirectorReduction`. **Done** (`ShowDirectorReducer`).
+- [x] SD-2.2 Command set including separate `blackoutLighting` / `blackoutVideo`. **Done**.
+- [x] SD-2.3 Runtime snapshots + bounded undo. **Done**.
+- [x] SD-2.4 Deterministic-transition unit tests. **Done** (`ShowDirectorReducerTests`).
 
 ### SD-M3 — Execution engine + fake adapters
 
-- [ ] SD-3.1 `ShowDirectorEngine` actor: serialize cue execution, validate IDs/availability, resolve presets, dispatch to adapters, timeouts, coalesce duplicates, partial-failure reporting, publish state.
-- [ ] SD-3.2 `ShowEndpointAdapter` protocol (`validate`/`execute`/`currentHealth`) + result enum (`executed`/`skipped`/`unsupported`/`validationFailed`/`timedOut`/`failed`).
-- [ ] SD-3.3 Durable execution-log writer.
-- [ ] SD-3.4 Fake adapters + tests: serialized GO, coalesced duplicates, failed action logged without state corruption.
+- [x] SD-3.1 `ShowDirectorEngine` actor with serialize/timeout/dedupe/publish. **Done**.
+- [x] SD-3.2 `ShowEndpointAdapter` + execution result statuses. **Done**.
+- [x] SD-3.3 Durable execution-log writer. **Done** (`ShowDirectorExecutionLogStore`).
+- [x] SD-3.4 Fake adapters + tests. **Done** (`FakeShowEndpointAdapter`, engine + foundation acceptance tests).
 
 ### SD-M4 — Real endpoint adapters (wrap existing services)
 

@@ -8,6 +8,7 @@
 ## Key modules
 
 - **Show project:** `Features/Project/ProjectStack.swift` — folder package (`project.json` + JSON payloads + `Media/` + `context/`).
+- **Show Director foundation:** `Features/ShowDirector/` — typed graph, validation, package store, pure reducer, actor engine, fake adapters. Design: `docs/superpowers/specs/2026-07-16-show-director-foundation-design.md`.
 - **AI context:** `Features/AI/AIStack.swift` — `machine.json`, `dmx_universe.md`, `AIToolRegistry`, optional `LLMChatClient`, Keychain API key.
 - **Live cues:** `App/LiveShowCueStripsView.swift` — lighting/backdrop strips; bookmarks live in cue documents.
 - **OFL:** `Features/Lighting/OFLFixtureImportService.swift` — fetch/cache fixtures, map to `FixtureProfile` with capability strings.

@@ -47,7 +47,7 @@ Copy to a spreadsheet; **rows** = areas from [`project-audit-and-feature-status.
 
 | # | Task | Done |
 |---|------|------|
-| 1.1 | `xcodebuild -scheme FSDMXVision -destination 'platform=macOS' test` — all tests green | [x] — 164 tests, 0 failures (2026-07-16 local; 154 on 2026-04-19; see [`audit-execution-record.md`](audit-execution-record.md)) |
+| 1.1 | `xcodebuild -scheme FSDMXVision -destination 'platform=macOS' test` — all tests green | [x] — 199 tests, 0 failures (2026-07-16 local after Show Director foundation; was 169 earlier same day, 164 before AI tests, 154 on 2026-04-19; see [`audit-execution-record.md`](audit-execution-record.md)) |
 | 1.2 | CI: [`show-package-smoke.yml`](../.github/workflows/show-package-smoke.yml) + `scripts/ci/smoke-show-package.sh` green | [x] — verified local run (2026-04-19) |
 | 1.3 | CI (optional): add workflow for full unit tests on macOS if cost allows — see [`todo-full-implementation.md`](todo-full-implementation.md) Section L | [x] — [`unit-tests-macos.yml`](../.github/workflows/unit-tests-macos.yml) |
 | 1.4 | Release artifact: [`release-macos-beta.yml`](../.github/workflows/release-macos-beta.yml) + `scripts/release/package-beta.sh` produces DMG/ZIP (unsigned OK for internal); document signed vs unsigned per [`release-runbook.md`](release-runbook.md) | [x] — CI + local path documented (unsigned artifact until signing secrets; see runbook § Gate 1.4) |

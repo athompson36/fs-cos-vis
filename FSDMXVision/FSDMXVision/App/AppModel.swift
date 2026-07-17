@@ -156,6 +156,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var overlayElementActivatedAt: [UUID: Date] = [:]
     @Published var showProjectMetadata = ShowProjectDocument()
     @Published private(set) var currentShowProjectFolder: URL?
+    /// Optional Show Director graph loaded from `show-director/` inside the package.
+    @Published private(set) var showDirectorGraph: ShowDirectorGraph?
+    @Published private(set) var showDirectorValidationWarnings: [ShowDirectorValidationIssue] = []
     @Published var aiAssistantLastMessage: String = ""
     @Published var liveOutputRecordingSource: LiveOutputRecordingSource = .mainLivePreview
     @Published var liveOutputRecordingQualityPreset: LiveOutputRecordingQualityPreset = .balanced
@@ -2908,6 +2911,11 @@ final class AppModel: ObservableObject {
             stageLayoutData: stageData,
             overlayCardsData: overlayData
         )
+        if let graph = showDirectorGraph {
+            try ShowDirectorPackageStore.save(graph, to: folder)
+        } else {
+            try ShowDirectorPackageStore.ensureMediaLayout(in: folder)
+        }
         try persistProjectConfigSnapshot(projectFolder: folder)
         exportAIContextNow(targetRoot: folder)
         LastShowProjectBookmark.save(folder)
@@ -2980,11 +2988,33 @@ final class AppModel: ObservableObject {
         if let ni = backdropCueDocument.activeCueIndex, backdropCueDocument.cues.indices.contains(ni) {
             applyStageLayoutDocument(backdropCueDocument.cues[ni].layoutSnapshot)
         }
+        do {
+            let showDirectorLoad = try ShowDirectorPackageStore.load(from: folder)
+            showDirectorGraph = showDirectorLoad.graph
+            showDirectorValidationWarnings = showDirectorLoad.validation.warnings
+        } catch {
+            // Do not install a partial/invalid graph; keep authored project payloads loaded.
+            showDirectorGraph = nil
+            showDirectorValidationWarnings = [
+                ShowDirectorValidationIssue(
+                    severity: .error,
+                    code: "show_director_load_failed",
+                    path: "show-director",
+                    message: error.localizedDescription
+                ),
+            ]
+        }
         LastShowProjectBookmark.save(folder)
         currentShowProjectFolder = folder
         refreshScenePreviewPool()
         syncRendererFromScene()
         exportAIContextNow(targetRoot: folder)
+    }
+
+    @MainActor
+    func replaceShowDirectorGraph(_ graph: ShowDirectorGraph?) {
+        showDirectorGraph = graph
+        showDirectorValidationWarnings = []
     }
 
     @MainActor
