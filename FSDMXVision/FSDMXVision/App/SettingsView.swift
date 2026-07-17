@@ -23,6 +23,8 @@ struct SettingsView: View {
     @State private var midiSources: [(uid: Int32, name: String)] = []
     @State private var dmxDevicePaths: [String] = []
     @State private var llmKeyDraft = ""
+    @State private var githubTokenDraft = ""
+    @State private var relayBearerDraft = ""
     @State private var aiPromptDraft = ""
     @State private var obsAudioStatus = ""
     @State private var shareStatus = ""
@@ -56,6 +58,8 @@ struct SettingsView: View {
             refreshMIDISources()
             refreshDMXDevices()
             llmKeyDraft = LLMKeychain.loadAPIKey() ?? ""
+            githubTokenDraft = FeedbackSecretsKeychain.load(account: FeedbackSecretsKeychain.githubTokenAccount)
+            relayBearerDraft = FeedbackSecretsKeychain.load(account: FeedbackSecretsKeychain.relayBearerAccount)
             refreshLANAddress()
         }
         .onChange(of: appModel.remoteSettings.bindLAN) { _, _ in refreshLANAddress() }
@@ -112,15 +116,21 @@ private extension SettingsView {
                     .fixedSize(horizontal: false, vertical: true)
                 TextField("Feedback relay URL (https://…)", text: stringBinding(\.githubFeedbackRelayURL))
                     .textFieldStyle(.roundedBorder)
-                SecureField("Relay authorization (optional, not GitHub)", text: stringBinding(\.githubFeedbackRelayToken))
+                SecureField("Relay authorization (optional, not GitHub)", text: $relayBearerDraft)
                     .textFieldStyle(.roundedBorder)
+                    .onChange(of: relayBearerDraft) { _, newValue in
+                        FeedbackSecretsKeychain.save(account: FeedbackSecretsKeychain.relayBearerAccount, value: newValue)
+                    }
                 Text("Direct GitHub API (fallback when relay URL is empty)")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                 TextField("GitHub repo (owner/name)", text: stringBinding(\.githubFeedbackRepository))
                     .textFieldStyle(.roundedBorder)
-                SecureField("GitHub token (optional)", text: stringBinding(\.githubFeedbackToken))
+                SecureField("GitHub token (optional · stored in Keychain)", text: $githubTokenDraft)
                     .textFieldStyle(.roundedBorder)
+                    .onChange(of: githubTokenDraft) { _, newValue in
+                        FeedbackSecretsKeychain.save(account: FeedbackSecretsKeychain.githubTokenAccount, value: newValue)
+                    }
                 HStack {
                     Button("Create local feedback bundle") {
                         appModel.createFeedbackBundle(message: feedbackBody)
@@ -299,6 +309,12 @@ private extension SettingsView {
                 TextField("Auth token (optional)", text: stringBinding(\.authToken))
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 420)
+                if appModel.remoteSettings.bindLAN,
+                   appModel.remoteSettings.authToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Label("LAN sharing needs an auth token. Until one is set, the server stays on 127.0.0.1 only.", systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
                 if !appModel.remoteHTTPControlStatus.isEmpty {
                     Text(appModel.remoteHTTPControlStatus)
                         .font(.caption2)
@@ -319,6 +335,13 @@ private extension SettingsView {
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 420)
                     .disabled(!appModel.remoteSettings.oscControlEnabled)
+                if appModel.remoteSettings.oscControlEnabled,
+                   appModel.remoteSettings.oscBindLAN,
+                   appModel.remoteSettings.oscAuthToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Label("LAN OSC needs a token. Until one is set, OSC listens on 127.0.0.1 only.", systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
                 if !appModel.oscControlStatus.isEmpty {
                     Text(appModel.oscControlStatus)
                         .font(.caption2)
@@ -626,7 +649,7 @@ private extension SettingsView {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     if transportUITier == .advanced {
-                        Text("Multicast (e.g. 239.255.x.y) or unicast host. If multicast is unreliable on Wi‑Fi, try unicast to the node’s IP. E1.31 discovery/sync packets are not implemented.")
+                        Text("Multicast (e.g. 239.255.x.y) or unicast host. If multicast is unreliable on Wi‑Fi, try unicast to the node’s IP. E1.31 sync/discovery packets aren’t sent on output; inbound sync/discovery are counted for diagnostics only (no sync-timing/discovery protocol handling).")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }

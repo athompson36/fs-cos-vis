@@ -8,7 +8,9 @@
 
 These appear in the bundled schema JSON:
 
-`TapTempo`, `SetManualBPM`, `PreviousScene`, `NextScene`, `RandomScene`, `SetLiquidLightEnabled`, `SetFractalZoom`, `SetLiquidTurbulence`, `SetCompositeBlend`, `SetLiquidFocus`, `SetFractalAppearance`, `SetOverlayFractalFusion`, `SetFractalExplore`, `SetFractalExploreSpeed`, `SetFractalIterBoost`, `SetZoomEffectType`, `SetLiquidReconstituteAmount`, `SetLiquidReconstituteRate`, `SetDyeMix`, `SetFractalSmoothShading`, `SetCompositeBloomStrength`, `SetCompositeVignetteStrength`, `SetSpectrumWarpAmount`, `SetFractalGeometryIndex`, `DuplicateScene`, `DeleteScene`, `PersistScenes`, `OpenExternalVisualization`, `CloseExternalVisualization`, `StartLiveOutputRecording`, `StopLiveOutputRecording`, `SetLiveOutputRecordingSource`, `SetLiveOutputRecordingQualityPreset`
+`TapTempo`, `SetManualBPM`, `NextLightingCue`, `PreviousLightingCue`, `SetActiveLightingCueIndex`, `PreviousScene`, `NextScene`, `RandomScene`, `SetLiquidLightEnabled`, `SetFractalZoom`, `SetLiquidTurbulence`, `SetCompositeBlend`, `SetLiquidFocus`, `SetFractalAppearance`, `SetOverlayFractalFusion`, `SetFractalExplore`, `SetFractalExploreSpeed`, `SetFractalIterBoost`, `SetZoomEffectType`, `SetLiquidReconstituteAmount`, `SetLiquidReconstituteRate`, `SetDyeMix`, `SetFractalSmoothShading`, `SetCompositeBloomStrength`, `SetCompositeVignetteStrength`, `SetSpectrumWarpAmount`, `SetFractalGeometryIndex`, `DuplicateScene`, `DeleteScene`, `PersistScenes`, `OpenExternalVisualization`, `CloseExternalVisualization`, `StartLiveOutputRecording`, `StopLiveOutputRecording`, `SetLiveOutputRecordingSource`, `SetLiveOutputRecordingQualityPreset`
+
+**Lighting cues (schema `Lighting` section):** `NextLightingCue`, `PreviousLightingCue`, and `SetActiveLightingCueIndex` (both "clear active cue" and "set active cue by 0-based list index") are exposed in the bundled schema — see `ControlSchema.swift` `Lighting` fields.
 
 **JSON shapes:** `SetSpectrumWarpAmount` uses `{ "type": "SetSpectrumWarpAmount", "spectrumWarpAmount": 0.35 }`. `SetFractalGeometryIndex` uses `{ "type": "SetFractalGeometryIndex", "index": 5 }` (int **0…6**).
 
@@ -35,7 +37,6 @@ Use **raw** `POST /api/command` JSON (or OSC where supported—see [`osc-control
 | `SetAudioInputIndex` | Audio device index |
 | `ToggleMainWindowFullscreen` | Window chrome |
 | `RefreshAudioDevices` | Rescan devices |
-| `SetActiveLightingCueIndex`, `NextLightingCue`, `PreviousLightingCue` | Lighting |
 
 **REST surfaces** (not `commandType` in schema; documented in schema “REST” section): `GET/PUT /api/scenes`, `POST /api/scenes/reorder`, `GET/PUT /api/settings`, `GET/PUT /api/midi_mapping`.
 
@@ -44,4 +45,4 @@ Use **raw** `POST /api/command` JSON (or OSC where supported—see [`osc-control
 - Schema gap is **intentional** for a compact web UI; full surface = raw `POST /api/command`.
 - Expand `ControlSchema` only when operators need specific types in the **bundled** HTML UI without raw JSON.
 
-**Last updated:** 2026-04-20
+**Last updated:** 2026-07-16 (lighting cue commands confirmed present in `ControlSchema.cosmicDefault()`)

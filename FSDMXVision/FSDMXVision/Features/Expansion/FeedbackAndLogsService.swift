@@ -1,8 +1,47 @@
 import Foundation
+import Security
 
 struct FeedbackBundleResult: Sendable {
     var bundleURL: URL
     var summary: String
+}
+
+/// Keychain-backed storage for feedback credentials (GitHub PAT + relay bearer). These are secrets
+/// and must not live in the plaintext settings JSON (which is also served over `GET /api/settings`).
+enum FeedbackSecretsKeychain {
+    private static let service = "com.fsdmxvision.feedback.v1"
+    static let githubTokenAccount = "githubToken"
+    static let relayBearerAccount = "relayBearer"
+
+    static func load(account: String) -> String {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
+        var out: AnyObject?
+        guard SecItemCopyMatching(query as CFDictionary, &out) == errSecSuccess,
+              let data = out as? Data,
+              let value = String(data: data, encoding: .utf8)
+        else { return "" }
+        return value
+    }
+
+    static func save(account: String, value: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+        ]
+        SecItemDelete(query as CFDictionary)
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { return }
+        var add = query
+        add[kSecValueData as String] = data
+        SecItemAdd(add as CFDictionary, nil)
+    }
 }
 
 /// JSON body for `POST` to a maintainer-hosted relay (server holds GitHub credentials).

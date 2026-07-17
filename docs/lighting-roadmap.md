@@ -81,7 +81,7 @@ Statements for [`production-readiness-checklist.md`](production-readiness-checkl
 | **Outbound** Art-Net / sACN (multi-universe, offset, pkt/tick diagnostics) | **Shipped — lab/field validation operator-dependent** | Confirm with your receivers (universe index, rate) in Gate 3a |
 | **Inbound** merge (HTP/LPT, multi-universe listen, USB vs network, **sACN priority** + staleness) | **Shipped — desk-grade parity vs large consoles TBD** | See Section I / tests in-repo; field log still valuable (3b) |
 | **sACN** extended sync/discovery PDUs | **Best-effort / diagnostic** | Counted in UI; full sync timing / discovery protocol not certified |
-| **RDM** | **Mock + roadmap** | Real RDM integration is a separate milestone |
+| **RDM** | **Mock (USB) + real ArtPoll (network)** | Hardware/USB path is a deterministic mock; Art-Net/sACN modes run a real ArtPoll node discovery (not RDM GET/SET). Real RDM integration is a separate milestone |
 | **DMX frame profiler** (histogram, binned median/p95, fixture/modulator/universe counts) | **Shipped** | “Console scale” claims still require large-rig or trace evidence (3e) |
 
 ## Persistence paths (Application Support `FSDMXVision/`; legacy installs may still have `CosmicVisualizer/` until migration runs)

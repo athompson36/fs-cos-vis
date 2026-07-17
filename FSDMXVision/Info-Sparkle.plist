@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Partial Info.plist for Sparkle update keys.
+
+  This file is MERGED with the Xcode-generated Info.plist (GENERATE_INFOPLIST_FILE=YES);
+  it holds only the custom Sparkle keys that build settings can't inject.
+
+  SUFeedURL     — HTTPS URL of the hosted appcast.xml. Update this to wherever you host it
+                  (GitHub Pages, S3, etc.). Must be https.
+  SUPublicEDKey — EdDSA public key printed by Sparkle's `generate_keys`. The matching PRIVATE
+                  key lives in the maintainer's login Keychain and signs every update ZIP
+                  (via `sign_update`). Keep the private key backed up and off-repo.
+  SUEnableAutomaticChecks — false so a live-performance build never prompts/downloads updates
+                  on its own; operators check manually via Settings → "Check for updates".
+-->
+<plist version="1.0">
+<dict>
+    <key>SUFeedURL</key>
+    <string>https://athompson36.github.io/fs-cos-vis/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>h2G3DrLDQTmLO9Nq5fUBu5n9zNPRVhAB6Ml91K85nmM=</string>
+    <key>SUEnableAutomaticChecks</key>
+    <false/>
+</dict>
+</plist>

@@ -288,12 +288,16 @@ enum AIToolExecutionError: Error, LocalizedError {
     case unknownTool(String)
     case invalidArguments(String)
     case patchConflict([String])
+    /// Assistant reply was not valid tool-call JSON (prose, markdown, wrong shape, etc.).
+    case invalidToolCallReply(String)
 
     var errorDescription: String? {
         switch self {
         case .unknownTool(let n): return "Unknown tool: \(n)"
         case .invalidArguments(let m): return m
         case .patchConflict(let lines): return lines.joined(separator: "\n")
+        case .invalidToolCallReply(let detail):
+            return "Assistant reply wasn’t valid tool-call JSON. \(detail) Expected a single object like {\"tool_calls\":[{\"name\":\"…\",\"arguments\":{…}}]} with no surrounding prose."
         }
     }
 }
@@ -302,8 +306,7 @@ enum AIToolRegistry {
     static func execute(
         name: String,
         argumentsJSON: String?,
-        model: AppModel,
-        copilot: LightingCopilotService
+        model: AppModel
     ) throws -> String {
         let args = parseJSONObject(argumentsJSON) ?? [:]
         switch name {
@@ -373,17 +376,48 @@ enum AIToolRegistry {
     }
 
     /// Parses assistant message body into tool calls `{name, arguments}`.
+    /// Accepts optional markdown fences (` ```json … ``` `); rejects prose / wrong shapes with an operator-facing error.
     static func parseToolCalls(from text: String) throws -> [(name: String, argumentsJSON: String?)] {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let data = trimmed.data(using: .utf8),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let calls = root["tool_calls"] as? [[String: Any]]
-        else {
-            throw AIToolExecutionError.invalidArguments("Expected JSON with tool_calls array")
+        let candidate = stripMarkdownCodeFence(text.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard !candidate.isEmpty else {
+            throw AIToolExecutionError.invalidToolCallReply("The reply was empty.")
         }
+
+        guard let data = candidate.data(using: .utf8) else {
+            throw AIToolExecutionError.invalidToolCallReply("The reply wasn’t UTF-8 text.")
+        }
+
+        let preview = Self.previewForError(candidate)
+        let object: Any
+        do {
+            object = try JSONSerialization.jsonObject(with: data)
+        } catch {
+            throw AIToolExecutionError.invalidToolCallReply(
+                "Couldn’t parse JSON (\(error.localizedDescription)). Preview: \(preview)"
+            )
+        }
+
+        guard let root = object as? [String: Any] else {
+            throw AIToolExecutionError.invalidToolCallReply(
+                "Top level must be a JSON object, not an array or value. Preview: \(preview)"
+            )
+        }
+        guard let callsAny = root["tool_calls"] else {
+            throw AIToolExecutionError.invalidToolCallReply(
+                "Missing \"tool_calls\" key. Preview: \(preview)"
+            )
+        }
+        guard let calls = callsAny as? [[String: Any]] else {
+            throw AIToolExecutionError.invalidToolCallReply(
+                "\"tool_calls\" must be an array of objects. Preview: \(preview)"
+            )
+        }
+
         return try calls.map { dict in
-            guard let name = dict["name"] as? String else {
-                throw AIToolExecutionError.invalidArguments("tool call missing name")
+            guard let name = dict["name"] as? String, !name.isEmpty else {
+                throw AIToolExecutionError.invalidToolCallReply(
+                    "A tool call is missing a non-empty \"name\" string."
+                )
             }
             let args = dict["arguments"]
             let argsJSON: String?
@@ -396,6 +430,32 @@ enum AIToolRegistry {
             }
             return (name, argsJSON)
         }
+    }
+
+    /// Strips a single leading/trailing markdown code fence if present.
+    static func stripMarkdownCodeFence(_ text: String) -> String {
+        var s = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard s.hasPrefix("```") else { return s }
+        // Drop opening fence line (``` or ```json).
+        if let nl = s.firstIndex(of: "\n") {
+            s = String(s[s.index(after: nl)...])
+        } else {
+            return text
+        }
+        s = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.hasSuffix("```") {
+            s = String(s.dropLast(3)).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return s
+    }
+
+    private static func previewForError(_ text: String, limit: Int = 160) -> String {
+        let oneLine = text
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if oneLine.count <= limit { return "“\(oneLine)”" }
+        let idx = oneLine.index(oneLine.startIndex, offsetBy: limit)
+        return "“\(oneLine[..<idx])…”"
     }
 }
 

@@ -221,6 +221,10 @@ final class OSCControlService: ControlBus {
         self.onCommand = onCommand
         self.onStateQuery = onStateQuery
 
+        // Fail-safe: don't accept OSC from the LAN (INADDR_ANY) without a token, or any sender
+        // could drive the app. Fall back to loopback until an OSC token is configured.
+        let effectiveBindLAN = bindLAN && !requiredToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
         let requestedBase = max(1024, min(65_535, port))
         for offset in 0 ..< ControlPlanePortBinding.defaultScanAttempts {
             let candidate = requestedBase + offset
@@ -240,7 +244,7 @@ final class OSCControlService: ControlBus {
             addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
             addr.sin_family = sa_family_t(AF_INET)
             addr.sin_port = CFSwapInt16HostToBig(UInt16(candidate))
-            addr.sin_addr.s_addr = bindLAN ? INADDR_ANY.bigEndian : inet_addr("127.0.0.1")
+            addr.sin_addr.s_addr = effectiveBindLAN ? INADDR_ANY.bigEndian : inet_addr("127.0.0.1")
 
             let bindResult = withUnsafePointer(to: &addr) { ptr in
                 ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in

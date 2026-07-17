@@ -42,6 +42,24 @@ The generated Xcode project reads **`DEVELOPMENT_TEAM`** from **`project.local.y
 
 CI copies the example file (empty team) before `xcodegen` so automation keeps ad-hoc signing until you sign release artifacts locally.
 
+## Version numbers (marketing vs build)
+
+Set both in [`project.yml`](../project.yml) (then `xcodegen generate`):
+
+| Setting | Meaning | Current |
+|---------|---------|---------|
+| `MARKETING_VERSION` | User-facing version (`CFBundleShortVersionString`) | `0.1` |
+| `CURRENT_PROJECT_VERSION` | Monotonic build number (`CFBundleVersion`); Sparkle / Gatekeeper care about this | `1` |
+
+**Bump strategy for beta tags (`v0.1a*`, Sparkle appcast items):**
+
+1. Every shippable Release build: increment `CURRENT_PROJECT_VERSION` by 1 (never reuse).
+2. User-visible beta label changes (0.1a → 0.1b, or 0.1 → 0.2): bump `MARKETING_VERSION` and reset or continue build number — prefer **continuing** the build number so Sparkle always sees a higher `CFBundleVersion`.
+3. Tag / `GITHUB_REF_NAME` (e.g. `v0.1a1`) is the artifact filename label only; keep it aligned with marketing version in release notes.
+4. After changing versions, regenerate (`xcodegen generate`) and verify `FSDMXVision.app/Contents/Info.plist`.
+
+Copyright string: `INFOPLIST_KEY_NSHumanReadableCopyright` in `project.yml` (About panel / Finder Get Info).
+
 ## Local Release build (developer machine)
 
 From the repo root:
@@ -98,12 +116,21 @@ Until this is automated in CI, record **notarization submission ID** and ticket 
 
 ## Sparkle (ZIP + appcast)
 
-The app links **Sparkle 2** (`AppUpdateService`). For updates to resolve in production builds:
+The app links **Sparkle 2** (`AppUpdateService`). The feed keys are **wired in-repo**:
 
-1. Add **`SUFeedURL`** (and **`SUPublicEDKey`**) via `project.yml` `INFOPLIST_KEY_*` or an Info.plist — coordinate with hosting URL for `appcast.xml`.  
-2. Generate Sparkle **edDSA** keys (`./bin/generate_keys` from Sparkle distribution); keep the **private** key off-repo; publish the **public** key in Info.plist.  
-3. Host **`appcast.xml`** over HTTPS; each release adds an `<item>` pointing at the **signed, notarized ZIP** (Sparkle signs updates with `sign_update` or equivalent).  
+- Keys live in [`FSDMXVision/Info-Sparkle.plist`](../FSDMXVision/Info-Sparkle.plist), a **partial Info.plist merged** with the Xcode-generated one (`GENERATE_INFOPLIST_FILE=YES` + `INFOPLIST_FILE` in [`project.yml`](../project.yml)). Verified present in the built app's `Contents/Info.plist`.
+  - `SUFeedURL` = `https://athompson36.github.io/fs-cos-vis/appcast.xml` — **update this** to wherever you actually host the appcast.
+  - `SUPublicEDKey` = `h2G3DrLDQTmLO9Nq5fUBu5n9zNPRVhAB6Ml91K85nmM=` — EdDSA public key. The matching **private key is in the maintainer's login Keychain** (created by Sparkle's `generate_keys`). **Back it up and keep it off-repo** — it signs every update.
+  - `SUEnableAutomaticChecks` = `false` — no background update prompts during a show; operators use Settings → **Check for updates**.
+
+Per-release workflow:
+
+1. Build **Release**, then package: `scripts/release/package-beta.sh` (produces `dist/FSDMXVision-<tag>.zip` + DMG).
+2. **Sign + host the appcast:** `scripts/release/generate-appcast.sh` (wraps Sparkle's `generate_appcast`; signs each ZIP with the private key from the Keychain and writes `dist/appcast.xml`). Optionally set `COSMIC_DOWNLOAD_PREFIX` to the base URL where ZIPs are hosted.
+3. Host `appcast.xml` **over HTTPS** at the `SUFeedURL` above, alongside the **signed, notarized ZIP**.
 4. Test **Check for updates** from a Release build on a clean Mac.
+
+> If the public/private keypair is ever rotated, re-run `generate_keys`, paste the new `SUPublicEDKey` into `Info-Sparkle.plist`, and re-sign the appcast.
 
 Full Sparkle workflow: [Sparkle documentation](https://sparkle-project.org/documentation/).
 

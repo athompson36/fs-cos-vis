@@ -152,7 +152,7 @@ final class ModelCodableTests: XCTestCase {
         """.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(RemoteControlSettings.self, from: json)
         XCTAssertEqual(decoded.githubFeedbackRelayURL, "")
-        XCTAssertEqual(decoded.githubFeedbackRelayToken, "")
+        // Feedback secrets (GitHub PAT + relay bearer) are stored in the Keychain, not this struct.
     }
 
     func testRemoteControlSettings_decodeLegacyInboundDMXDefaults() throws {

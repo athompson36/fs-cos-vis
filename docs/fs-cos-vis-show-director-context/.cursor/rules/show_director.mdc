@@ -1,0 +1,85 @@
+---
+description: Unified Show Director implementation rules for FS COS VIS
+globs:
+  - "**/*.swift"
+  - "docs/show-director-*.md"
+  - "docs/show-control-json-examples.md"
+alwaysApply: false
+---
+
+# Unified Show Director Rules
+
+Use these rules when editing or adding Show Director features.
+
+## Core Boundary
+
+The Show Director is a typed orchestration layer above existing systems. It does not replace visualization rendering, DMX output, recording, protocol handling, or project packaging.
+
+## Required Shape
+
+- Define stable Codable models for shows, setlists, songs, sections, cues, endpoint actions, presets, runtime state, endpoint health, and execution logs.
+- Keep the timeline endpoint-neutral.
+- Keep cue source separate from cue execution.
+- Use a pure reducer for state transitions.
+- Use an actor-isolated execution engine for endpoint I/O.
+- Use endpoint adapters to call existing app services.
+
+## Reducer Constraints
+
+Reducers must not:
+
+- Call DMX output.
+- Start video playback.
+- Touch OBS WebSocket.
+- Read or write files.
+- Send MIDI or OSC.
+- Depend on clocks except through injected values.
+- Depend on SwiftUI view state.
+
+Reducers may:
+
+- Validate current timeline position.
+- Decide next target state.
+- Produce effects for the execution engine.
+- Record expected endpoint targets.
+
+## Endpoint Adapter Constraints
+
+Adapters should:
+
+- Validate actions before execution.
+- Return structured results.
+- Report endpoint health.
+- Time out or fail cleanly.
+- Avoid crashing the whole show on one endpoint failure.
+
+## UI Constraints
+
+Setlist UI must prioritize operator confidence:
+
+- Current cue.
+- Next cue.
+- Clear GO button.
+- Hold/resume.
+- Jump.
+- Undo.
+- Park.
+- Blackout.
+- Endpoint health.
+- Manual preset browser.
+
+Do not bury safety controls.
+
+## Remote Protocol
+
+Remote clients send semantic commands. They do not own runtime state.
+
+Use command IDs for idempotency and execution logs.
+
+Emergency actions must be explicit:
+
+- lighting blackout
+- video blackout
+- stop movement
+- kill strobe
+- restore safe look

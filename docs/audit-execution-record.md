@@ -19,7 +19,7 @@
 
 | Check | Result |
 |-------|--------|
-| Full macOS unit tests | **154** tests, **0** failures — `xcodebuild -scheme FSDMXVision -destination 'platform=macOS' test` |
+| Full macOS unit tests | **164** tests, **0** failures — `xcodebuild -scheme FSDMXVision -destination 'platform=macOS' test` (re-verified 2026-07-16; was 154 on 2026-04-19) |
 | Show-package CI parity | **2** tests — `ShowProjectAndContextTests/testShowProjectPackageRoundTrip`, `testShowProjectArchiveExportImportRoundTrip` (did not run `smoke-show-package.sh` to avoid overwriting `project.local.yml`) |
 
 ## Part C — Control plane smoke (Gates 2.2–2.3)

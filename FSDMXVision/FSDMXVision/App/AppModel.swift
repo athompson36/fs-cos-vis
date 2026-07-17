@@ -2853,14 +2853,16 @@ final class AppModel: ObservableObject {
 
     func submitFeedbackIssue(title: String, body: String) {
         let settings = remoteSettings
+        let relayBearer = FeedbackSecretsKeychain.load(account: FeedbackSecretsKeychain.relayBearerAccount)
+        let githubToken = FeedbackSecretsKeychain.load(account: FeedbackSecretsKeychain.githubTokenAccount)
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
                 try await FeedbackAndLogsService.submitFeedbackIssue(
                     relayURL: settings.githubFeedbackRelayURL,
-                    relayBearer: settings.githubFeedbackRelayToken,
+                    relayBearer: relayBearer,
                     repository: settings.githubFeedbackRepository,
-                    githubToken: settings.githubFeedbackToken,
+                    githubToken: githubToken,
                     title: title,
                     body: body
                 )
@@ -3116,14 +3118,15 @@ final class AppModel: ObservableObject {
                 let r = try AIToolRegistry.execute(
                     name: c.name,
                     argumentsJSON: c.argumentsJSON,
-                    model: self,
-                    copilot: lightingCopilotService
+                    model: self
                 )
                 log.append("\(c.name): \(r)")
             }
             aiAssistantLastMessage = log.joined(separator: "\n")
+        } catch let err as AIToolExecutionError {
+            aiAssistantLastMessage = err.errorDescription ?? String(describing: err)
         } catch {
-            aiAssistantLastMessage = error.localizedDescription
+            aiAssistantLastMessage = "Assistant request failed: \(error.localizedDescription)"
         }
     }
 }

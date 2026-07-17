@@ -72,9 +72,14 @@ final class WebControlServer: @unchecked Sendable {
         bindLAN: Bool,
         onTCPPortResolved: (@MainActor (UInt16?, UInt16) -> Void)?
     ) async {
+        // Fail-safe: never expose the control server on the LAN (0.0.0.0) without an auth
+        // token. If LAN binding is requested but no token is set, fall back to loopback so an
+        // unauthenticated open control surface can't be reached from other machines.
+        let effectiveBindLAN = bindLAN && !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
         guard let effectivePort = ControlPlanePortBinding.firstAvailableTCPPort(
             startingAt: Int(requestedPort),
-            bindLAN: bindLAN,
+            bindLAN: effectiveBindLAN,
             maxAttempts: ControlPlanePortBinding.defaultScanAttempts
         ) else {
             await MainActor.run { onTCPPortResolved?(nil, requestedPort) }
@@ -83,7 +88,7 @@ final class WebControlServer: @unchecked Sendable {
 
         let address: sockaddr_in
         do {
-            address = try bindLAN ? sockaddr_in.inet(port: effectivePort) : sockaddr_in.inet(ip4: "127.0.0.1", port: effectivePort)
+            address = try effectiveBindLAN ? sockaddr_in.inet(port: effectivePort) : sockaddr_in.inet(ip4: "127.0.0.1", port: effectivePort)
         } catch {
             await MainActor.run { onTCPPortResolved?(nil, requestedPort) }
             return
@@ -93,12 +98,22 @@ final class WebControlServer: @unchecked Sendable {
 
         let server = HTTPServer(address: address, handler: nil)
 
+        // API routes require the `Authorization: Bearer` header (no `?token=` query) to avoid
+        // leaking the token into server/proxy access logs and browser history on command surfaces.
         let authorized: @Sendable (HTTPRequest) -> Bool = { req in
-            Self.isAuthorized(request: req, token: token)
+            Self.isAuthorized(request: req, token: token, allowQueryToken: false)
+        }
+        // Browser navigation (initial page) and WebSocket handshakes can't set custom headers, so
+        // those two surfaces also accept `?token=`.
+        let authorizedAllowingQuery: @Sendable (HTTPRequest) -> Bool = { req in
+            Self.isAuthorized(request: req, token: token, allowQueryToken: true)
         }
 
-        await server.appendRoute("GET /health") { _ in
-            HTTPResponse(statusCode: .ok, body: Data("{\"ok\":true}".utf8))
+        await server.appendRoute("GET /health") { req in
+            // Public liveness probe only while no token is configured; once a token is set the
+            // probe requires it so the server's presence isn't confirmable by unauthenticated peers.
+            guard authorized(req) else { return HTTPResponse(statusCode: .unauthorized) }
+            return HTTPResponse(statusCode: .ok, body: Data("{\"ok\":true}".utf8))
         }
 
         await server.appendRoute("GET /api/schema") { req in
@@ -251,10 +266,14 @@ final class WebControlServer: @unchecked Sendable {
                 }
             )
         )
-        await server.appendRoute("GET /ws", to: ws)
+        await server.appendRoute("GET /ws") { req in
+            // The live-state WebSocket streams full app state; require auth like every other route.
+            guard authorizedAllowingQuery(req) else { return HTTPResponse(statusCode: .unauthorized) }
+            return try await ws.handleRequest(req)
+        }
 
         await server.appendRoute("GET *") { req in
-            guard authorized(req) else { return HTTPResponse(statusCode: .unauthorized) }
+            guard authorizedAllowingQuery(req) else { return HTTPResponse(statusCode: .unauthorized) }
             return Self.staticResponse(for: req.path, bundle: .main)
         }
 
@@ -267,11 +286,11 @@ final class WebControlServer: @unchecked Sendable {
         } catch {}
     }
 
-    private static func isAuthorized(request: HTTPRequest, token: String) -> Bool {
+    private static func isAuthorized(request: HTTPRequest, token: String, allowQueryToken: Bool) -> Bool {
         let t = token.trimmingCharacters(in: .whitespacesAndNewlines)
         if t.isEmpty { return true }
         if request.headers[.authorization] == "Bearer \(t)" { return true }
-        if request.query["token"] == t {
+        if allowQueryToken, request.query["token"] == t {
             return true
         }
         return false

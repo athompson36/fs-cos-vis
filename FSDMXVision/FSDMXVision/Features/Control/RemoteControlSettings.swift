@@ -197,12 +197,12 @@ struct RemoteControlSettings: Equatable {
     var setupWizardStepCompletedCounts: [String: Int] = [:]
     var setupWizardStepSkippedCounts: [String: Int] = [:]
     var githubFeedbackRepository: String = "athompson36/fs-cos-vis"
-    /// Personal access token for **direct** GitHub API issue creation (avoid when a relay URL is available).
-    var githubFeedbackToken: String = ""
     /// Optional HTTPS endpoint for relay submission (`title`, `body`, `repository`, `appVersion` JSON); server holds GitHub credentials.
     var githubFeedbackRelayURL: String = ""
-    /// Optional opaque bearer for the relay only (not a GitHub token).
-    var githubFeedbackRelayToken: String = ""
+
+    // NOTE: The GitHub personal access token and relay bearer are **secrets** and are intentionally
+    // NOT stored in this struct. They live in the Keychain (`FeedbackSecretsKeychain`) so they never
+    // land in the plaintext settings JSON persisted to `UserDefaults` or served over `GET /api/settings`.
 }
 
 extension RemoteControlSettings: Codable {
@@ -258,9 +258,7 @@ extension RemoteControlSettings: Codable {
         case setupWizardStepCompletedCounts
         case setupWizardStepSkippedCounts
         case githubFeedbackRepository
-        case githubFeedbackToken
         case githubFeedbackRelayURL
-        case githubFeedbackRelayToken
     }
 
     init(from decoder: Decoder) throws {
@@ -317,9 +315,7 @@ extension RemoteControlSettings: Codable {
         setupWizardStepCompletedCounts = try c.decodeIfPresent([String: Int].self, forKey: .setupWizardStepCompletedCounts) ?? [:]
         setupWizardStepSkippedCounts = try c.decodeIfPresent([String: Int].self, forKey: .setupWizardStepSkippedCounts) ?? [:]
         githubFeedbackRepository = try c.decodeIfPresent(String.self, forKey: .githubFeedbackRepository) ?? "athompson36/fs-cos-vis"
-        githubFeedbackToken = try c.decodeIfPresent(String.self, forKey: .githubFeedbackToken) ?? ""
         githubFeedbackRelayURL = try c.decodeIfPresent(String.self, forKey: .githubFeedbackRelayURL) ?? ""
-        githubFeedbackRelayToken = try c.decodeIfPresent(String.self, forKey: .githubFeedbackRelayToken) ?? ""
     }
 
     func encode(to encoder: Encoder) throws {
@@ -375,9 +371,7 @@ extension RemoteControlSettings: Codable {
         try c.encode(setupWizardStepCompletedCounts, forKey: .setupWizardStepCompletedCounts)
         try c.encode(setupWizardStepSkippedCounts, forKey: .setupWizardStepSkippedCounts)
         try c.encode(githubFeedbackRepository, forKey: .githubFeedbackRepository)
-        try c.encode(githubFeedbackToken, forKey: .githubFeedbackToken)
         try c.encode(githubFeedbackRelayURL, forKey: .githubFeedbackRelayURL)
-        try c.encode(githubFeedbackRelayToken, forKey: .githubFeedbackRelayToken)
     }
 }
 
@@ -390,11 +384,36 @@ enum RemoteControlSettingsStore {
         else {
             return RemoteControlSettings()
         }
+        migrateLegacyFeedbackSecretsIfNeeded(rawData: data)
         return s
     }
 
     static func save(_ settings: RemoteControlSettings) {
         guard let data = try? JSONEncoder().encode(settings) else { return }
         UserDefaults.standard.set(data, forKey: key)
+    }
+
+    /// One-time migration: earlier builds persisted the GitHub PAT and relay bearer inside the
+    /// settings JSON (plaintext `UserDefaults`). Move any such values into the Keychain, then rewrite
+    /// the settings blob without them so the secrets no longer live in `UserDefaults`.
+    private static func migrateLegacyFeedbackSecretsIfNeeded(rawData: Data) {
+        guard let obj = try? JSONSerialization.jsonObject(with: rawData) as? [String: Any] else { return }
+        let legacyToken = (obj["githubFeedbackToken"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let legacyBearer = (obj["githubFeedbackRelayToken"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let hasLegacyKeys = obj["githubFeedbackToken"] != nil || obj["githubFeedbackRelayToken"] != nil
+        guard hasLegacyKeys else { return }
+
+        if !legacyToken.isEmpty, FeedbackSecretsKeychain.load(account: FeedbackSecretsKeychain.githubTokenAccount).isEmpty {
+            FeedbackSecretsKeychain.save(account: FeedbackSecretsKeychain.githubTokenAccount, value: legacyToken)
+        }
+        if !legacyBearer.isEmpty, FeedbackSecretsKeychain.load(account: FeedbackSecretsKeychain.relayBearerAccount).isEmpty {
+            FeedbackSecretsKeychain.save(account: FeedbackSecretsKeychain.relayBearerAccount, value: legacyBearer)
+        }
+
+        // Rewrite the stored blob without the legacy secret keys.
+        if let decoded = try? JSONDecoder().decode(RemoteControlSettings.self, from: rawData),
+           let cleaned = try? JSONEncoder().encode(decoded) {
+            UserDefaults.standard.set(cleaned, forKey: key)
+        }
     }
 }

@@ -37,10 +37,13 @@ targets:
         MARKETING_VERSION: "0.1"
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: YES
+        # Partial Info.plist merged with the generated one; carries custom Sparkle keys
+        # (SUFeedURL / SUPublicEDKey / SUEnableAutomaticChecks) that INFOPLIST_KEY_* can't inject.
+        INFOPLIST_FILE: FSDMXVision/Info-Sparkle.plist
         INFOPLIST_KEY_CFBundleDisplayName: FS DMX Vision
         INFOPLIST_KEY_NSMicrophoneUsageDescription: FS DMX Vision analyzes live audio to drive visuals.
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: FS DMX Vision can expose an optional LAN control server when you enable it in settings.
-        INFOPLIST_KEY_NSHumanReadableCopyright: ""
+        INFOPLIST_KEY_NSHumanReadableCopyright: "Copyright © 2026 FS Tech. All rights reserved."
         ENABLE_HARDENED_RUNTIME: YES
         COMBINE_HIDPI_IMAGES: YES
     dependencies:

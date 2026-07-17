@@ -21,7 +21,7 @@
 ## Principles
 
 - [x] **Single control spine:** Automation flows through `RemoteControlCommand` → `AppModel.applyRemoteCommand` (see [`control-parity.md`](control-parity.md)).
-- [x] **Test-before-close:** Deterministic automation where possible; lab/field checklists for hardware-dependent behavior (DMX, multicast, receivers) — **Gate 1** (154 macOS unit tests + CI), **Gate 4** [`uat-checklist.md`](uat-checklist.md); **Gate 3a**, **3b.2**, **3c.2** remain lab/field.
+- [x] **Test-before-close:** Deterministic automation where possible; lab/field checklists for hardware-dependent behavior (DMX, multicast, receivers) — **Gate 1** (164 macOS unit tests + CI; verified green 2026-07-16), **Gate 4** [`uat-checklist.md`](uat-checklist.md); **Gate 3a**, **3b.2**, **3c.2** remain lab/field.
 - [x] **Honest boundaries:** Scaffolds stay labeled; certification statements distinguish lab-proven vs best-effort vs future — see [`lighting-roadmap.md`](lighting-roadmap.md) § *Production readiness — transport certification* and Section I in [`todo-full-implementation.md`](todo-full-implementation.md).
 - [ ] **One close-out doc PR** touching only the canonical list above — *optional consolidation when cutting a release; Gate 7 content was last synced 2026-04-19.*
 
@@ -47,7 +47,7 @@ Copy to a spreadsheet; **rows** = areas from [`project-audit-and-feature-status.
 
 | # | Task | Done |
 |---|------|------|
-| 1.1 | `xcodebuild -scheme FSDMXVision -destination 'platform=macOS' test` — all tests green | [x] — 154 tests, 0 failures (2026-04-19 local; see [`audit-execution-record.md`](audit-execution-record.md)) |
+| 1.1 | `xcodebuild -scheme FSDMXVision -destination 'platform=macOS' test` — all tests green | [x] — 164 tests, 0 failures (2026-07-16 local; 154 on 2026-04-19; see [`audit-execution-record.md`](audit-execution-record.md)) |
 | 1.2 | CI: [`show-package-smoke.yml`](../.github/workflows/show-package-smoke.yml) + `scripts/ci/smoke-show-package.sh` green | [x] — verified local run (2026-04-19) |
 | 1.3 | CI (optional): add workflow for full unit tests on macOS if cost allows — see [`todo-full-implementation.md`](todo-full-implementation.md) Section L | [x] — [`unit-tests-macos.yml`](../.github/workflows/unit-tests-macos.yml) |
 | 1.4 | Release artifact: [`release-macos-beta.yml`](../.github/workflows/release-macos-beta.yml) + `scripts/release/package-beta.sh` produces DMG/ZIP (unsigned OK for internal); document signed vs unsigned per [`release-runbook.md`](release-runbook.md) | [x] — CI + local path documented (unsigned artifact until signing secrets; see runbook § Gate 1.4) |
