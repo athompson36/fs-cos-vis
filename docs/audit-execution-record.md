@@ -1,6 +1,7 @@
 # Audit and end-to-end verification record
 
-**Run date:** 2026-04-19  
+**Original run date:** 2026-04-19
+**Latest automated re-verification:** 2026-07-16
 **Purpose:** Execution log for the plan in [`.cursor/plans`](../.cursor/plans) (full audit + E2E verification layers).
 
 ## Part A — Documentation and feature audit
@@ -19,8 +20,8 @@
 
 | Check | Result |
 |-------|--------|
-| Full macOS unit tests | **199** tests, **0** failures — `xcodebuild -scheme FSDMXVision -destination 'platform=macOS' test` (re-verified 2026-07-16 after Show Director foundation; was 169 earlier same day, 164 before AI tests, 154 on 2026-04-19) |
-| Show-package CI parity | **2** tests — `ShowProjectAndContextTests/testShowProjectPackageRoundTrip`, `testShowProjectArchiveExportImportRoundTrip` (did not run `smoke-show-package.sh` to avoid overwriting `project.local.yml`) |
+| Full macOS unit tests | **234** tests, **0** failures — `xcodebuild test -project FSDMXVision.xcodeproj -scheme FSDMXVision -destination 'platform=macOS'` (**TEST SUCCEEDED**, re-verified 2026-07-16 after Show Director three-family adapters; prior verified baseline was 199) |
+| Show-package CI parity | **2** tests, **0** failures — `bash scripts/ci/smoke-show-package.sh` (**TEST SUCCEEDED**, re-verified 2026-07-16): `ShowProjectAndContextTests/testShowProjectPackageRoundTrip`, `testShowProjectArchiveExportImportRoundTrip` |
 
 ## Part C — Control plane smoke (Gates 2.2–2.3)
 

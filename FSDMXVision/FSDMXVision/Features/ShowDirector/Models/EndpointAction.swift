@@ -2,6 +2,7 @@ import Foundation
 
 enum EndpointAction: Equatable, Sendable {
     case recallLightingScene(id: String, sceneID: String, fadeMilliseconds: Int)
+    case recallLightingCue(id: String, cueID: String)
     case applyPalette(id: String, paletteID: String, fadeMilliseconds: Int)
     case playBackdropClip(id: String, clipID: String, transition: String, loop: Bool)
     case addOBSMarker(id: String, label: String)
@@ -17,6 +18,7 @@ enum EndpointAction: Equatable, Sendable {
     var id: String {
         switch self {
         case .recallLightingScene(let id, _, _),
+             .recallLightingCue(let id, _),
              .applyPalette(let id, _, _),
              .playBackdropClip(let id, _, _, _),
              .addOBSMarker(let id, _),
@@ -34,7 +36,7 @@ enum EndpointAction: Equatable, Sendable {
 
     var endpointKind: ShowEndpointKind {
         switch self {
-        case .recallLightingScene, .blackoutLighting:
+        case .recallLightingScene, .recallLightingCue, .blackoutLighting:
             return .lighting
         case .applyPalette:
             return .palette
@@ -56,6 +58,7 @@ enum EndpointAction: Equatable, Sendable {
     var typeName: String {
         switch self {
         case .recallLightingScene: return "recallScene"
+        case .recallLightingCue: return "recallCue"
         case .applyPalette: return "applyPalette"
         case .playBackdropClip: return "playClip"
         case .addOBSMarker: return "addMarker"
@@ -91,6 +94,7 @@ extension EndpointAction: Codable {
         case endpoint
         case type
         case sceneID = "sceneId"
+        case cueID = "cueId"
         case fadeMilliseconds = "fadeMs"
         case paletteID = "paletteId"
         case clipID = "clipId"
@@ -113,6 +117,11 @@ extension EndpointAction: Codable {
                 id: id,
                 sceneID: try c.decode(String.self, forKey: .sceneID),
                 fadeMilliseconds: try c.decode(Int.self, forKey: .fadeMilliseconds)
+            )
+        case ("lighting", "recallCue"):
+            self = .recallLightingCue(
+                id: id,
+                cueID: try c.decode(String.self, forKey: .cueID)
             )
         case ("palette", "applyPalette"):
             self = .applyPalette(
@@ -174,6 +183,8 @@ extension EndpointAction: Codable {
              .recallVisualScene(_, let sceneID, let fadeMilliseconds):
             try c.encode(sceneID, forKey: .sceneID)
             try c.encode(fadeMilliseconds, forKey: .fadeMilliseconds)
+        case .recallLightingCue(_, let cueID):
+            try c.encode(cueID, forKey: .cueID)
         case .applyPalette(_, let paletteID, let fadeMilliseconds):
             try c.encode(paletteID, forKey: .paletteID)
             try c.encode(fadeMilliseconds, forKey: .fadeMilliseconds)

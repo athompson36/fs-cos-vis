@@ -65,6 +65,28 @@ final class ShowDirectorModelTests: XCTestCase {
         }
     }
 
+    func testLightingCueAction_roundTripsWithExplicitCueID() throws {
+        let action = EndpointAction.recallLightingCue(
+            id: "action_light_intro",
+            cueID: "00000000-0000-0000-0000-000000000001"
+        )
+        let data = try ShowDirectorJSON.makeEncoder().encode(action)
+        let json = try XCTUnwrap(String(data: data, encoding: .utf8))
+        XCTAssertTrue(json.contains(#""type" : "recallCue""#))
+        XCTAssertTrue(json.contains(#""cueId" : "00000000-0000-0000-0000-000000000001""#))
+        XCTAssertEqual(try ShowDirectorJSON.makeDecoder().decode(EndpointAction.self, from: data), action)
+    }
+
+    func testLegacyLightingSceneAction_stillRoundTrips() throws {
+        let action = EndpointAction.recallLightingScene(
+            id: "legacy",
+            sceneID: "legacy-scene",
+            fadeMilliseconds: 250
+        )
+        let data = try ShowDirectorJSON.makeEncoder().encode(action)
+        XCTAssertEqual(try ShowDirectorJSON.makeDecoder().decode(EndpointAction.self, from: data), action)
+    }
+
     func testStableID_validation() {
         XCTAssertTrue(ShowDirectorStableID.isValid("show_flyover_demo"))
         XCTAssertTrue(ShowDirectorStableID.isValid("a"))

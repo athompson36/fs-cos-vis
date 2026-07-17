@@ -172,6 +172,103 @@ final class AppModelTests: XCTestCase {
         XCTAssertTrue(model.shouldRenderOverlayElement(id: textID, timeoutSeconds: 1.0))
     }
 
+    func testRecallVisualScene_selectsTargetAndStartsTransition() throws {
+        let model = AppModel()
+        let originalScenes = model.sceneManager.scenes
+        let originalIndex = model.sceneManager.currentIndex
+        defer {
+            model.sceneManager.scenes = originalScenes
+            model.sceneManager.currentIndex = originalIndex
+            model.syncRendererFromScene()
+            try? model.persistScenes()
+        }
+        let firstID = UUID(uuidString: "00000000-0000-0000-0000-000000000401")!
+        let secondID = UUID(uuidString: "00000000-0000-0000-0000-000000000402")!
+        model.sceneManager.scenes = [
+            VisualizationScene(id: firstID, name: "First", fractalMode: "julia", liquidLightEnabled: true),
+            VisualizationScene(id: secondID, name: "Second", fractalMode: "mandelbrot", liquidLightEnabled: false),
+        ]
+        model.sceneManager.currentIndex = 0
+        model.syncRendererFromScene()
+
+        try model.recallVisualScene(id: secondID)
+
+        XCTAssertEqual(model.sceneManager.currentIndex, 1)
+        XCTAssertEqual(model.activeVisualSceneID(), secondID)
+        XCTAssertEqual(
+            model.transitionState,
+            .transitioning(fromSceneID: firstID, toSceneID: secondID, progress: 0)
+        )
+    }
+
+    func testSelectPalette_updatesSelectedPaletteID() throws {
+        let model = AppModel()
+        let paletteID = UUID(uuidString: "00000000-0000-0000-0000-000000000403")!
+        model.palettes = [
+            ThemePalette(
+                id: paletteID,
+                name: "Show Director",
+                primaryHex: "#111111",
+                secondaryHex: "#222222",
+                accentHex: "#333333",
+                glowHex: "#444444"
+            ),
+        ]
+
+        try model.selectPalette(id: paletteID)
+
+        XCTAssertEqual(model.selectedPaletteID, paletteID)
+        XCTAssertEqual(model.activePaletteID(), paletteID)
+    }
+
+    func testRecallLightingCue_resolvesUUIDAndUpdatesActiveIndex() throws {
+        let model = AppModel()
+        let originalDocument = model.lightingCueDocument
+        defer { model.applyLightingCueDocument(originalDocument) }
+        let firstID = UUID(uuidString: "00000000-0000-0000-0000-000000000404")!
+        let secondID = UUID(uuidString: "00000000-0000-0000-0000-000000000405")!
+        model.applyLightingCueDocument(
+            LightingCueDocument(
+                version: 1,
+                cues: [
+                    LightingCue(id: firstID, name: "First", fadeSeconds: 0, channelValues: []),
+                    LightingCue(id: secondID, name: "Second", fadeSeconds: 1.25, channelValues: []),
+                ],
+                activeCueIndex: 0
+            )
+        )
+
+        try model.recallLightingCue(id: secondID)
+
+        XCTAssertEqual(model.lightingCueDocument.activeCueIndex, 1)
+        XCTAssertEqual(model.activeLightingCueID(), secondID)
+        XCTAssertEqual(model.lightingCueFadeSeconds(id: secondID), 1.25)
+    }
+
+    func testEndpointControls_throwTypedErrorsForMissingTargets() {
+        let model = AppModel()
+        let missingID = UUID(uuidString: "00000000-0000-0000-0000-000000000406")!
+
+        XCTAssertThrowsError(try model.recallVisualScene(id: missingID)) { error in
+            XCTAssertEqual(
+                error as? ShowDirectorEndpointControlError,
+                .targetNotFound(endpoint: .visuals, id: missingID)
+            )
+        }
+        XCTAssertThrowsError(try model.selectPalette(id: missingID)) { error in
+            XCTAssertEqual(
+                error as? ShowDirectorEndpointControlError,
+                .targetNotFound(endpoint: .palette, id: missingID)
+            )
+        }
+        XCTAssertThrowsError(try model.recallLightingCue(id: missingID)) { error in
+            XCTAssertEqual(
+                error as? ShowDirectorEndpointControlError,
+                .targetNotFound(endpoint: .lighting, id: missingID)
+            )
+        }
+    }
+
     func testSaveShowProject_createsArtifactsAndBackupOnResave() throws {
         let model = AppModel()
         let tempRoot = FileManager.default.temporaryDirectory

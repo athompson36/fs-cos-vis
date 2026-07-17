@@ -9,6 +9,13 @@ import SwiftUI
 import Syphon
 import UniformTypeIdentifiers
 
+enum ShowDirectorRuntimeStatus: Equatable, Sendable {
+    case unconfigured
+    case loading
+    case ready
+    case failed(message: String)
+}
+
 final class AppModel: ObservableObject {
     struct SetupWizardDiagnosticsSnapshot: Codable, Sendable {
         var exportedAt: Date
@@ -159,6 +166,15 @@ final class AppModel: ObservableObject {
     /// Optional Show Director graph loaded from `show-director/` inside the package.
     @Published private(set) var showDirectorGraph: ShowDirectorGraph?
     @Published private(set) var showDirectorValidationWarnings: [ShowDirectorValidationIssue] = []
+    @Published private(set) var showDirectorRuntimeStatus: ShowDirectorRuntimeStatus = .unconfigured
+    private(set) var showDirectorEngine: ShowDirectorEngine?
+    private var showDirectorConfigurationTask: Task<Void, Never>?
+    private var showDirectorConfigurationGeneration: UInt64 = 0
+    var showDirectorGraphLoader:
+        @Sendable (ShowDirectorEngine, ShowDirectorGraph, String) async -> ShowDirectorSubmitResult = {
+            engine, graph, commandID in
+            await engine.submit(.loadShow(commandID: commandID, graph: graph))
+        }
     @Published var aiAssistantLastMessage: String = ""
     @Published var liveOutputRecordingSource: LiveOutputRecordingSource = .mainLivePreview
     @Published var liveOutputRecordingQualityPreset: LiveOutputRecordingQualityPreset = .balanced
@@ -2992,6 +3008,7 @@ final class AppModel: ObservableObject {
             let showDirectorLoad = try ShowDirectorPackageStore.load(from: folder)
             showDirectorGraph = showDirectorLoad.graph
             showDirectorValidationWarnings = showDirectorLoad.validation.warnings
+            configureShowDirectorRuntime(graph: showDirectorLoad.graph, packageRoot: folder)
         } catch {
             // Do not install a partial/invalid graph; keep authored project payloads loaded.
             showDirectorGraph = nil
@@ -3003,6 +3020,7 @@ final class AppModel: ObservableObject {
                     message: error.localizedDescription
                 ),
             ]
+            failShowDirectorRuntime(message: error.localizedDescription)
         }
         LastShowProjectBookmark.save(folder)
         currentShowProjectFolder = folder
@@ -3015,6 +3033,58 @@ final class AppModel: ObservableObject {
     func replaceShowDirectorGraph(_ graph: ShowDirectorGraph?) {
         showDirectorGraph = graph
         showDirectorValidationWarnings = []
+        configureShowDirectorRuntime(graph: graph, packageRoot: currentShowProjectFolder)
+    }
+
+    @MainActor
+    func configureShowDirectorRuntime(graph: ShowDirectorGraph?, packageRoot: URL?) {
+        showDirectorConfigurationTask?.cancel()
+        showDirectorConfigurationGeneration &+= 1
+        let generation = showDirectorConfigurationGeneration
+
+        guard let graph else {
+            showDirectorEngine = nil
+            showDirectorRuntimeStatus = .unconfigured
+            showDirectorConfigurationTask = nil
+            return
+        }
+
+        showDirectorRuntimeStatus = .loading
+        showDirectorConfigurationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let adapters: [ShowEndpointAdapter] = [
+                VisualSceneEndpointAdapter(controller: self),
+                PaletteEndpointAdapter(controller: self),
+                LightingCueEndpointAdapter(controller: self),
+            ]
+            let engine = ShowDirectorEngine(
+                adapters: adapters,
+                packageRoot: packageRoot
+            )
+            let commandID = "app_load_\(generation)"
+            let result = await self.showDirectorGraphLoader(engine, graph, commandID)
+
+            guard !Task.isCancelled else { return }
+            guard generation == self.showDirectorConfigurationGeneration else { return }
+
+            switch result.disposition {
+            case .accepted:
+                self.showDirectorEngine = engine
+                self.showDirectorRuntimeStatus = .ready
+            case .rejected(let reason), .noOp(let reason):
+                self.showDirectorEngine = nil
+                self.showDirectorRuntimeStatus = .failed(message: reason)
+            }
+        }
+    }
+
+    @MainActor
+    private func failShowDirectorRuntime(message: String) {
+        showDirectorConfigurationTask?.cancel()
+        showDirectorConfigurationGeneration &+= 1
+        showDirectorConfigurationTask = nil
+        showDirectorEngine = nil
+        showDirectorRuntimeStatus = .failed(message: message)
     }
 
     @MainActor
@@ -3158,6 +3228,85 @@ final class AppModel: ObservableObject {
         } catch {
             aiAssistantLastMessage = "Assistant request failed: \(error.localizedDescription)"
         }
+    }
+}
+
+extension AppModel: VisualSceneControlling, PaletteControlling, LightingCueControlling {
+    func visualSceneIDs() -> [UUID] {
+        sceneManager.scenes.map(\.id)
+    }
+
+    func activeVisualSceneID() -> UUID? {
+        guard sceneManager.scenes.indices.contains(sceneManager.currentIndex) else { return nil }
+        return sceneManager.scenes[sceneManager.currentIndex].id
+    }
+
+    func recallVisualScene(id: UUID) throws {
+        guard let targetIndex = sceneManager.scenes.firstIndex(where: { $0.id == id }) else {
+            throw ShowDirectorEndpointControlError.targetNotFound(endpoint: .visuals, id: id)
+        }
+        let fromID = activeVisualSceneID()
+        sceneManager.currentIndex = targetIndex
+        if let fromID, fromID != id {
+            transitionState = .transitioning(fromSceneID: fromID, toSceneID: id, progress: 0)
+        }
+        syncRendererFromScene()
+        do {
+            try persistScenes()
+        } catch {
+            throw ShowDirectorEndpointControlError.persistenceFailed(
+                endpoint: .visuals,
+                message: error.localizedDescription
+            )
+        }
+        guard activeVisualSceneID() == id else {
+            throw ShowDirectorEndpointControlError.verificationFailed(endpoint: .visuals, id: id)
+        }
+    }
+
+    func paletteIDs() -> [UUID] {
+        palettes.map(\.id)
+    }
+
+    func activePaletteID() -> UUID? {
+        selectedPaletteID
+    }
+
+    func selectPalette(id: UUID) throws {
+        guard palettes.contains(where: { $0.id == id }) else {
+            throw ShowDirectorEndpointControlError.targetNotFound(endpoint: .palette, id: id)
+        }
+        selectedPaletteID = id
+        syncRendererFromScene()
+        guard activePaletteID() == id else {
+            throw ShowDirectorEndpointControlError.verificationFailed(endpoint: .palette, id: id)
+        }
+    }
+
+    func lightingCueIDs() -> [UUID] {
+        lightingDMXLock.lock()
+        defer { lightingDMXLock.unlock() }
+        return lightingCueDocument.cues.map(\.id)
+    }
+
+    func recallLightingCue(id: UUID) throws {
+        lightingDMXLock.lock()
+        let cues = lightingCueDocument.cues
+        lightingDMXLock.unlock()
+        let targetIndex = cues.firstIndex(where: { $0.id == id })
+        guard let targetIndex else {
+            throw ShowDirectorEndpointControlError.targetNotFound(endpoint: .lighting, id: id)
+        }
+        setActiveLightingCueIndex(targetIndex)
+        guard activeLightingCueID() == id else {
+            throw ShowDirectorEndpointControlError.verificationFailed(endpoint: .lighting, id: id)
+        }
+    }
+
+    func lightingCueFadeSeconds(id: UUID) -> Double? {
+        lightingDMXLock.lock()
+        defer { lightingDMXLock.unlock() }
+        return lightingCueDocument.cues.first(where: { $0.id == id })?.fadeSeconds
     }
 }
 

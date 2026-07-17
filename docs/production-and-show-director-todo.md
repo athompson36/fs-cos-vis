@@ -3,7 +3,7 @@
 **Created:** 2026-07-16
 **Scope:** Single tracked backlog from current state to production, covering (A) production readiness for the existing app and (B) the Unified Show Director program.
 
-**Audit basis:** Verified locally — project builds and the full unit suite passes (`xcodebuild -scheme FSDMXVision -destination 'platform=macOS' test` → **TEST SUCCEEDED, 199 tests, 0 failures**). Docs cross-checked against code; findings below. Sources: `docs/production-readiness-checklist.md`, `docs/todo-full-implementation.md`, `docs/07-roadmap.md`, `docs/lighting-roadmap.md`, and `docs/fs-cos-vis-show-director-context/`.
+**Audit basis:** Verified locally 2026-07-16 — project builds and the full unit suite passes (`xcodebuild test -project FSDMXVision.xcodeproj -scheme FSDMXVision -destination 'platform=macOS'` → **TEST SUCCEEDED, 234 tests, 0 failures**); the show-package smoke passes **2 tests, 0 failures**. Docs cross-checked against code; findings below. Sources: `docs/production-readiness-checklist.md`, `docs/todo-full-implementation.md`, `docs/07-roadmap.md`, `docs/lighting-roadmap.md`, and `docs/fs-cos-vis-show-director-context/`.
 
 **Legend:** `[ ]` open · `[~]` partial · `[x]` done. Priorities: **P0** ship blocker · **P1** validation gate · **P2** correctness/cleanup · **P3** deferred/optional.
 
@@ -48,7 +48,7 @@
 - [x] A22. Document universe-0-only cue/modulation/haze limit — **done** (backlog §I).
 - [x] A23. Document outbound sACN single-host behavior — **done** (backlog §I).
 - [x] A24. Correct "RDM is mock only" claim — **done** (backlog §I + `lighting-roadmap.md` RDM row).
-- [x] A25. Update test-count references (154 → 164) — **done** (`production-readiness-checklist.md`, `audit-execution-record.md`).
+- [x] A25. Keep test-count references current — **done** (234 tests, 0 failures verified 2026-07-16; `production-readiness-checklist.md`, `audit-execution-record.md`).
 - [x] A26. Remove dead code — **done** (2026-07-16): removed `LightingPatchOperation`/`LightingCopilotValidationError`/`validate`; dropped unused `copilot` param from `AIToolRegistry.execute`.
 - [x] A27. Friendlier operator error when AI reply is not valid JSON tool calls. **Done** (2026-07-16): `AIToolExecutionError.invalidToolCallReply` with expected-shape copy + reply preview; strips markdown fences; unit tests in `AIToolRegistryTests`.
 
@@ -71,7 +71,7 @@ Source: `docs/fs-cos-vis-show-director-context/`. Build strictly bottom-up. Redu
 
 **Codebase reality-check:**
 - **Foundation shipped (SD-M0–M3):** typed models, validation/migration, `show-director/` package store, pure reducer, actor engine, fake adapters, execution JSONL — see `Features/ShowDirector/` and the foundation design spec.
-- Adapters that wrap existing services: lighting cues, palette, visual scene (`SceneManager`), recording (`CaptureSession`), overlay cards — present today as app services; **real Show Director adapters are SD-M4**.
+- **SD-M4 slice 1 shipped:** real visual-scene, palette, and lighting-cue adapters; AppModel-owned runtime engine; verified three-family acceptance. Recording and overlay services exist in the app, but their Show Director adapters remain deferred.
 - **Net-new remaining:** backdrop **video playback**, **OBS** WebSocket, **Traktor/Maschine/Ableton Link**, **iPhone/Apple Watch** companions, **audio-routing profiles**, Guided Setlist UI (SD-M5), remote protocol v2 (SD-M6).
 
 ### SD-M0 — Persistence & cross-cutting
@@ -106,15 +106,15 @@ Source: `docs/fs-cos-vis-show-director-context/`. Build strictly bottom-up. Redu
 
 ### SD-M4 — Real endpoint adapters (wrap existing services)
 
-- [ ] SD-4.1 `VisualSceneEndpointAdapter` → `SceneManager`.
-- [ ] SD-4.2 `PaletteEndpointAdapter` → palette stores.
-- [ ] SD-4.3 `LightingEndpointAdapter` → `applyDMXPatchDocument` / cue APIs (+ safety: blackout/park/kill-strobe/restore).
+- [x] SD-4.1 `VisualSceneEndpointAdapter` → `SceneManager`. **Done** (2026-07-16): stable scene UUID recall with mutation read-back verification.
+- [x] SD-4.2 `PaletteEndpointAdapter` → palette stores. **Done** (2026-07-16): stable palette UUID selection with mutation read-back verification.
+- [~] SD-4.3 Lighting adapter. **Lighting-cue recall done** (2026-07-16): stable cue UUID resolution and verified activation through existing cue semantics. **Still open:** intensity, movement, strobe, kill-strobe, blackout/park/restore-safe-look, and explicit safety limits.
 - [ ] SD-4.4 `BackdropVideoEndpointAdapter` — **net-new**: `AVPlayer`-based clip playback (play/loop/transition/opacity/blackout) to preview + external/Syphon output.
 - [ ] SD-4.5 `OverlayEndpointAdapter` → overlay cards (lower-third/lyrics/logo/title/hide-all).
 - [ ] SD-4.6 `RecordingEndpointAdapter` → `CaptureSession` (start/stop/marker/naming).
 - [ ] SD-4.7 `UtilityEndpointAdapter` (house look, intermission, applause, safe mode).
-- [ ] SD-4.8 Per-endpoint health reporting; clean `unsupported` result when a service is missing.
-- [ ] SD-4.9 Acceptance: one cue package fires ≥3 endpoint families.
+- [~] SD-4.8 Per-endpoint health reporting. **Done for visual scene, palette, and lighting cue**; full endpoint coverage and missing-service `unsupported` handling remain open.
+- [x] SD-4.9 Acceptance: one cue package fires ≥3 endpoint families. **Done** (2026-07-16): `ShowDirectorThreeFamilyAcceptanceTests` passed for ordered visual-scene, palette, and lighting-cue execution.
 
 ### SD-M5 — Guided Setlist workspace
 
@@ -160,7 +160,7 @@ Source: `docs/fs-cos-vis-show-director-context/`. Build strictly bottom-up. Redu
 
 1. **Now (in-repo):** Part A P0 security (A8–A12) + Sparkle Info.plist (A1–A2); Part A P2 doc/cleanup (A18–A27).
 2. **Parallel (pure Swift, no hardware):** SD-M1 → SD-M2 → SD-M3.
-3. **Then:** SD-M4 (adapters, incl. net-new video) → SD-M5 (Setlist UI).
+3. **Then:** Continue deferred SD-M4 adapters (including net-new video, overlay, recording, utility, and safety expansion) → SD-M5 (Setlist UI).
 4. **Release ops (needs Apple account):** A3–A7.
 5. **Hardware/operator when available:** A13–A17.
 6. **Later:** SD-M6 (protocol v2 + phone/watch) → SD-M7 (DJ) → SD-M8 (OBS/QLC+/audio/automation); Part A P3.

@@ -1,6 +1,6 @@
 # Roadmap
 
-## Status snapshot (2026-04-19)
+## Status snapshot (2026-07-16)
 
 High-level status. Keep aligned with [`project-audit-and-feature-status.md`](project-audit-and-feature-status.md), [`todo-full-implementation.md`](todo-full-implementation.md), and [`03-ui-ux-spec.md`](03-ui-ux-spec.md). Installer choices: [`macOS-installer-options.md`](macOS-installer-options.md).
 
@@ -35,10 +35,11 @@ High-level status. Keep aligned with [`project-audit-and-feature-status.md`](pro
 - **Syphon** vendored in-repo ([`Vendor/Syphon-Framework`](../Vendor/Syphon-Framework)) for screen/texture sharing
 - **Production readiness (documentation + automation hooks):** [`production-readiness-checklist.md`](production-readiness-checklist.md), [`uat-checklist.md`](uat-checklist.md), [`control-plane-smoke.md`](control-plane-smoke.md), transport certification in [`lighting-roadmap.md`](lighting-roadmap.md); CI — [`unit-tests-macos.yml`](../.github/workflows/unit-tests-macos.yml) + [`show-package-smoke.yml`](../.github/workflows/show-package-smoke.yml)
 - **Unified Show Director foundation (SD-M0–M3):** typed show graph, validation/migration, `show-director/` package persistence under existing `Media/`, pure reducer, actor engine with fake adapters and execution JSONL — design [`superpowers/specs/2026-07-16-show-director-foundation-design.md`](superpowers/specs/2026-07-16-show-director-foundation-design.md); tracking [`production-and-show-director-todo.md`](production-and-show-director-todo.md)
+- **Unified Show Director SD-M4 slice 1:** AppModel-owned runtime plus real, read-back-verified visual-scene, palette, and lighting-cue adapters; ordered three-family acceptance passed. Package smoke passed 2 tests and the full macOS suite passed 234 tests with 0 failures on 2026-07-16.
 
 ## In progress
 
-- Show Director **real endpoint adapters** (SD-M4) and Guided Setlist UI (SD-M5)
+- Show Director **remaining endpoint adapters** (SD-M4: safety expansion, video, overlay, recording, utility, and full health coverage) and Guided Setlist UI (SD-M5)
 - Fixture verification **quality** pass: optional deeper CV / geometry beyond current confidence where scope requires it
 - Stage plot UX: ongoing polish (camera guidance, editing, scan/correction loops)
 - **Authoring consolidation (documented):** Palette Browser and Overlay Manager are **not** separate app screens — they live in **Scene Studio**; Live Show includes quick palette access
